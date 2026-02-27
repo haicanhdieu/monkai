@@ -1,0 +1,21 @@
+# Generated artifacts - never commit
+data/raw/
+data/crawl-state.json
+data/index.json
+logs/
+
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# devbox
+.devbox/
+
+# IDE
+.idea/
+.vscode/
+*.DS_Store

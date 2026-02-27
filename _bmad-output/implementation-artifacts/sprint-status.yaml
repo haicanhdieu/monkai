@@ -1,0 +1,73 @@
+# generated: 2026-02-27
+# project: monkai
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-02-27
+project: monkai
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Project Foundation & Core Infrastructure
+  epic-1: done
+  1-1-project-environment-setup: done
+  1-2-source-configuration-file: done
+  1-3-shared-data-models: done
+  1-4-core-utilities-package: done
+  1-5-unit-tests-for-core-utilities: done
+  epic-1-retrospective: optional
+
+  # Epic 2: Web Crawler — Scripture File Collection
+  epic-2: in-progress
+  2-1-crawler-cli-shell-robots-txt-compliance: ready-for-dev
+  2-2-catalog-page-fetch-scripture-url-extraction: ready-for-dev
+  2-3-async-file-download-file-storage-rate-limiting: ready-for-dev
+  2-4-crawl-state-tracking-per-url-logging-incremental-resumable-mode: ready-for-dev
+  2-5-content-deduplication-all-4-sources-configured: ready-for-dev
+  epic-2-retrospective: optional
+
+  # Epic 3: Metadata Extraction & Index Management
+  epic-3: backlog
+  3-1-metadata-extractor-first-source-parser-py: backlog
+  3-2-parser-extended-to-all-4-sources-edge-cases: backlog
+  3-3-index-builder-indexer-py: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Data Quality Validation & Phase 2 Handoff
+  epic-4: backlog
+  4-1-schema-validation-utility-validate-py: backlog
+  4-2-run-summary-report-corpus-quality-audit: backlog
+  4-3-end-to-end-pipeline-command-phase-2-handoff-verification: backlog
+  epic-4-retrospective: optional

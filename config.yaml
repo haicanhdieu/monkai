@@ -1,0 +1,20 @@
+# config.yaml — Monkai Crawler Configuration
+# All pipeline modules read from this file via utils/config.py
+# To add a new source: add a new entry to 'sources' — no code changes needed (NFR9)
+
+output_dir: data
+log_file: logs/crawl.log
+
+sources:
+  - name: thuvienhoasen
+    seed_url: https://thuvienhoasen.org/p16a0/kinh-dien
+    rate_limit_seconds: 1.5
+    output_folder: thuvienhoasen
+    file_type_hints:
+      - html
+    css_selectors:
+      catalog_links: "a.list-item-title"      # selector for scripture page links on catalog
+      file_links: "a.download-link"            # selector for file download links on scripture page
+      title: "h1.entry-title"                  # selector for scripture title
+      category: ".breadcrumb li:nth-child(2)"  # selector for tradition/category
+      subcategory: ".breadcrumb li:last-child" # selector for subcategory
