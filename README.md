@@ -66,11 +66,11 @@ flowchart TD
 | Data models (Pydantic) | ✅ Complete |
 | Utilities package | ✅ Complete |
 | Web crawler (`crawler.py`) | ✅ Complete |
-| 113 tests passing | ✅ Complete |
-| Metadata parser (`parser.py`) | ⏳ In progress |
-| Index builder (`indexer.py`) | ⏳ In progress |
-| Validation utility (`validate.py`) | ⏳ In progress |
-| Book builder (`book_builder.py`) | ⏳ In progress |
+| 177 tests passing | ✅ Complete |
+| Metadata parser (`parser.py`) | ✅ Complete |
+| Index builder (`indexer.py`) | ✅ Complete |
+| Validation utility (`validate.py`) | ✅ Complete |
+| Book builder (`book_builder.py`) | ✅ Complete |
 | Phase 2 — AI chat interface | 📋 Planned |
 | Phase 3 — Advanced features | 📋 Planned |
 
@@ -94,7 +94,7 @@ devbox run test
 devbox run crawl
 ```
 
-You'll see 113 tests passing.
+You'll see 177 tests passing.
 
 ## Installation
 
@@ -279,9 +279,9 @@ Build a structured, validated corpus of Buddhist scriptures.
 - [x] Unit test coverage (113 tests)
 - [x] Web crawler with async download, rate limiting, and deduplication
 - [x] All 4 sources configured in `config.yaml`
-- [ ] Metadata parser with CSS selector extraction
-- [ ] Index builder generating `data/index.json`
-- [ ] Validation utility with quality gate reporting
+- [x] Metadata parser with CSS selector extraction
+- [x] Index builder generating `data/index.json`
+- [x] Validation utility with quality gate reporting
 
 ### Phase 2 — AI Chat Interface
 
