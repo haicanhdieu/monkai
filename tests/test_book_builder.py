@@ -10,7 +10,6 @@ import json
 import logging
 from pathlib import Path
 
-import pytest
 
 from book_builder import build_books
 

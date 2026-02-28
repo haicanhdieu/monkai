@@ -66,10 +66,10 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Data Quality Validation & Phase 2 Handoff
-  epic-4: backlog
-  4-1-schema-validation-utility-validate-py: backlog
-  4-2-run-summary-report-corpus-quality-audit: backlog
-  4-3-end-to-end-pipeline-command-phase-2-handoff-verification: backlog
+  epic-4: done
+  4-1-schema-validation-utility-validate-py: done
+  4-2-run-summary-report-corpus-quality-audit: done
+  4-3-end-to-end-pipeline-command-phase-2-handoff-verification: done
   epic-4-retrospective: optional
 
   # Epic 5: ThuvienKinhPhat Parser Fix & EPUB Book Builder

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import typer
 
-from models import CrawlerConfig, SourceConfig
 from utils.config import load_config
 from utils.logging import setup_logger
 from utils.slugify import make_id

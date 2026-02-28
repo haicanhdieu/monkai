@@ -16,7 +16,8 @@
       "build": "uv run python book_builder.py",
       "test": "uv run pytest",
       "lint": "uv run ruff check .",
-      "format": "uv run ruff format ."
+      "format": "uv run ruff format .",
+      "pipeline": "python pipeline.py"
     }
   }
 }
