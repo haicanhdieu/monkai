@@ -1,6 +1,6 @@
 # Story 2.1: Crawler CLI Shell + robots.txt Compliance
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -27,21 +27,21 @@ so that every crawl session is ethically compliant from the first request.
 
 ## Tasks / Subtasks
 
-- [ ] Create `crawler.py` with Typer CLI skeleton (AC: 1, 2)
-  - [ ] Define `crawl` command with `--source` (default `all`) and `--config` (default `config.yaml`) options
-  - [ ] Import and call `load_config()` from `utils/config.py` — exit loudly on ValidationError before any network call
-  - [ ] Import and call `setup_logger("crawler")` from `utils/logging.py` at startup
-  - [ ] Initialize `RobotsCache` from `utils/robots.py` once per session (not per URL)
-  - [ ] Wire `--help` auto-generation via Typer (no manual help text needed)
-- [ ] Implement robots.txt check + skip logic (AC: 3)
-  - [ ] Before any URL fetch, call `robots_allowed(cache, url)` from `utils/robots.py`
-  - [ ] If blocked: `logger.warning(f"[crawler] robots.txt blocked: {url}")` and `continue`
-  - [ ] Never attempt download on blocked URL; log and move on
-- [ ] Stub out async crawl loop placeholder (for Story 2.2 to fill in)
-  - [ ] Accept resolved source list (all or single) and iterate
-  - [ ] `pass` or `logger.info(f"[crawler] Starting crawl for {source.name}")` as body
-- [ ] Verify `uv run python crawler.py --help` shows expected output (AC: 1)
-- [ ] Verify config validation fails loudly before any network call when config is malformed (AC: 2)
+- [x] Create `crawler.py` with Typer CLI skeleton (AC: 1, 2)
+  - [x] Define `crawl` command with `--source` (default `all`) and `--config` (default `config.yaml`) options
+  - [x] Import and call `load_config()` from `utils/config.py` — exit loudly on ValidationError before any network call
+  - [x] Import and call `setup_logger("crawler")` from `utils/logging.py` at startup
+  - [x] Initialize `RobotsCache` from `utils/robots.py` once per session (not per URL)
+  - [x] Wire `--help` auto-generation via Typer (no manual help text needed)
+- [x] Implement robots.txt check + skip logic (AC: 3)
+  - [x] Before any URL fetch, call `robots_allowed(cache, url)` from `utils/robots.py`
+  - [x] If blocked: `logger.warning(f"[crawler] robots.txt blocked: {url}")` and `continue`
+  - [x] Never attempt download on blocked URL; log and move on
+- [x] Stub out async crawl loop placeholder (for Story 2.2 to fill in)
+  - [x] Accept resolved source list (all or single) and iterate
+  - [x] `pass` or `logger.info(f"[crawler] Starting crawl for {source.name}")` as body
+- [x] Verify `uv run python crawler.py --help` shows expected output (AC: 1)
+- [x] Verify config validation fails loudly before any network call when config is malformed (AC: 2)
 
 ## Dev Notes
 
@@ -171,4 +171,19 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- Implemented `crawler.py` at project root with Typer CLI: `--source` (default `all`) and `--config` (default `config.yaml`) options
+- `load_config()` called before `RobotsCache` init — malformed configs exit before any network call (AC: 2 satisfied)
+- `RobotsCache` initialized once per session, passed to `crawl_all` async function (NFR13 satisfied)
+- `crawl_all` is a stub async loop logging "Starting crawl for {source.name}" — ready for Story 2.2 to expand
+- robots.txt enforcement pattern implemented: `robots_allowed()` checked before any URL fetch, warning logged and URL skipped if blocked (AC: 3 satisfied)
+- 11 new tests in `tests/test_crawler.py`; all 46 tests pass with no regressions
+- `uv run python crawler.py --help` shows `--source` (values: any or 'all') and `--config` options ✓
+
 ### File List
+
+- crawler.py (created)
+- tests/test_crawler.py (created)
+
+### Change Log
+
+- 2026-02-27: Story 2.1 implemented — crawler.py CLI shell with robots.txt compliance, 11 tests added

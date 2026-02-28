@@ -1,6 +1,6 @@
 # Story 2.5: Content Deduplication + All 4 Sources Configured
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -27,22 +27,22 @@ so that the corpus has < 2% duplicate rate and any 5th source can be added via c
 
 ## Tasks / Subtasks
 
-- [ ] Integrate `sha256_hash` deduplication into download loop (AC: 1)
-  - [ ] Initialize `seen_hashes: set[str] = set()` at the start of each session (not per source)
-  - [ ] After reading content bytes: `file_hash = sha256_hash(content)`
-  - [ ] `if is_duplicate(file_hash, seen_hashes): log + state.mark_skipped(url) + continue`
-  - [ ] After confirming not a duplicate: `seen_hashes.add(file_hash)` then save file
-  - [ ] `is_duplicate()` MUST NOT mutate `seen_hashes` — add hash manually after confirming unique
-- [ ] Add all 4 sources to `config.yaml` (AC: 2)
-  - [ ] Keep existing `thuvienhoasen` entry unchanged
-  - [ ] Add `budsas` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
-  - [ ] Add `chuabaphung` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
-  - [ ] Add `dhammadownload` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
-  - [ ] Validate all 4 sources pass Pydantic SourceConfig validation: `load_config("config.yaml")` succeeds
-- [ ] Verify config-only extensibility (AC: 3)
-  - [ ] No source names or URLs hardcoded in `crawler.py` — all driven from `config.yaml`
-  - [ ] Any new source with valid fields in config works with `--source <name>` without code change
-- [ ] Run full `--source all` and confirm 4 output directories are created (AC: 2)
+- [x] Integrate `sha256_hash` deduplication into download loop (AC: 1)
+  - [x] Initialize `seen_hashes: set[str] = set()` at the start of each session (not per source)
+  - [x] After reading content bytes: `file_hash = sha256_hash(content)`
+  - [x] `if is_duplicate(file_hash, seen_hashes): log + state.mark_skipped(url) + continue`
+  - [x] After confirming not a duplicate: `seen_hashes.add(file_hash)` then save file
+  - [x] `is_duplicate()` MUST NOT mutate `seen_hashes` — add hash manually after confirming unique
+- [x] Add all 4 sources to `config.yaml` (AC: 2)
+  - [x] Keep existing `thuvienhoasen` entry unchanged
+  - [x] Add `budsas` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
+  - [x] Add `chuabaphung` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
+  - [x] Add `dhammadownload` with real seed URL, rate_limit_seconds ≥ 1.0, correct css_selectors
+  - [x] Validate all 4 sources pass Pydantic SourceConfig validation: `load_config("config.yaml")` succeeds
+- [x] Verify config-only extensibility (AC: 3)
+  - [x] No source names or URLs hardcoded in `crawler.py` — all driven from `config.yaml`
+  - [x] Any new source with valid fields in config works with `--source <name>` without code change
+- [x] Run full `--source all` and confirm 4 output directories are created (AC: 2)
 
 ## Dev Notes
 
@@ -197,4 +197,21 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- `seen_hashes: set[str] = set()` initialized once in `crawl_all()`, shared across all sources for cross-source dedup
+- Dedup check inserted AFTER completeness check, BEFORE file save: `sha256_hash(content)` → `is_duplicate()` → if dup: log + `mark_skipped` + `save()` + continue; else: `seen_hashes.add(hash)` → save file → `mark_downloaded`
+- Log message: `[crawler] Duplicate detected (hash match): {url} — skipping`
+- config.yaml updated with 3 new sources (budsas, chuabaphung, dhammadownload): all pass Pydantic validation, rate_limits ≥ 1.0, distinct output_folders
+- No hardcoded source names in crawler.py — fully config-driven (NFR9 satisfied)
+- 11 new tests in `tests/test_deduplication.py`; 113 total tests pass, ruff linting clean
+
 ### File List
+
+- crawler.py (modified — added sha256_hash/is_duplicate integration, seen_hashes session scope)
+- config.yaml (modified — added budsas, chuabaphung, dhammadownload sources)
+- tests/test_deduplication.py (created)
+- _bmad-output/implementation-artifacts/sprint-status.yaml (modified — story statuses updated)
+
+### Change Log
+
+- 2026-02-27: Story 2.5 implemented — content deduplication, all 4 sources configured, 11 tests added
+- 2026-02-28: Code review fixes applied across epic 2 — HIGH: Content-Type header now captured from response and passed to detect_format (AC 1 tier 2 live); category subdirectory now applied to file path using CATEGORY_SLUG; title_slug extracted from scripture page and used in derive_filename. MEDIUM: resolve_file_url rate-limited before HTTP request (NFR12); fetch_catalog_urls and resolve_file_url now check HTTP status (4xx/5xx logged as ERROR); CrawlState initialised with explicit path "data/crawl-state.json"; resolve_file_url returns ScriptureResolution(file_url, title_slug, category_slug); failed resolves tracked in state; test_state_saved_after_successful_download rewritten to test crawl_all pipeline; sprint-status.yaml added to File List. All 113 tests pass.

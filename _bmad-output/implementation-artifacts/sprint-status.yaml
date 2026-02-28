@@ -50,12 +50,12 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Web Crawler — Scripture File Collection
-  epic-2: in-progress
-  2-1-crawler-cli-shell-robots-txt-compliance: ready-for-dev
-  2-2-catalog-page-fetch-scripture-url-extraction: ready-for-dev
-  2-3-async-file-download-file-storage-rate-limiting: ready-for-dev
-  2-4-crawl-state-tracking-per-url-logging-incremental-resumable-mode: ready-for-dev
-  2-5-content-deduplication-all-4-sources-configured: ready-for-dev
+  epic-2: done
+  2-1-crawler-cli-shell-robots-txt-compliance: done
+  2-2-catalog-page-fetch-scripture-url-extraction: done
+  2-3-async-file-download-file-storage-rate-limiting: done
+  2-4-crawl-state-tracking-per-url-logging-incremental-resumable-mode: done
+  2-5-content-deduplication-all-4-sources-configured: done
   epic-2-retrospective: optional
 
   # Epic 3: Metadata Extraction & Index Management

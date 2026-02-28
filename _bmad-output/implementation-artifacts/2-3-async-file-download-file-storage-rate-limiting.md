@@ -1,6 +1,6 @@
 # Story 2.3: Async File Download + File Storage + Rate Limiting
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -30,33 +30,33 @@ so that I can collect files from all sources efficiently while respecting each s
 
 ## Tasks / Subtasks
 
-- [ ] Implement file format detection (AC: 1)
-  - [ ] `detect_format(url, content_type, file_type_hints) -> str` — returns `"html"`, `"pdf"`, `"epub"`, or `"other"`
-  - [ ] Priority: (1) URL path extension → (2) Content-Type header → (3) first entry in `file_type_hints`
-  - [ ] Map MIME types: `"text/html"` → `"html"`, `"application/pdf"` → `"pdf"`, `"application/epub+zip"` → `"epub"`
-- [ ] Implement filename derivation (AC: 1)
-  - [ ] `derive_filename(url, title_slug, file_format) -> str`
-  - [ ] Prefer: last path segment of URL if it has a clean extension (no query strings)
-  - [ ] Fallback: `f"{title_slug}.{file_format}"` using `make_id`-compatible slug
-  - [ ] Never return empty string — always return a valid filename
-- [ ] Implement directory creation and file write (AC: 1)
-  - [ ] `save_file(content: bytes, file_path: Path) -> None`
-  - [ ] `file_path.parent.mkdir(parents=True, exist_ok=True)` — create dirs as needed
-  - [ ] Write raw bytes exactly: `file_path.write_bytes(content)` — NO encoding/decoding
-- [ ] Implement HTML completeness check (AC: 3)
-  - [ ] `is_complete_html(content: bytes) -> bool` — returns `True` if `file size > 0` AND `b"</html>"` (case-insensitive) in last 512 bytes
-  - [ ] For PDF/EPUB: `len(content) > 0` only
-  - [ ] If incomplete: log warning, mark as `error` in state, do NOT write file to disk
-- [ ] Implement async download loop with rate limiting (AC: 2)
-  - [ ] `download_scripture_file(url, source_config, session, state, logger) -> bytes | None`
-  - [ ] `aiohttp.TCPConnector(limit_per_host=2)` — created once in `crawl_all()`
-  - [ ] `await asyncio.sleep(source_config.rate_limit_seconds)` BEFORE each download request
-  - [ ] On HTTP error (4xx/5xx): log `[ERROR]` + `state.mark_error(url)` + return `None`
-  - [ ] On timeout/network error: same error handling pattern
-- [ ] Integrate two-phase URL resolution for thuvienhoasen (catalog → scripture page → file)
-  - [ ] `catalog_links` selector gives scripture page URLs (from Story 2.2)
-  - [ ] From each scripture page: use `file_links` selector to get actual download URL
-  - [ ] If no `file_links` match: treat the scripture page URL itself as the download target
+- [x] Implement file format detection (AC: 1)
+  - [x] `detect_format(url, content_type, file_type_hints) -> str` — returns `"html"`, `"pdf"`, `"epub"`, or `"other"`
+  - [x] Priority: (1) URL path extension → (2) Content-Type header → (3) first entry in `file_type_hints`
+  - [x] Map MIME types: `"text/html"` → `"html"`, `"application/pdf"` → `"pdf"`, `"application/epub+zip"` → `"epub"`
+- [x] Implement filename derivation (AC: 1)
+  - [x] `derive_filename(url, title_slug, file_format) -> str`
+  - [x] Prefer: last path segment of URL if it has a clean extension (no query strings)
+  - [x] Fallback: `f"{title_slug}.{file_format}"` using `make_id`-compatible slug
+  - [x] Never return empty string — always return a valid filename
+- [x] Implement directory creation and file write (AC: 1)
+  - [x] `save_file(content: bytes, file_path: Path) -> None`
+  - [x] `file_path.parent.mkdir(parents=True, exist_ok=True)` — create dirs as needed
+  - [x] Write raw bytes exactly: `file_path.write_bytes(content)` — NO encoding/decoding
+- [x] Implement HTML completeness check (AC: 3)
+  - [x] `is_complete_html(content: bytes, file_format: str) -> bool` — returns `True` if `file size > 0` AND `b"</html>"` (case-insensitive) in last 512 bytes
+  - [x] For PDF/EPUB: `len(content) > 0` only
+  - [x] If incomplete: log warning, mark as `error` in state, do NOT write file to disk
+- [x] Implement async download loop with rate limiting (AC: 2)
+  - [x] `download_scripture_file(url, source_config, session, state, logger) -> bytes | None`
+  - [x] `aiohttp.TCPConnector(limit_per_host=2)` — created once in `crawl_all()`
+  - [x] `await asyncio.sleep(source_config.rate_limit_seconds)` BEFORE each download request
+  - [x] On HTTP error (4xx/5xx): log `[ERROR]` + `state.mark_error(url)` + return `None`
+  - [x] On timeout/network error: same error handling pattern
+- [x] Integrate two-phase URL resolution for thuvienhoasen (catalog → scripture page → file)
+  - [x] `catalog_links` selector gives scripture page URLs (from Story 2.2)
+  - [x] From each scripture page: use `file_links` selector to get actual download URL
+  - [x] If no `file_links` match: treat the scripture page URL itself as the download target
 
 ## Dev Notes
 
@@ -257,4 +257,20 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- `detect_format()`: 3-tier priority (URL ext → Content-Type → hints); maps html/htm, pdf, epub MIME types
+- `derive_filename()`: uses URL last segment if clean extension; falls back to `{slug}.{format}`; never empty
+- `save_file()`: raw bytes write via `write_bytes()`; parents created with `mkdir(parents=True, exist_ok=True)`
+- `is_complete_html()`: checks last 512 bytes for `</html>` (case-insensitive) for HTML; non-zero size for binary formats
+- `resolve_file_url()`: two-phase resolution; robots.txt checked; falls back to page_url when no file_links match; network errors return None
+- `download_scripture_file()`: `asyncio.sleep()` BEFORE request; 4xx/5xx → mark_error + return None; exceptions → mark_error + return None
+- `crawl_all()`: integrates full pipeline — catalog fetch → resolve_file_url → download → completeness check → save → state.mark_downloaded → state.save()
+- 35 new tests in `tests/test_download.py`; 93 total tests pass, no regressions
+
 ### File List
+
+- crawler.py (modified — added detect_format, derive_filename, save_file, is_complete_html, resolve_file_url, download_scripture_file; updated crawl_all)
+- tests/test_download.py (created)
+
+### Change Log
+
+- 2026-02-27: Story 2.3 implemented — async download, file storage, rate limiting, two-phase URL resolution, 35 tests added

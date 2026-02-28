@@ -1,6 +1,6 @@
 # Story 2.2: Catalog Page Fetch + Scripture URL Extraction
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -28,24 +28,24 @@ so that I have a complete list of scripture URLs to download for each source.
 
 ## Tasks / Subtasks
 
-- [ ] Implement `fetch_catalog_urls(source_config, session, robots_cache, logger) -> list[str]` async function (AC: 1)
-  - [ ] Use `aiohttp.ClientSession` to GET `source_config.seed_url` with `User-Agent: MonkaiCrawler/1.0`
-  - [ ] Parse HTML response with `BeautifulSoup(response_text, "html.parser")`
-  - [ ] Select links using `source_config.css_selectors["catalog_links"]`
-  - [ ] Resolve relative URLs to absolute using `urllib.parse.urljoin(base_url, href)`
-  - [ ] Log: `logger.info(f"[crawler] Found {len(urls)} scripture URLs from {source_config.name}")`
-  - [ ] Wrap in per-URL try/except — log error and return empty list on failure (never crash)
-- [ ] Implement pagination support (AC: 2)
-  - [ ] Check if `source_config.pagination_selector` is set (it's `None` by default in `SourceConfig`)
-  - [ ] If set: after extracting page URLs, find next-page link using `pagination_selector`
-  - [ ] Loop until no next-page link found; `await asyncio.sleep(source_config.rate_limit_seconds)` between pages
-  - [ ] Guard against infinite loops: track visited page URLs, break if already seen
-- [ ] Handle 0-match case gracefully (AC: 3)
-  - [ ] If BeautifulSoup finds 0 elements for `catalog_links` selector: `logger.warning(f"[crawler] No URLs found for {source_config.name} with selector '{selector}'")`
-  - [ ] Return empty list — do not crash or raise
-- [ ] Integrate into `crawl_all()` function in `crawler.py`
-  - [ ] Call `fetch_catalog_urls()` per source before entering download loop
-  - [ ] Pass the URL list to the download function (Story 2.3 will implement the download)
+- [x] Implement `fetch_catalog_urls(source_config, session, robots_cache, logger) -> list[str]` async function (AC: 1)
+  - [x] Use `aiohttp.ClientSession` to GET `source_config.seed_url` with `User-Agent: MonkaiCrawler/1.0`
+  - [x] Parse HTML response with `BeautifulSoup(response_text, "html.parser")`
+  - [x] Select links using `source_config.css_selectors["catalog_links"]`
+  - [x] Resolve relative URLs to absolute using `urllib.parse.urljoin(base_url, href)`
+  - [x] Log: `logger.info(f"[crawler] Found {len(urls)} scripture URLs from {source_config.name}")`
+  - [x] Wrap in per-URL try/except — log error and return empty list on failure (never crash)
+- [x] Implement pagination support (AC: 2)
+  - [x] Check if `source_config.pagination_selector` is set (it's `None` by default in `SourceConfig`)
+  - [x] If set: after extracting page URLs, find next-page link using `pagination_selector`
+  - [x] Loop until no next-page link found; `await asyncio.sleep(source_config.rate_limit_seconds)` between pages
+  - [x] Guard against infinite loops: track visited page URLs, break if already seen
+- [x] Handle 0-match case gracefully (AC: 3)
+  - [x] If BeautifulSoup finds 0 elements for `catalog_links` selector: `logger.warning(f"[crawler] No URLs found for {source_config.name} with selector '{selector}'")`
+  - [x] Return empty list — do not crash or raise
+- [x] Integrate into `crawl_all()` function in `crawler.py`
+  - [x] Call `fetch_catalog_urls()` per source before entering download loop
+  - [x] Pass the URL list to the download function (Story 2.3 will implement the download)
 
 ## Dev Notes
 
@@ -198,4 +198,19 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- Implemented `fetch_catalog_urls()` in `crawler.py`: fetches seed URL, parses with BeautifulSoup, extracts absolute URLs using `urljoin`, logs INFO count
+- robots.txt checked before each catalog page fetch (not just download URLs)
+- Pagination loop with visited-pages guard to prevent infinite loops; `asyncio.sleep(rate_limit_seconds)` between pages
+- 0-match case: logs WARNING with selector info, returns empty list, no crash
+- Network errors caught per-page: logs ERROR and breaks loop, returns what was collected
+- `crawl_all()` updated to use shared `aiohttp.ClientSession` with `User-Agent: MonkaiCrawler/1.0`; `fetch_catalog_urls` called per source
+- 12 new tests in `tests/test_catalog_fetch.py`; 58 total tests pass, no regressions
+
 ### File List
+
+- crawler.py (modified — added fetch_catalog_urls, updated crawl_all)
+- tests/test_catalog_fetch.py (created)
+
+### Change Log
+
+- 2026-02-27: Story 2.2 implemented — catalog fetch + URL extraction, pagination, robots.txt compliance, 12 tests added

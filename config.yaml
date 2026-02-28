@@ -18,3 +18,44 @@ sources:
       title: "h1.entry-title"                  # selector for scripture title
       category: ".breadcrumb li:nth-child(2)"  # selector for tradition/category
       subcategory: ".breadcrumb li:last-child" # selector for subcategory
+
+  - name: budsas
+    seed_url: https://www.budsas.org/uni/u-kinh-nikaya/nikaya00.htm
+    rate_limit_seconds: 1.5
+    output_folder: budsas
+    file_type_hints:
+      - html
+    css_selectors:
+      catalog_links: "a[href*='.htm']"        # links to nikaya text pages
+      file_links: ""                           # page itself is the file (no separate download)
+      title: "h2, h3"                         # title in content
+      category: ""                            # always Nikaya for budsas
+      subcategory: "h1"                       # section heading
+
+  - name: chuabaphung
+    seed_url: https://chuabaphung.vn/category/kinh-dien/
+    rate_limit_seconds: 2.0
+    output_folder: chuabaphung
+    file_type_hints:
+      - html
+    pagination_selector: "a.next.page-numbers"
+    css_selectors:
+      catalog_links: "h2.entry-title a"       # post links on category page
+      file_links: ""                           # post page itself is the file
+      title: "h1.entry-title"
+      category: ".breadcrumb li:nth-child(2)"
+      subcategory: ".breadcrumb li:last-child"
+
+  - name: dhammadownload
+    seed_url: https://dhammadownload.com/Canon-text-List.htm
+    rate_limit_seconds: 1.5
+    output_folder: dhammadownload
+    file_type_hints:
+      - html
+      - pdf
+    css_selectors:
+      catalog_links: "table a[href]"          # links in the canon text table
+      file_links: "a[href$='.pdf'], a[href$='.html']"  # direct file links
+      title: "h1, h2, title"
+      category: ""
+      subcategory: ""

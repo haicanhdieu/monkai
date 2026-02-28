@@ -64,8 +64,8 @@ flowchart TD
 | Environment setup | ✅ Complete |
 | Data models (Pydantic) | ✅ Complete |
 | Utilities package | ✅ Complete |
-| Unit tests (27 passing) | ✅ Complete |
-| Web crawler (`crawler.py`) | ⏳ In progress |
+| Web crawler (`crawler.py`) | ✅ Complete |
+| 113 tests passing | ✅ Complete |
 | Metadata parser (`parser.py`) | ⏳ In progress |
 | Index builder (`indexer.py`) | ⏳ In progress |
 | Validation utility (`validate.py`) | ⏳ In progress |
@@ -87,9 +87,12 @@ uv sync
 
 # 4. Verify everything works
 devbox run test
+
+# 5. Run the crawler (all 4 sources)
+devbox run crawl
 ```
 
-You'll see 27 tests passing.
+You'll see 113 tests passing.
 
 ## Installation
 
@@ -119,6 +122,7 @@ uv sync        # reads pyproject.toml, creates .venv, installs all deps
 | Command | Description |
 |---------|-------------|
 | `devbox run test` | Run the full test suite with pytest |
+| `devbox run crawl` | Run the crawler across all 4 configured sources |
 | `devbox run lint` | Lint with ruff |
 | `devbox run format` | Format with ruff |
 
@@ -147,14 +151,16 @@ sources:
 
 **To add a new source**, append a new entry to `sources` — no code changes needed.
 
-### Planned Sources
+### Configured Sources
 
-| Source | Content |
-|--------|---------|
-| `thuvienhoasen.org` | Vietnamese triple canon (Kinh, Luật, Luận) |
-| `budsas.org` | Pali Nikaya texts |
-| `chuabaphung.vn` | Daily chanting scriptures |
-| `dhammadownload.com` | Bilingual Pali texts |
+| Source | Content | Rate Limit |
+|--------|---------|------------|
+| `thuvienhoasen.org` | Vietnamese triple canon (Kinh, Luật, Luận) | 1.5s |
+| `budsas.org` | Pali Nikaya texts | 1.5s |
+| `chuabaphung.vn` | Daily chanting scriptures | 2.0s |
+| `dhammadownload.com` | Bilingual Pali texts + PDFs | 1.5s |
+
+All sources are configured in `config.yaml`. Add a fifth source by appending a new entry — no code changes needed.
 
 ## Data Models
 
@@ -202,7 +208,8 @@ class IndexRecord(BaseModel):
 
 ```text
 monkai/
-├── config.yaml              # All source configuration
+├── config.yaml              # All source configuration (4 sources)
+├── crawler.py               # Async web crawler CLI entry point
 ├── models.py                # Pydantic data models
 ├── pyproject.toml           # Project manifest and dependencies
 ├── utils/
@@ -214,16 +221,21 @@ monkai/
 │   └── state.py             # Crawl state persistence
 ├── tests/
 │   ├── conftest.py
-│   ├── test_dedup.py
-│   ├── test_incremental.py
-│   ├── test_metadata_schema.py
-│   ├── test_robots.py
-│   └── test_slugify.py
+│   ├── test_catalog_fetch.py     # Catalog fetch + URL extraction
+│   ├── test_crawl_state_integration.py  # State tracking + resume
+│   ├── test_crawler.py           # CLI shell + robots.txt compliance
+│   ├── test_dedup.py             # SHA-256 deduplication utilities
+│   ├── test_deduplication.py     # End-to-end dedup + 4-source config
+│   ├── test_download.py          # Async download + file storage
+│   ├── test_incremental.py       # CrawlState persistence
+│   ├── test_metadata_schema.py   # Pydantic validation
+│   ├── test_robots.py            # robots.txt caching
+│   └── test_slugify.py           # Vietnamese ID generation
 ├── docs/
 │   └── ke-hoach-thu-vien-kinh-phat.md   # Full project plan (Vietnamese)
 ├── data/                    # Created on first crawl run
-│   ├── raw/                 # Downloaded files by source/category
-│   ├── crawl-state.json     # Per-URL download state
+│   ├── raw/                 # Downloaded files: source/category/filename
+│   ├── crawl-state.json     # Per-URL download state (resumable)
 │   └── index.json           # Flat manifest for Phase 2
 └── logs/                    # Rotating log files
 ```
@@ -240,9 +252,14 @@ devbox run test
 |-----------|----------------|
 | `test_slugify.py` | Vietnamese diacritic stripping, deterministic ID generation |
 | `test_metadata_schema.py` | Pydantic validation, enum constraints, JSON serialization |
-| `test_dedup.py` | SHA-256 hashing, duplicate detection |
+| `test_dedup.py` | SHA-256 hashing, duplicate detection utilities |
 | `test_robots.py` | robots.txt caching, allowed/disallowed URL checking |
 | `test_incremental.py` | Crawl state persistence, resumable operations |
+| `test_crawler.py` | CLI shell, config validation, robots.txt enforcement |
+| `test_catalog_fetch.py` | Catalog fetch, URL extraction, pagination |
+| `test_download.py` | Format detection, filename derivation, async download, rate limiting |
+| `test_crawl_state_integration.py` | State tracking, incremental skip, KeyboardInterrupt handling |
+| `test_deduplication.py` | Cross-source SHA-256 dedup, all 4 sources config validation |
 
 ## Roadmap
 
@@ -251,8 +268,9 @@ devbox run test
 Build a structured, validated corpus of Buddhist scriptures.
 
 - [x] Utility modules and data models
-- [x] Unit test coverage
-- [ ] Web crawler with async download and rate limiting
+- [x] Unit test coverage (113 tests)
+- [x] Web crawler with async download, rate limiting, and deduplication
+- [x] All 4 sources configured in `config.yaml`
 - [ ] Metadata parser with CSS selector extraction
 - [ ] Index builder generating `data/index.json`
 - [ ] Validation utility with quality gate reporting

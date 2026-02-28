@@ -1,6 +1,6 @@
 # Story 2.4: Crawl State Tracking, Per-URL Logging + Incremental/Resumable Mode
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -33,26 +33,26 @@ so that I can resume an interrupted crawl and audit exactly what happened to eve
 
 ## Tasks / Subtasks
 
-- [ ] Initialize `CrawlState` at session start (AC: 1, 3, 4)
-  - [ ] `state = CrawlState("data/crawl-state.json")` — loads existing state if file exists
-  - [ ] Pass `state` object into the async crawl functions
-  - [ ] Call `state.save()` after EVERY successful/failed URL processing (not just at end)
-- [ ] Implement incremental skip logic (AC: 3)
-  - [ ] Before downloading: `if state.is_downloaded(url): logger.info(f"[crawler] Skip (state): {url}"); continue`
-  - [ ] File exists on disk but not in state: `if file_path.exists() and file_path.stat().st_size > 0: state.mark_downloaded(url); state.save(); continue`
-  - [ ] Check state FIRST (fast dict lookup), then filesystem (slow I/O) — this order matters for performance
-- [ ] Implement per-URL success logging and state update (AC: 1)
-  - [ ] After `save_file()`: `state.mark_downloaded(url)` + `state.save()` + `logger.info(f"[crawler] Downloaded: {url} → {file_path}")`
-  - [ ] `state.save()` writes `data/crawl-state.json` to disk — call after EACH URL, not batched
-- [ ] Implement per-URL error logging and state update (AC: 2)
-  - [ ] HTTP 4xx/5xx: `logger.error(f"[crawler] HTTP {resp.status}: {url} — skipping")` + `state.mark_error(url)` + `state.save()`
-  - [ ] Network timeout: `logger.error(f"[crawler] Timeout: {url} — skipping")` + `state.mark_error(url)` + `state.save()`
-  - [ ] Generic exception: `logger.error(f"[crawler] Error downloading {url}: {e} — skipping")` + `state.mark_error(url)` + `state.save()`
-  - [ ] NEVER raise — always `continue` to next URL (NFR3)
-- [ ] Handle KeyboardInterrupt gracefully (AC: 4)
-  - [ ] Wrap the top-level `asyncio.run(crawl_all(...))` in a try/except KeyboardInterrupt
-  - [ ] On interrupt: `logger.info("[crawler] Interrupted — state saved, resumable")` and exit cleanly
-  - [ ] The state is already persisted per-URL, so no extra flush needed
+- [x] Initialize `CrawlState` at session start (AC: 1, 3, 4)
+  - [x] `state = CrawlState("data/crawl-state.json")` — loads existing state if file exists
+  - [x] Pass `state` object into the async crawl functions
+  - [x] Call `state.save()` after EVERY successful/failed URL processing (not just at end)
+- [x] Implement incremental skip logic (AC: 3)
+  - [x] Before downloading: `if state.is_downloaded(url): logger.info(f"[crawler] Skip (state): {url}"); continue`
+  - [x] File exists on disk but not in state: `if file_path.exists() and file_path.stat().st_size > 0: state.mark_downloaded(url); state.save(); continue`
+  - [x] Check state FIRST (fast dict lookup), then filesystem (slow I/O) — this order matters for performance
+- [x] Implement per-URL success logging and state update (AC: 1)
+  - [x] After `save_file()`: `state.mark_downloaded(url)` + `state.save()` + `logger.info(f"[crawler] Downloaded: {url} → {file_path}")`
+  - [x] `state.save()` writes `data/crawl-state.json` to disk — call after EACH URL, not batched
+- [x] Implement per-URL error logging and state update (AC: 2)
+  - [x] HTTP 4xx/5xx: `logger.error(f"[crawler] HTTP {resp.status}: {url} — skipping")` + `state.mark_error(url)` + `state.save()`
+  - [x] Network timeout: `logger.error(f"[crawler] Timeout: {url} — skipping")` + `state.mark_error(url)` + `state.save()`
+  - [x] Generic exception: `logger.error(f"[crawler] Error downloading {url}: {e} — skipping")` + `state.mark_error(url)` + `state.save()`
+  - [x] NEVER raise — always `continue` to next URL (NFR3)
+- [x] Handle KeyboardInterrupt gracefully (AC: 4)
+  - [x] Wrap the top-level `asyncio.run(crawl_all(...))` in a try/except KeyboardInterrupt
+  - [x] On interrupt: `logger.info("[crawler] Interrupted — state saved, resumable")` and exit cleanly
+  - [x] The state is already persisted per-URL, so no extra flush needed
 
 ## Dev Notes
 
@@ -208,4 +208,18 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+- `CrawlState()` initialized in `crawl_all()` — loads existing state on init for resumable crawls
+- State save after every URL outcome: error paths in `download_scripture_file` now call `state.save()` for 4xx, timeout, and generic exceptions
+- Incremental skip: "Skip (state):" log message added; state check FIRST, then disk repair (file exists but not tracked → `mark_downloaded + save`)
+- Disk repair via provisional file_path computed before download using URL ext + hints
+- KeyboardInterrupt wrapped in CLI `crawl` command: logs "Interrupted — state saved, resumable" and exits with code 0
+- 9 new tests in `tests/test_crawl_state_integration.py`; 102 total tests pass, no regressions
+
 ### File List
+
+- crawler.py (modified — added state.save() in error paths, "Skip (state):" log, disk repair, KeyboardInterrupt handler)
+- tests/test_crawl_state_integration.py (created)
+
+### Change Log
+
+- 2026-02-27: Story 2.4 implemented — crawl state persistence, incremental skip, disk repair, KeyboardInterrupt handling, 9 tests added
