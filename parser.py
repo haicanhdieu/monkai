@@ -38,11 +38,6 @@ CATEGORY_MAP: dict[str, str] = {
     "thien": "Thiền",
     "tịnh độ": "Tịnh Độ",
     "tinh do": "Tịnh Độ",
-    # ThuvienKinhPhat — Tipitaka baskets (Pitaka)
-    "kinh tạng": "Kinh Tạng",
-    "luật tạng": "Luật Tạng",
-    "thắng pháp tạng": "Thắng Pháp Tạng",
-    "thắng pháp": "Thắng Pháp Tạng",
 }
 
 # ThuvienKinhPhat: URL path-segment → translator name
@@ -155,7 +150,7 @@ def extract_thuvienkinhphat_metadata(
     result: dict[str, str | None] = {}
 
     # URL path maps (raw HTML has relative links — must use the passed-in URL)
-    PATH_TO_CATEGORY: dict[str, str] = {
+    PATH_TO_SUBCATEGORY: dict[str, str] = {
         "kinh-truongbo": "Kinh Tạng", "kinh-trungbo": "Kinh Tạng",
         "kinh-tangchibo": "Kinh Tạng", "kinh-tuongungbo": "Kinh Tạng",
         "kinh-tieubo1": "Kinh Tạng", "kinh-tieubo2": "Kinh Tạng",
@@ -207,9 +202,12 @@ def extract_thuvienkinhphat_metadata(
     path_parts = urlparse(url).path.strip("/").split("/")
     path_key = path_parts[1] if len(path_parts) >= 2 else ""
 
-    # Look up category and book_title from URL-path maps
-    if path_key in PATH_TO_CATEGORY:
-        result["category"] = PATH_TO_CATEGORY[path_key]
+    # All thuvienkinhphat texts are Theravada (Nikaya)
+    result["category"] = "Nikaya"
+
+    # Look up subcategory and book_title from URL-path maps
+    if path_key in PATH_TO_SUBCATEGORY:
+        result["subcategory"] = PATH_TO_SUBCATEGORY[path_key]
     if path_key in PATH_TO_BOOK_TITLE:
         result["book_title"] = PATH_TO_BOOK_TITLE[path_key]
 
@@ -413,13 +411,14 @@ def extract_metadata(
                     category = overrides["category"]  # type: ignore[assignment]
                 if overrides.get("book_title"):
                     book_title = overrides["book_title"]
+                if overrides.get("subcategory"):
+                    subcategory = overrides["subcategory"]
                 if overrides.get("chapter"):
                     chapter = overrides["chapter"]
                 if overrides.get("author_translator"):
                     author_translator = overrides["author_translator"]
                 # title = chapter (no separate title concept for thuvienkinhphat)
                 title = chapter or file_path.stem
-                subcategory = ""
 
         scripture_id = make_id(source.name, title)
         copyright_status = classify_copyright(source.name, category)

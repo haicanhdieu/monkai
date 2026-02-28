@@ -5,15 +5,18 @@
     "uv@0.10.4"
   ],
   "shell": {
-    "init_hook": ["uv sync"],
+    "init_hook": [
+      "uv sync"
+    ],
     "scripts": {
-      "crawl":    "uv run python crawler.py",
-      "parse":    "uv run python parser.py",
-      "index":    "uv run python indexer.py",
+      "crawl": "uv run python crawler.py",
+      "parse": "uv run python parser.py",
+      "index": "uv run python indexer.py",
       "validate": "uv run python validate.py",
-      "test":     "uv run pytest",
-      "lint":     "uv run ruff check .",
-      "format":   "uv run ruff format ."
+      "build": "uv run python book_builder.py",
+      "test": "uv run pytest",
+      "lint": "uv run ruff check .",
+      "format": "uv run ruff format ."
     }
   }
 }

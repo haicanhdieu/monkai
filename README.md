@@ -46,7 +46,8 @@ flowchart TD
     MetaJSON --> Indexer[indexer.py\nBuild index.json]
     Indexer --> IndexFile[data/index.json\nPhase 2 contract]
     IndexFile --> Validator[validate.py\nQuality gates]
-    Validator -->|Pass| Phase2[Phase 2\nAI Chat Interface]
+    Validator -->|Pass| BookBuilder[book_builder.py\nEPUB structure generation]
+    BookBuilder --> Phase2[Phase 2\nAI Chat Interface]
 ```
 
 ### Key Design Principles
@@ -69,6 +70,7 @@ flowchart TD
 | Metadata parser (`parser.py`) | ⏳ In progress |
 | Index builder (`indexer.py`) | ⏳ In progress |
 | Validation utility (`validate.py`) | ⏳ In progress |
+| Book builder (`book_builder.py`) | ⏳ In progress |
 | Phase 2 — AI chat interface | 📋 Planned |
 | Phase 3 — Advanced features | 📋 Planned |
 
@@ -123,6 +125,9 @@ uv sync        # reads pyproject.toml, creates .venv, installs all deps
 |---------|-------------|
 | `devbox run test` | Run the full test suite with pytest |
 | `devbox run crawl` | Run the crawler across all 4 configured sources |
+| `devbox run parse` | Run the metadata parser |
+| `devbox run index` | Build the index manifest |
+| `devbox run build` | Build the e-book manifests and structures |
 | `devbox run lint` | Lint with ruff |
 | `devbox run format` | Format with ruff |
 
@@ -210,6 +215,9 @@ class IndexRecord(BaseModel):
 monkai/
 ├── config.yaml              # All source configuration (4 sources)
 ├── crawler.py               # Async web crawler CLI entry point
+├── parser.py                # Metadata extraction
+├── indexer.py               # Index building
+├── book_builder.py          # EPUB structure compilation
 ├── models.py                # Pydantic data models
 ├── pyproject.toml           # Project manifest and dependencies
 ├── utils/

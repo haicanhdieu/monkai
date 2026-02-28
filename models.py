@@ -46,8 +46,7 @@ class ScriptureMetadata(BaseModel):
     title_pali: str | None = None    # Pali title if present, else null
     title_sanskrit: str | None = None  # Sanskrit title if present, else null
     category: Literal[
-        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ",
-        "Kinh Tạng", "Luật Tạng", "Thắng Pháp Tạng",
+        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"
     ]
     subcategory: str                 # e.g. "Trường Bộ", "Bát Nhã"
     book_collection: str | None = None  # e.g. "Tiểu Bộ - Khuddhaka Nikaya"
@@ -81,8 +80,7 @@ class IndexRecord(BaseModel):
     id: str
     title: str
     category: Literal[
-        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ",
-        "Kinh Tạng", "Luật Tạng", "Thắng Pháp Tạng",
+        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"
     ]
     subcategory: str
     source: str
