@@ -490,7 +490,7 @@ def test_parse_source_writes_meta_json(
     cfg = CrawlerConfig(sources=[thuvienhoasen_source], output_dir=str(tmp_path))
     parse_source(thuvienhoasen_source, cfg, mock_logger)
 
-    meta_path = Path(str(html_file) + ".meta.json")
+    meta_path = tmp_path / "meta" / "thuvienhoasen" / "tam-kinh.json"
     assert meta_path.exists()
     data = json.loads(meta_path.read_text(encoding="utf-8"))
     assert data["title"] == "Tâm Kinh"
@@ -499,7 +499,7 @@ def test_parse_source_writes_meta_json(
 def test_parse_source_idempotent(
     tmp_path: Path, thuvienhoasen_source: SourceConfig, mock_logger: MagicMock
 ) -> None:
-    """Second run must skip existing .meta.json without modifying it."""
+    """Second run must skip existing metadata JSON without modifying it."""
     source_dir = tmp_path / "raw" / "thuvienhoasen"
     source_dir.mkdir(parents=True)
     html_file = source_dir / "tam-kinh.html"
@@ -508,7 +508,7 @@ def test_parse_source_idempotent(
     cfg = CrawlerConfig(sources=[thuvienhoasen_source], output_dir=str(tmp_path))
 
     parse_source(thuvienhoasen_source, cfg, mock_logger)
-    meta_path = Path(str(html_file) + ".meta.json")
+    meta_path = tmp_path / "meta" / "thuvienhoasen" / "tam-kinh.json"
     mtime1 = meta_path.stat().st_mtime
 
     parse_source(thuvienhoasen_source, cfg, mock_logger)
@@ -529,7 +529,7 @@ def test_parse_source_utf8_roundtrip(
     cfg = CrawlerConfig(sources=[thuvienhoasen_source], output_dir=str(tmp_path))
     parse_source(thuvienhoasen_source, cfg, mock_logger)
 
-    meta_path = Path(str(html_file) + ".meta.json")
+    meta_path = tmp_path / "meta" / "thuvienhoasen" / "tam-kinh.json"
     raw = json.loads(meta_path.read_text(encoding="utf-8"))
     assert raw["title"] == "Tâm Kinh"
     assert raw["category"] == "Đại Thừa"

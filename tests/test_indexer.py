@@ -38,9 +38,12 @@ def make_meta_json(
     copyright_status: str = "unknown",
     *,
     create_raw_file: bool = True,
+    meta_dir: Path | None = None,
 ) -> tuple[Path, Path]:
-    """Create a .meta.json sidecar and (optionally) the raw file it references.
+    """Create a metadata JSON and (optionally) the raw file it references.
 
+    If meta_dir is provided, writes to meta_dir/{stem}.json (new data/meta/ layout).
+    Otherwise writes a sidecar .meta.json alongside the raw file (for meta_to_index_record tests).
     Returns (raw_file_path, meta_path).
     """
     raw_file = tmp_path / filename
@@ -59,7 +62,11 @@ def make_meta_json(
         copyright_status=copyright_status,
         created_at=datetime.now(timezone.utc),
     )
-    meta_path = Path(str(raw_file) + ".meta.json")
+    if meta_dir is not None:
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        meta_path = meta_dir / (Path(filename).stem + ".json")
+    else:
+        meta_path = Path(str(raw_file) + ".meta.json")
     meta_path.write_text(meta.model_dump_json(indent=2), encoding="utf-8")
     return raw_file, meta_path
 
@@ -74,48 +81,42 @@ def mock_logger() -> MagicMock:
 # ---------------------------------------------------------------------------
 
 def test_scan_meta_files_finds_all_meta_json(tmp_path: Path) -> None:
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
-    sub = raw_dir / "thuvienhoasen"
-    sub.mkdir()
-    (sub / "a.html.meta.json").touch()
-    (sub / "b.pdf.meta.json").touch()
-    (raw_dir / "budsas").mkdir()
-    (raw_dir / "budsas" / "c.html.meta.json").touch()
+    meta_dir = tmp_path / "meta"
+    sub = meta_dir / "thuvienhoasen"
+    sub.mkdir(parents=True)
+    (sub / "a.json").touch()
+    (sub / "b.json").touch()
+    (meta_dir / "budsas").mkdir()
+    (meta_dir / "budsas" / "c.json").touch()
 
     result = scan_meta_files(tmp_path)
     assert len(result) == 3
 
 
-def test_scan_meta_files_skips_non_meta(tmp_path: Path) -> None:
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
-    (raw_dir / "a.html").touch()
-    (raw_dir / "a.html.meta.json").touch()
-    (raw_dir / "b.pdf").touch()
+def test_scan_meta_files_skips_non_json(tmp_path: Path) -> None:
+    meta_dir = tmp_path / "meta"
+    meta_dir.mkdir(parents=True)
+    (meta_dir / "a.json").touch()
+    (meta_dir / "a.html").touch()  # non-json should be skipped
 
     result = scan_meta_files(tmp_path)
     assert len(result) == 1
-    assert result[0].name == "a.html.meta.json"
+    assert result[0].name == "a.json"
 
 
 def test_scan_meta_files_sorted(tmp_path: Path) -> None:
-    raw_dir = tmp_path / "raw"
-    raw_dir.mkdir()
-    (raw_dir / "c.html.meta.json").touch()
-    (raw_dir / "a.html.meta.json").touch()
-    (raw_dir / "b.html.meta.json").touch()
+    meta_dir = tmp_path / "meta"
+    meta_dir.mkdir(parents=True)
+    (meta_dir / "c.json").touch()
+    (meta_dir / "a.json").touch()
+    (meta_dir / "b.json").touch()
 
     result = scan_meta_files(tmp_path)
-    assert [f.name for f in result] == [
-        "a.html.meta.json",
-        "b.html.meta.json",
-        "c.html.meta.json",
-    ]
+    assert [f.name for f in result] == ["a.json", "b.json", "c.json"]
 
 
-def test_scan_meta_files_returns_empty_if_raw_missing(tmp_path: Path) -> None:
-    result = scan_meta_files(tmp_path)  # no raw/ dir
+def test_scan_meta_files_returns_empty_if_meta_missing(tmp_path: Path) -> None:
+    result = scan_meta_files(tmp_path)  # no meta/ dir
     assert result == []
 
 
@@ -303,10 +304,11 @@ def _make_cfg(tmp_path: Path) -> CrawlerConfig:
 
 
 def _setup_raw_meta(tmp_path: Path, filename: str, title: str) -> tuple[Path, Path]:
-    """Create raw file + .meta.json under tmp_path/raw/thuvienhoasen/."""
+    """Create raw file under tmp_path/raw/thuvienhoasen/ and meta JSON under tmp_path/meta/thuvienhoasen/."""
     source_dir = tmp_path / "raw" / "thuvienhoasen"
     source_dir.mkdir(parents=True, exist_ok=True)
-    return make_meta_json(source_dir, filename=filename, title=title, create_raw_file=True)
+    meta_dir = tmp_path / "meta" / "thuvienhoasen"
+    return make_meta_json(source_dir, filename=filename, title=title, create_raw_file=True, meta_dir=meta_dir)
 
 
 def test_build_index_creates_index_json(tmp_path: Path, mock_logger: MagicMock) -> None:
@@ -381,12 +383,16 @@ def test_build_index_excludes_orphans(tmp_path: Path, mock_logger: MagicMock) ->
     """meta.json pointing to missing raw file is excluded from index.json."""
     _setup_raw_meta(tmp_path, "a.html", "Kinh A")  # valid
 
-    # Create orphaned meta: meta exists but raw file does not
+    # Create orphaned meta: meta exists in meta/ but raw file does not
+    source_dir = tmp_path / "raw" / "thuvienhoasen"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    meta_dir = tmp_path / "meta" / "thuvienhoasen"
     orphan_raw, orphan_meta = make_meta_json(
-        tmp_path / "raw" / "thuvienhoasen",
+        source_dir,
         filename="missing.html",
         title="Kinh Missing",
         create_raw_file=True,
+        meta_dir=meta_dir,
     )
     orphan_raw.unlink()  # remove the raw file → orphan
 

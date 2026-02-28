@@ -305,6 +305,35 @@ async def fetch_catalog_urls(
         else:
             break
 
+    all_urls = list(dict.fromkeys(all_urls))  # deduplicate level-1 URLs, preserve order
+
+    # Two-level catalog: follow each level-1 URL to collect sub-links
+    sub_sel = source_config.catalog_sub_selector
+    if sub_sel and all_urls:
+        sub_urls: list[str] = []
+        for idx_url in all_urls:
+            if not robots_allowed(robots_cache, idx_url):
+                logger.warning(f"[crawler] robots.txt blocked index page: {idx_url}")
+                continue
+            await asyncio.sleep(source_config.rate_limit_seconds)
+            try:
+                async with session.get(idx_url) as resp:
+                    if resp.status >= 400:
+                        logger.error(
+                            f"[crawler] HTTP {resp.status} fetching index page: {idx_url}"
+                        )
+                        continue
+                    text = await resp.text(encoding="utf-8", errors="replace")
+            except Exception as e:
+                logger.error(f"[crawler] Failed to fetch index {idx_url}: {e}")
+                continue
+            soup = BeautifulSoup(text, "html.parser")
+            for tag in soup.select(sub_sel):
+                href = tag.get("href", "")
+                if href:
+                    sub_urls.append(urljoin(idx_url, href))
+        all_urls = list(dict.fromkeys(sub_urls))  # deduplicate, preserve order
+
     logger.info(
         f"[crawler] Found {len(all_urls)} scripture URLs from {source_config.name}"
     )
@@ -337,6 +366,11 @@ async def crawl_all(
             )
 
             for page_url in scripture_page_urls:
+                # Early skip: page_url already downloaded — no sleep or network call needed
+                if state.is_downloaded(page_url):
+                    logger.info(f"[crawler] Skip (state): {page_url}")
+                    continue
+
                 # Two-phase: resolve actual file URL, title, and category from scripture page
                 resolution = await resolve_file_url(
                     page_url, source, session, robots_cache, logger

@@ -233,18 +233,16 @@ class TestDeduplicationIntegration:
 
 
 class TestConfigAllFourSources:
-    """AC 2: config.yaml contains all 4 sources and passes Pydantic validation."""
+    """config.yaml contains active sources and passes Pydantic validation."""
 
     def test_config_loads_with_all_four_sources(self):
-        """load_config('config.yaml') succeeds and returns 4 sources."""
+        """load_config('config.yaml') succeeds and returns active sources."""
         from utils.config import load_config
 
         cfg = load_config("config.yaml")
         source_names = [s.name for s in cfg.sources]
         assert "thuvienhoasen" in source_names
-        assert "budsas" in source_names
-        assert "chuabaphung" in source_names
-        assert "dhammadownload" in source_names
+        assert "thuvienkinhphat" in source_names
 
     def test_all_sources_have_valid_rate_limits(self):
         """All sources meet minimum rate_limit_seconds ≥ 1.0."""

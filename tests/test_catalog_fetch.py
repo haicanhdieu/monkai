@@ -9,7 +9,7 @@ from utils.robots import RobotsCache
 
 
 def make_source(name="thuvienhoasen", seed_url="https://example.com/catalog",
-                pagination_selector=None):
+                pagination_selector=None, catalog_sub_selector=""):
     return SourceConfig(
         name=name,
         seed_url=seed_url,
@@ -23,6 +23,7 @@ def make_source(name="thuvienhoasen", seed_url="https://example.com/catalog",
             "subcategory": ".breadcrumb li:last-child",
         },
         pagination_selector=pagination_selector,
+        catalog_sub_selector=catalog_sub_selector,
     )
 
 
@@ -287,6 +288,180 @@ class TestFetchCatalogUrlsPagination:
 
         # Should not loop infinitely — just fetches once
         assert session.get.call_count == 1
+
+
+TOC_HTML = """
+<html><body>
+  <a href="chapter01.html">Chapter 1</a>
+  <a href="chapter02.html">Chapter 2</a>
+  <a href="../../index.html">Home</a>
+</body></html>
+"""
+
+TOC_HTML_2 = """
+<html><body>
+  <a href="sutta01.html">Sutta 1</a>
+  <a href="../../index.html">Home</a>
+</body></html>
+"""
+
+
+class TestCatalogSubSelector:
+    """Two-level catalog navigation via catalog_sub_selector."""
+
+    def _make_session_with_catalog_and_toc(self, catalog_html, toc_responses):
+        """Session returns catalog_html first, then each toc_response per call."""
+        all_htmls = [catalog_html] + toc_responses
+        return make_mock_session(all_htmls)
+
+    def test_sub_selector_follows_level1_urls(self):
+        from crawler import fetch_catalog_urls
+
+        catalog_html = """
+        <html><body>
+          <a class="scripture-link" href="https://example.com/toc1">TOC 1</a>
+          <a class="scripture-link" href="https://example.com/toc2">TOC 2</a>
+        </body></html>
+        """
+        source = make_source(
+            seed_url="https://example.com/catalog",
+            catalog_sub_selector="a[href$='.html']:not([href^='..'])",
+        )
+        session = self._make_session_with_catalog_and_toc(catalog_html, [TOC_HTML, TOC_HTML_2])
+        logger = MagicMock()
+
+        with (
+            patch("crawler.robots_allowed", return_value=True),
+            patch("crawler.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            urls = asyncio.run(
+                fetch_catalog_urls(source, session, MagicMock(), logger)
+            )
+
+        # 2 from TOC_HTML + 1 from TOC_HTML_2 (home link excluded by not([href^='..']))
+        assert len(urls) == 3
+        assert "https://example.com/chapter01.html" in urls
+        assert "https://example.com/chapter02.html" in urls
+        assert "https://example.com/sutta01.html" in urls
+
+    def test_sub_selector_excludes_parent_links(self):
+        from crawler import fetch_catalog_urls
+
+        catalog_html = """
+        <html><body>
+          <a class="scripture-link" href="https://example.com/toc1">TOC 1</a>
+        </body></html>
+        """
+        source = make_source(
+            seed_url="https://example.com/catalog",
+            catalog_sub_selector="a[href$='.html']:not([href^='..'])",
+        )
+        session = self._make_session_with_catalog_and_toc(catalog_html, [TOC_HTML])
+        logger = MagicMock()
+
+        with (
+            patch("crawler.robots_allowed", return_value=True),
+            patch("crawler.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            urls = asyncio.run(
+                fetch_catalog_urls(source, session, MagicMock(), logger)
+            )
+
+        # ../../index.html should NOT be included
+        assert all("index.html" not in u for u in urls)
+
+    def test_no_sub_selector_returns_level1_urls(self):
+        from crawler import fetch_catalog_urls
+
+        source = make_source(catalog_sub_selector="")
+        session = make_mock_session([CATALOG_HTML])
+        logger = MagicMock()
+
+        with patch("crawler.robots_allowed", return_value=True):
+            urls = asyncio.run(
+                fetch_catalog_urls(source, session, MagicMock(), logger)
+            )
+
+        assert len(urls) == 3  # level-1 only, no sub-page following
+
+    def test_sub_selector_robots_blocked_index_page_skipped(self):
+        from crawler import fetch_catalog_urls
+
+        catalog_html = """
+        <html><body>
+          <a class="scripture-link" href="https://example.com/toc1">TOC 1</a>
+        </body></html>
+        """
+        source = make_source(
+            seed_url="https://example.com/catalog",
+            catalog_sub_selector="a[href$='.html']",
+        )
+        session = make_mock_session([catalog_html, TOC_HTML])
+        logger = MagicMock()
+
+        def robots_side_effect(cache, url):
+            # Block the TOC index page but allow the catalog
+            return "toc1" not in url
+
+        with (
+            patch("crawler.robots_allowed", side_effect=robots_side_effect),
+            patch("crawler.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            urls = asyncio.run(
+                fetch_catalog_urls(source, session, MagicMock(), logger)
+            )
+
+        assert urls == []
+        warning_calls = [str(c) for c in logger.warning.call_args_list]
+        assert any("robots.txt blocked index page" in c for c in warning_calls)
+
+    def test_sub_selector_http_error_on_index_page_continues(self):
+        from crawler import fetch_catalog_urls
+
+        catalog_html = """
+        <html><body>
+          <a class="scripture-link" href="https://example.com/toc1">TOC 1</a>
+        </body></html>
+        """
+        source = make_source(
+            seed_url="https://example.com/catalog",
+            catalog_sub_selector="a[href$='.html']",
+        )
+        session = MagicMock()
+        call_count = {"n": 0}
+
+        def get_side_effect(url, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                # catalog page → 200
+                resp = AsyncMock()
+                resp.status = 200
+                resp.text = AsyncMock(return_value=catalog_html)
+                resp.__aenter__ = AsyncMock(return_value=resp)
+                resp.__aexit__ = AsyncMock(return_value=False)
+                return resp
+            else:
+                # TOC page → 404
+                resp = AsyncMock()
+                resp.status = 404
+                resp.__aenter__ = AsyncMock(return_value=resp)
+                resp.__aexit__ = AsyncMock(return_value=False)
+                return resp
+
+        session.get = MagicMock(side_effect=get_side_effect)
+        logger = MagicMock()
+
+        with (
+            patch("crawler.robots_allowed", return_value=True),
+            patch("crawler.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            urls = asyncio.run(
+                fetch_catalog_urls(source, session, MagicMock(), logger)
+            )
+
+        assert urls == []
+        error_calls = [str(c) for c in logger.error.call_args_list]
+        assert any("HTTP 404 fetching index page" in c for c in error_calls)
 
 
 class TestCrawlAllIntegration:

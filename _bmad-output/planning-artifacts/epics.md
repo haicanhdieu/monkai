@@ -605,3 +605,132 @@ So that I can execute the complete corpus build in one step and confirm Phase 2 
 - [ ] ≥ 90% of records have all required metadata fields
 - [ ] All files in `data/index.json` exist on disk and are non-empty
 - [ ] `data/index.json` is valid JSON matching the IndexRecord schema
+
+---
+
+## Epic 5: ThuvienKinhPhat Parser Fix & EPUB Book Builder
+
+The parser correctly extracts `category` (Kinh Tạng / Luật Tạng / Thắng Pháp Tạng), `bookTitle`, `chapter`, and `authorTranslator` from the ThuvienKinhPhat HTML pages using breadcrumb navigation, title-tag splitting, and translator lookup. A `book_builder.py` module groups parsed chapters into ordered EPUB-ready book manifests.
+
+**FRs covered:** FR13 (extended metadata schema), FR14 (category taxonomy — new Tạng categories), FR25 (config-driven selectors)
+**NFRs covered:** NFR4 (idempotent re-parse), NFR6 (≥90% metadata coverage), NFR7 (Vietnamese Unicode)
+
+---
+
+### Story 5.1: Extend Models for ThuvienKinhPhat Categories
+
+As a developer,
+I want the `ScriptureMetadata` model to accept Tạng-level categories from ThuvienKinhPhat,
+So that the parser can correctly classify Kinh Tạng, Luật Tạng, and Thắng Pháp Tạng scriptures.
+
+**Acceptance Criteria:**
+
+**Given** `models.py` `ScriptureMetadata.category` Literal is updated
+**When** I instantiate it with `category="Kinh Tạng"`
+**Then** it validates successfully with no Pydantic error
+**And** `"Luật Tạng"` and `"Thắng Pháp Tạng"` also validate correctly
+**And** `IndexRecord.category` Literal is updated with the same new values
+**And** existing valid values (`"Nikaya"`, `"Đại Thừa"`, `"Mật Tông"`, `"Thiền"`, `"Tịnh Độ"`) continue to validate
+**And** `CATEGORY_MAP` in `parser.py` is updated to map `"kinh tạng"`, `"luật tạng"`, `"thắng pháp tạng"` to their canonical literals
+
+---
+
+### Story 5.2: Fix ThuvienKinhPhat CSS Selectors & Parser Logic
+
+As a developer,
+I want `parser.py` to use breadcrumb navigation, title-tag splitting, and translator lookup for ThuvienKinhPhat HTML pages,
+So that each chapter's meta JSON correctly contains `category`, `bookTitle`, `chapter`, and `authorTranslator` without falling back to filename stubs.
+
+**Acceptance Criteria:**
+
+**Given** `truong01.html` is parsed by `parser.py`
+**When** metadata is extracted
+**Then** `book_title` equals `"Kinh Trường Bộ"` (from breadcrumb 3rd item, not `<title>` tag)
+**And** `chapter` equals `"1. Kinh Phạm võng(Brahmajàla sutta)"` (from `<title>` split on `:`, right side)
+**And** `category` equals `"Kinh Tạng"` (from breadcrumb 2nd item)
+**And** `author_translator` equals `"Hòa thượng Thích Minh Châu"` (from translator lookup map)
+**And** `subcategory` equals `""` (intentionally empty)
+**And** `title` is set to the same value as `chapter` (no separate title field needed)
+
+**Given** `bkni01.html` is parsed
+**When** metadata is extracted
+**Then** `book_title` equals `"Giới Bổn Tỳ-khưu Ni"` (from breadcrumb)
+**And** `chapter` equals `"[01]"` (from inline `[01]` marker when title-tag split yields no chapter)
+**And** `category` equals `"Luật Tạng"` (from breadcrumb)
+**And** `author_translator` equals `"Indacanda Bhikkhu (Trương đình Dũng)"` (from `"Lời tiếng Việt:"` prefix on page)
+
+**Given** `config.yaml` thuvienkinhphat selectors are updated
+**When** I inspect the config
+**Then** `book_title` selector is removed (breadcrumb-based in code)
+**And** `chapter` selector is removed (title-tag split in code)
+**And** `author_translator` selector is empty (translator map in code)
+**And** a `breadcrumb_selector: "a"` selector is added to navigate breadcrumb links
+
+**Given** parser runs on all 547 existing raw files
+**When** I run `uv run python parser.py --source thuvienkinhphat --force`
+**Then** ≥ 90% of records have non-null `book_title`, `chapter`, and `category` (NFR6)
+**And** no Vietnamese text has encoding corruption (NFR7)
+
+---
+
+### Story 5.3: Build Book Manifests for EPUB Preparation (book_builder.py)
+
+As a developer,
+I want `book_builder.py` to group parsed chapter meta JSONs into ordered book manifest files,
+So that the EPUB generation phase has a ready-to-use, sorted chapter list per book.
+
+**Acceptance Criteria:**
+
+**Given** `book_builder.py` exists as a Typer CLI
+**When** I run `uv run python book_builder.py --help`
+**Then** help text is displayed with `--source` and `--config` options
+
+**Given** parsed meta JSONs exist in `data/meta/thuvienkinhphat/`
+**When** I run `uv run python book_builder.py --source thuvienkinhphat`
+**Then** one JSON manifest file per book is written to `data/books/thuvienkinhphat/{book-slug}.json`
+**And** each manifest contains:
+```json
+{
+  "book_title": "Kinh Trường Bộ",
+  "category": "Kinh Tạng",
+  "subcategory": "",
+  "author_translator": "Hòa thượng Thích Minh Châu",
+  "cover_image_url": null,
+  "source": "thuvienkinhphat",
+  "chapters": [
+    {"order": 1, "chapter": "1. Kinh Phạm võng...", "meta_file": "truong01.json", "url": "..."}
+  ]
+}
+```
+**And** chapters are sorted by filename number (e.g. `truong01` → 1, `truong02` → 2)
+**And** running `book_builder.py` twice with same inputs produces identical output (idempotent, NFR4)
+
+**Given** a book has chapters from multiple TOC sub-sections (e.g. Tập I, Tập II in Trường Bộ)
+**When** the builder groups them
+**Then** all chapters appear in one book manifest in correct numeric order regardless of sub-section
+
+---
+
+### Story 5.4: Verify Re-Parse Quality + Update Index
+
+As a developer,
+I want to re-parse all ThuvienKinhPhat files with the fixed parser and verify metadata quality via `validate.py`,
+So that the corpus accurately reflects the correct book-level metadata before EPUB generation begins.
+
+**Acceptance Criteria:**
+
+**Given** fixed `parser.py` is in place
+**When** I run `uv run python parser.py --source thuvienkinhphat --force`
+**Then** all 547+ meta JSON files are regenerated with correct metadata
+**And** a summary log confirms: `Parsed {N} files, 0 critical errors`
+
+**Given** re-parsed meta JSONs exist
+**When** I run `uv run python validate.py`
+**Then** ≥ 90% of ThuvienKinhPhat records have `book_title`, `chapter`, `category` all non-null (NFR6)
+**And** `category` values are all valid literals (no `"Nikaya"` misclassification for Luật/VDP texts)
+**And** `author_translator` is non-null for ≥ 80% of records
+
+**Given** re-parse completes
+**When** I run `uv run python indexer.py`
+**Then** `data/index.json` is updated with corrected records for all ThuvienKinhPhat chapters
+**And** no duplicate IDs appear in the index

@@ -13,14 +13,14 @@ app = typer.Typer()
 
 
 def scan_meta_files(output_dir: Path) -> list[Path]:
-    """Recursively find all .meta.json files under output_dir/raw.
+    """Recursively find all .json metadata files under output_dir/meta.
 
     Returns a sorted list for deterministic processing order.
     """
-    raw_dir = output_dir / "raw"
-    if not raw_dir.exists():
+    meta_dir = output_dir / "meta"
+    if not meta_dir.exists():
         return []
-    return sorted(raw_dir.rglob("*.meta.json"))
+    return sorted(meta_dir.rglob("*.json"))
 
 
 def load_existing_index(index_path: Path, logger) -> dict[str, IndexRecord]:

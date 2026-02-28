@@ -14,6 +14,7 @@ class SourceConfig(BaseModel):
     css_selectors: dict[str, str]
     file_type_hints: list[str] = []
     pagination_selector: str | None = None
+    catalog_sub_selector: str = ""
 
     @field_validator("rate_limit_seconds")
     @classmethod
@@ -44,11 +45,18 @@ class ScriptureMetadata(BaseModel):
     title: str                       # Original title in Vietnamese
     title_pali: str | None = None    # Pali title if present, else null
     title_sanskrit: str | None = None  # Sanskrit title if present, else null
-    category: Literal["Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"]
+    category: Literal[
+        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ",
+        "Kinh Tạng", "Luật Tạng", "Thắng Pháp Tạng",
+    ]
     subcategory: str                 # e.g. "Trường Bộ", "Bát Nhã"
+    book_collection: str | None = None  # e.g. "Tiểu Bộ - Khuddhaka Nikaya"
+    book_title: str | None = None    # e.g. "Tập II - Ngạ Quỷ Sự"
+    chapter: str | None = None       # e.g. "Phẩm Ubbari"
     source: str                      # Source name from config, e.g. "thuvienhoasen"
     url: str                         # Canonical source URL
     author_translator: str | None = None  # Translator name if present, else null
+    content: str | None = None       # Full text content of the scripture page
     file_path: str                   # Relative path: "data/raw/thuvienhoasen/nikaya/tam-kinh.html"
     file_format: Literal["html", "pdf", "epub", "other"]
     copyright_status: Literal["public_domain", "unknown"]
@@ -72,7 +80,10 @@ class IndexRecord(BaseModel):
     """
     id: str
     title: str
-    category: Literal["Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"]
+    category: Literal[
+        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ",
+        "Kinh Tạng", "Luật Tạng", "Thắng Pháp Tạng",
+    ]
     subcategory: str
     source: str
     url: str

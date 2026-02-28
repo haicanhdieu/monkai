@@ -21,6 +21,14 @@ def test_optional_fields_are_null_in_json(sample_metadata_fields):
     assert data["title_sanskrit"] is None
     assert "author_translator" in data
     assert data["author_translator"] is None
+    assert "book_collection" in data
+    assert data["book_collection"] is None
+    assert "book_title" in data
+    assert data["book_title"] is None
+    assert "chapter" in data
+    assert data["chapter"] is None
+    assert "content" in data
+    assert data["content"] is None
 
 
 def test_missing_required_field_raises_error(sample_metadata_fields):

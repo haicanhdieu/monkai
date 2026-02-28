@@ -71,3 +71,11 @@ development_status:
   4-2-run-summary-report-corpus-quality-audit: backlog
   4-3-end-to-end-pipeline-command-phase-2-handoff-verification: backlog
   epic-4-retrospective: optional
+
+  # Epic 5: ThuvienKinhPhat Parser Fix & EPUB Book Builder
+  epic-5: done
+  5-1-extend-models-thuvienkinhphat-categories: done
+  5-2-fix-thuvienkinhphat-css-selectors-parser-logic: done
+  5-3-build-book-manifests-epub-preparation: done
+  5-4-verify-reparse-quality-update-index: done
+  epic-5-retrospective: optional
