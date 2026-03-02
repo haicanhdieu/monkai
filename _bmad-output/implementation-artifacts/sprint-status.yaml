@@ -1,4 +1,4 @@
-# generated: 2026-02-27
+# generated: 2026-03-02
 # project: monkai
 # project_key: NOKEY
 # tracking_system: file-system
@@ -12,8 +12,8 @@
 #   - done: All stories in epic completed
 #
 # Epic Status Transitions:
-#   - backlog → in-progress: Automatically when first story is created (via create-story)
-#   - in-progress → done: Manually when all stories reach 'done' status
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
 #
 # Story Status:
 #   - backlog: Story only exists in epic file
@@ -33,14 +33,14 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-02-27
+generated: 2026-03-02
 project: monkai
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 
 development_status:
-  # Epic 1: Project Foundation & Core Infrastructure
+  # Epic 1: Project Foundation and Core Infrastructure
   epic-1: done
   1-1-project-environment-setup: done
   1-2-source-configuration-file: done
@@ -49,7 +49,7 @@ development_status:
   1-5-unit-tests-for-core-utilities: done
   epic-1-retrospective: optional
 
-  # Epic 2: Web Crawler — Scripture File Collection
+  # Epic 2: Web Crawler - Scripture File Collection
   epic-2: done
   2-1-crawler-cli-shell-robots-txt-compliance: done
   2-2-catalog-page-fetch-scripture-url-extraction: done
@@ -58,24 +58,36 @@ development_status:
   2-5-content-deduplication-all-4-sources-configured: done
   epic-2-retrospective: optional
 
-  # Epic 3: Metadata Extraction & Index Management
+  # Epic 3: Metadata Extraction and Index Management
   epic-3: done
   3-1-metadata-extractor-first-source-parser-py: done
   3-2-parser-extended-to-all-4-sources-edge-cases: done
   3-3-index-builder-indexer-py: done
   epic-3-retrospective: optional
 
-  # Epic 4: Data Quality Validation & Phase 2 Handoff
+  # Epic 4: Data Quality Validation and Phase 2 Handoff
   epic-4: done
   4-1-schema-validation-utility-validate-py: done
   4-2-run-summary-report-corpus-quality-audit: done
   4-3-end-to-end-pipeline-command-phase-2-handoff-verification: done
   epic-4-retrospective: optional
 
-  # Epic 5: ThuvienKinhPhat Parser Fix & EPUB Book Builder
+  # Epic 5: ThuvienKinhPhat Parser Fix and EPUB Book Builder
   epic-5: done
   5-1-extend-models-thuvienkinhphat-categories: done
   5-2-fix-thuvienkinhphat-css-selectors-parser-logic: done
   5-3-build-book-manifests-epub-preparation: done
   5-4-verify-reparse-quality-update-index: done
   epic-5-retrospective: optional
+
+  # Epic 6: Data Architecture Refinement
+  epic-6: done
+  6-1-book-level-index-refactor: done
+  epic-6-retrospective: optional
+
+  # Epic 7: vbeta.vn API Crawler
+  epic-7: backlog
+  7-1-vbeta-api-discovery-config-and-models: backlog
+  7-2-vbeta-api-adapter-and-crawler-integration: backlog
+  7-3-tests-validation-and-legacy-cleanup: backlog
+  epic-7-retrospective: optional
