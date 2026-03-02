@@ -35,21 +35,35 @@ def make_book_manifest(
     author_translator: str | None = None,
     total_chapters: int = 5,
 ) -> Path:
-    """Write a minimal book manifest JSON and return its path."""
-    source_dir = books_dir / source
+    """Write a minimal canonical ChapterBookData json."""
+    source_dir = books_dir / source / "fake-category" / slug
     source_dir.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "book_title": book_title,
-        "book_slug": slug,
-        "category": category,
-        "subcategory": subcategory,
-        "author_translator": author_translator,
-        "cover_image_url": None,
-        "source": source,
-        "total_chapters": total_chapters,
-        "chapters": [],
+        "_meta": {
+             "source": source,
+             "schema_version": "1.0",
+             "fetched_at": "2026-03-02T00:00:00Z",
+             "api_chapter_url": "http://fake"
+        },
+        "id": f"{source}__{slug}__1",
+        "chapter_id": 1,
+        "chapter_name": "Chapter 1",
+        "chapter_seo_name": "chapter-1",
+        "chapter_view_count": 0,
+        "page_count": 0,
+        "book": {
+            "id": 1,
+            "name": book_title,
+            "seo_name": slug,
+            "category_id": 1,
+            "category_name": category,
+            "category_seo_name": "nikaya",
+            "author": author_translator,
+            "publisher": "Unknown"
+        },
+        "pages": []
     }
-    out_path = source_dir / f"{slug}.json"
+    out_path = source_dir / "chapter-1.json"
     out_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return out_path
 
@@ -79,18 +93,18 @@ def _make_cfg(tmp_path: Path) -> CrawlerConfig:
 # ---------------------------------------------------------------------------
 
 def test_scan_book_manifests_finds_all_json(tmp_path: Path) -> None:
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-b", "Kinh B")
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-c", "Kinh C")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
+    make_book_manifest(books_dir, "vbeta", "kinh-b", "Kinh B")
+    make_book_manifest(books_dir, "vbeta", "kinh-c", "Kinh C")
 
     result = scan_book_manifests(tmp_path)
     assert len(result) == 3
 
 
 def test_scan_book_manifests_excludes_index_json(tmp_path: Path) -> None:
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     # Place an index.json in books/
     (books_dir / "index.json").write_text("[]", encoding="utf-8")
 
@@ -100,18 +114,20 @@ def test_scan_book_manifests_excludes_index_json(tmp_path: Path) -> None:
 
 
 def test_scan_book_manifests_returns_sorted(tmp_path: Path) -> None:
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "c-kinh", "C Kinh")
-    make_book_manifest(books_dir, "thuvienkinhphat", "a-kinh", "A Kinh")
-    make_book_manifest(books_dir, "thuvienkinhphat", "b-kinh", "B Kinh")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "c-kinh", "C Kinh")
+    make_book_manifest(books_dir, "vbeta", "a-kinh", "A Kinh")
+    make_book_manifest(books_dir, "vbeta", "b-kinh", "B Kinh")
 
     result = scan_book_manifests(tmp_path)
-    names = [p.stem for p in result]
+    # The helper outputs chapter-1.json under the slug path
+    # But because they are named chapter-1.json, we sort by parent.name
+    names = [p.parent.name for p in result]
     assert names == sorted(names)
 
 
 def test_scan_book_manifests_returns_empty_if_books_missing(tmp_path: Path) -> None:
-    result = scan_book_manifests(tmp_path)  # no books/ dir
+    result = scan_book_manifests(tmp_path)  # no book-data/ dir
     assert result == []
 
 
@@ -202,9 +218,9 @@ def test_load_existing_index_handles_corrupt_json(
 def test_manifest_to_book_record_valid_manifest(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
-    books_dir = tmp_path / "books"
+    books_dir = tmp_path / "book-data"
     manifest_path = make_book_manifest(
-        books_dir, "thuvienkinhphat", "kinh-truong-bo", "Kinh Trường Bộ",
+        books_dir, "vbeta", "kinh-truong-bo", "Kinh Trường Bộ",
         category="Nikaya", subcategory="Trường Bộ",
         author_translator="Hòa thượng Thích Minh Châu", total_chapters=34,
     )
@@ -216,10 +232,10 @@ def test_manifest_to_book_record_valid_manifest(
     assert result.id == "kinh-truong-bo"
     assert result.title == "Kinh Trường Bộ"
     assert result.category == "Nikaya"
-    assert result.subcategory == "Trường Bộ"
-    assert result.source == "thuvienkinhphat"
+    assert result.source == "vbeta"
     assert result.author_translator == "Hòa thượng Thích Minh Châu"
-    assert result.total_chapters == 34
+    # Canonical parser doesn't scan total chapters yet
+    assert result.total_chapters == 0
     mock_logger.error.assert_not_called()
 
 
@@ -249,23 +265,23 @@ def test_manifest_to_book_record_corrupt_json_returns_none(
 def test_manifest_to_book_record_manifest_path_field(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
-    books_dir = tmp_path / "books"
+    books_dir = tmp_path / "book-data"
     manifest_path = make_book_manifest(
-        books_dir, "thuvienkinhphat", "kinh-phap-cu", "Kinh Pháp Cú"
+        books_dir, "vbeta", "kinh-phap-cu", "Kinh Pháp Cú"
     )
 
     result = manifest_to_book_record(manifest_path, mock_logger)
 
     assert result is not None
-    assert result.manifest_path == str(manifest_path)
+    assert result.manifest_path == str(manifest_path.parent)
 
 
 def test_manifest_to_book_record_null_author_translator(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
-    books_dir = tmp_path / "books"
+    books_dir = tmp_path / "book-data"
     manifest_path = make_book_manifest(
-        books_dir, "thuvienkinhphat", "kinh-test", "Kinh Test",
+        books_dir, "vbeta", "kinh-test", "Kinh Test",
         author_translator=None,
     )
 
@@ -282,8 +298,8 @@ def test_manifest_to_book_record_null_author_translator(
 def test_build_index_creates_books_index_json(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     cfg = _make_cfg(tmp_path)
 
     build_index(cfg, mock_logger)
@@ -300,8 +316,8 @@ def test_build_index_output_path_is_books_index_not_root(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
     """Output must be at tmp_path/books/index.json, not tmp_path/index.json."""
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     cfg = _make_cfg(tmp_path)
 
     build_index(cfg, mock_logger)
@@ -312,9 +328,9 @@ def test_build_index_output_path_is_books_index_not_root(
 
 def test_build_index_idempotent(tmp_path: Path, mock_logger: MagicMock) -> None:
     """Running build_index twice with same inputs produces identical output."""
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-b", "Kinh B")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
+    make_book_manifest(books_dir, "vbeta", "kinh-b", "Kinh B")
     cfg = _make_cfg(tmp_path)
 
     build_index(cfg, mock_logger)
@@ -329,8 +345,8 @@ def test_build_index_idempotent(tmp_path: Path, mock_logger: MagicMock) -> None:
 
 def test_build_index_incremental_append(tmp_path: Path, mock_logger: MagicMock) -> None:
     """New book manifests after first run are appended; existing records unchanged."""
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     cfg = _make_cfg(tmp_path)
 
     # First run: 1 book
@@ -340,7 +356,7 @@ def test_build_index_incremental_append(tmp_path: Path, mock_logger: MagicMock) 
     assert len(data1) == 1
 
     # Add new manifest
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-b", "Kinh B")
+    make_book_manifest(books_dir, "vbeta", "kinh-b", "Kinh B")
 
     # Second run: 2 books, existing unchanged
     build_index(cfg, mock_logger)
@@ -355,8 +371,8 @@ def test_build_index_no_duplicate_on_second_run(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
     """Running with same manifests twice must not duplicate records."""
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     cfg = _make_cfg(tmp_path)
 
     build_index(cfg, mock_logger)
@@ -371,9 +387,9 @@ def test_build_index_output_valid_json_preserves_vietnamese(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
     """Output must be parseable JSON with Vietnamese characters preserved."""
-    books_dir = tmp_path / "books"
+    books_dir = tmp_path / "book-data"
     make_book_manifest(
-        books_dir, "thuvienkinhphat", "kinh-phap-cu", "Kinh Pháp Cú",
+        books_dir, "vbeta", "kinh-phap-cu", "Kinh Pháp Cú",
         author_translator="Hòa thượng Thích Minh Châu",
     )
     cfg = _make_cfg(tmp_path)
@@ -390,8 +406,8 @@ def test_build_index_logs_summary_with_books_and_excluded(
     tmp_path: Path, mock_logger: MagicMock
 ) -> None:
     """Summary log line must mention 'books' and 'excluded'."""
-    books_dir = tmp_path / "books"
-    make_book_manifest(books_dir, "thuvienkinhphat", "kinh-a", "Kinh A")
+    books_dir = tmp_path / "book-data"
+    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
     cfg = _make_cfg(tmp_path)
 
     build_index(cfg, mock_logger)

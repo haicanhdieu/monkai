@@ -1,5 +1,4 @@
 # utils/robots.py
-import urllib.error
 from urllib.robotparser import RobotFileParser
 from urllib.parse import urlparse
 
@@ -32,7 +31,7 @@ class RobotsCache:
                     raw = response.read()
                     lines = raw.decode("utf-8", errors="ignore").splitlines()
                 parser.parse(lines)
-            except urllib.error.HTTPError as err:
+            except urllib.error.HTTPError:
                 # RobotFileParser.read() considers 401/403 as disallow_all=True.
                 # We fail-open because WAFs often block bots from /robots.txt
                 parser.allow_all = True

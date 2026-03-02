@@ -13,12 +13,11 @@ app = typer.Typer()
 
 
 def scan_book_manifests(output_dir: Path) -> list[Path]:
-    """Recursively find all book manifest .json files under output_dir/books.
+    """Recursively find all book chapter JSON files under output_dir/book-data/vbeta.
 
-    Excludes index.json itself. Returns a sorted list for deterministic processing order.
-    Returns [] if output_dir/books does not exist.
+    Excludes any index.json files. Returns a sorted list.
     """
-    books_dir = output_dir / "books"
+    books_dir = output_dir / "book-data"
     if not books_dir.exists():
         return []
     return sorted(p for p in books_dir.rglob("*.json") if p.name != "index.json")
@@ -47,22 +46,45 @@ def load_existing_index(index_path: Path, logger) -> dict[str, BookIndexRecord]:
 
 
 def manifest_to_book_record(manifest_path: Path, logger) -> BookIndexRecord | None:
-    """Convert a book manifest JSON to a BookIndexRecord.
+    """Convert a vbeta ChapterBookData JSON into a book-level BookIndexRecord.
 
-    Returns None on any exception; logs error.
-    No disk consistency check needed (book manifests are always fresh from book_builder).
+    Will use the BookInfo within the file to construct the top-level index record.
+    Duplicate book records handled by id idempotency in `build_index`.
     """
     try:
+        from models import ChapterBookData
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        
+        # If it's a legacy manifest, try those fields
+        if "book_slug" in data:
+            return BookIndexRecord(
+                id=data["book_slug"],
+                title=data["book_title"],
+                category=data.get("category", "Nikaya"),
+                subcategory=data.get("subcategory", ""),
+                source=data.get("source", "legacy"),
+                author_translator=data.get("author_translator"),
+                total_chapters=data.get("total_chapters", 0),
+                manifest_path=str(manifest_path),
+            )
+            
+        # Parse canonical ChapterBookData format    
+        chapter_data = ChapterBookData(**data)
+        book_info = chapter_data.book
+        
+        # Ensure category aligns with Literal type or defaults to Nikaya
+        valid_cats = ["Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"]
+        cat = book_info.category_name if book_info.category_name in valid_cats else "Nikaya"
+        
         return BookIndexRecord(
-            id=data["book_slug"],
-            title=data["book_title"],
-            category=data["category"],
-            subcategory=data.get("subcategory", ""),
-            source=data["source"],
-            author_translator=data.get("author_translator"),
-            total_chapters=data.get("total_chapters", 0),
-            manifest_path=str(manifest_path),
+            id=book_info.seo_name,
+            title=book_info.name,
+            category=cat,
+            subcategory="",
+            source=chapter_data.meta.source,
+            author_translator=book_info.author,
+            total_chapters=0,  # Or unknown without fetching the whole TOC again
+            manifest_path=str(manifest_path.parent) # Just storing the directory for the book as manifest_path
         )
     except Exception as e:
         logger.error(f"[indexer] Failed to process {manifest_path}: {e}")

@@ -361,6 +361,13 @@ async def crawl_all(
     ) as session:
         for source in sources:
             logger.info(f"[crawler] Starting crawl for {source.name}")
+            
+            if getattr(source, "source_type", "html") == "api":
+                from utils.api_adapter import VbetaApiAdapter
+                adapter = VbetaApiAdapter(source, session, state, cfg.output_dir)
+                await adapter.process_all()
+                continue
+                
             scripture_page_urls = await fetch_catalog_urls(
                 source, session, robots_cache, logger
             )
@@ -462,7 +469,7 @@ def crawl(
     cfg: CrawlerConfig = load_config(config)  # Fails loudly on invalid config
 
     sources = (
-        cfg.sources
+        [s for s in cfg.sources if getattr(s, "enabled", True)]
         if source == "all"
         else [s for s in cfg.sources if s.name == source]
     )

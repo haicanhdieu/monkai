@@ -2,16 +2,20 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, Field
 
 
 class SourceConfig(BaseModel):
     """Configuration for a single crawl source. Loaded from config.yaml."""
     name: str
-    seed_url: str
+    source_type: Literal["html", "api"] = "html"
+    enabled: bool = True
+    seed_url: str | None = None
+    api_base_url: str | None = None
+    api_endpoints: dict[str, str] | None = None
     rate_limit_seconds: float = 1.5
     output_folder: str
-    css_selectors: dict[str, str]
+    css_selectors: dict[str, str] = {}
     file_type_hints: list[str] = []
     pagination_selector: str | None = None
     catalog_sub_selector: str = ""
@@ -106,3 +110,100 @@ class BookIndexRecord(BaseModel):
     author_translator: str | None
     total_chapters: int
     manifest_path: str       # relative path e.g. "data/books/thuvienkinhphat/slug.json"
+
+# ─── Raw API Ingestion Models ───────────────────────────────────────────
+
+class ApiCategory(BaseModel):
+    """GET /api/categories/get-selectlist-categories"""
+    value: int                              # category ID
+    label: str                              # e.g. "Kinh"
+    seo_name: str | None = Field(None, alias="seoName")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ApiBookSelectItem(BaseModel):
+    """GET /api/search/get-books-selectlist-by-categoryId/{catId}"""
+    value: int                              # book ID
+    label: str
+    seo_name: str | None = Field(None, alias="seoName")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ApiTocItem(BaseModel):
+    """POST get-tableofcontents-by-bookId -> result.tableOfContents.items[]"""
+    id: int                                 # chapter / TOC ID → used to fetch pages
+    name: str
+    seo_name: str = Field(..., alias="seoName")
+    view_count: int = Field(0, alias="viewCount")
+    min_page_number: int = Field(0, alias="minPageNumber")
+    max_page_number: int = Field(0, alias="maxPageNumber")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ApiBookDetail(BaseModel):
+    """POST get-tableofcontents-by-bookId -> result"""
+    id: int
+    name: str
+    seo_name: str = Field(..., alias="seoName")
+    cover_image_url: str | None = Field(None, alias="coverImageUrl")
+    category_id: int = Field(..., alias="categoryId")
+    category_name: str = Field(..., alias="categoryName")
+    author: str | None = None
+    author_id: int | None = Field(None, alias="authorId")
+    publisher: str | None = None
+    publication_year: int | None = Field(None, alias="publicationYear")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ApiPage(BaseModel):
+    """GET get-pages-by-tableofcontentid/{id} -> result.pages[]"""
+    page_number: int | None = Field(None, alias="pageNumber")
+    sort_number: int = Field(..., alias="sortNumber")
+    html_content: str = Field(..., alias="htmlContent")
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# ─── Domain Layer (book-data output format) ─────────────────────────────
+
+class ChapterMeta(BaseModel):
+    source: str = "vbeta"
+    schema_version: str = "1.0"
+    fetched_at: datetime
+    api_chapter_url: str
+
+
+class BookInfo(BaseModel):
+    id: int
+    name: str
+    seo_name: str
+    cover_image_url: str | None = None
+    author: str | None = None
+    author_id: int | None = None
+    publisher: str | None = None
+    publication_year: int | None = None
+    category_id: int
+    category_name: str
+    category_seo_name: str
+
+
+class PageEntry(BaseModel):
+    page_number: int | None = None
+    sort_number: int
+    html_content: str
+
+
+class ChapterBookData(BaseModel):
+    """
+    Canonical output format. One file per chapter.
+    Path: data/book-data/vbeta/{cat_seo}/{book_seo}/{chapter_seo}.json
+    """
+    meta: ChapterMeta = Field(..., alias="_meta")
+    id: str                                 # e.g. "vbeta__1-kinh-pham-vong"
+    chapter_id: int
+    chapter_name: str
+    chapter_seo_name: str
+    chapter_view_count: int = 0
+    page_count: int
+    book: BookInfo
+    pages: list[PageEntry]
+    model_config = ConfigDict(populate_by_name=True)

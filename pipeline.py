@@ -11,8 +11,6 @@ def main():
     
     stages = [
         ("crawler", ["uv", "run", "python", "crawler.py", "--source", "all"]),
-        ("parser", ["uv", "run", "python", "parser.py", "--source", "all"]),
-        ("book_builder", ["uv", "run", "python", "book_builder.py", "--source", "all"]),
         ("indexer", ["uv", "run", "python", "indexer.py"]),
         ("validate", ["uv", "run", "python", "validate.py"]),
     ]

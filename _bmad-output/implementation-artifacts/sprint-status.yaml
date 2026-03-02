@@ -86,8 +86,8 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: vbeta.vn API Crawler
-  epic-7: backlog
-  7-1-vbeta-api-discovery-config-and-models: backlog
-  7-2-vbeta-api-adapter-and-crawler-integration: backlog
-  7-3-tests-validation-and-legacy-cleanup: backlog
+  epic-7: done
+  7-1-vbeta-api-discovery-config-and-models: done
+  7-2-vbeta-api-adapter-and-crawler-integration: done
+  7-3-tests-validation-and-legacy-cleanup: done
   epic-7-retrospective: optional

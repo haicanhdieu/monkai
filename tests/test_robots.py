@@ -1,6 +1,5 @@
 # tests/test_robots.py
 from unittest.mock import patch, MagicMock
-from urllib.robotparser import RobotFileParser
 from utils.robots import RobotsCache, robots_allowed, USER_AGENT
 
 
@@ -55,7 +54,7 @@ def test_robots_cached_per_domain():
     mock_response.__enter__ = lambda s: s
     mock_response.__exit__ = MagicMock(return_value=False)
 
-    with patch("utils.robots.urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
+    with patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
         robots_allowed(cache, "https://example.com/page1")
         robots_allowed(cache, "https://example.com/page2")
 

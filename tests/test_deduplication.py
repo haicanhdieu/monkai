@@ -255,15 +255,18 @@ class TestConfigAllFourSources:
             )
 
     def test_all_sources_have_required_fields(self):
-        """All sources have name, seed_url, output_folder, and css_selectors."""
+        """All sources have name, seed_url or api_base_url, output_folder, and css_selectors."""
         from utils.config import load_config
 
         cfg = load_config("config.yaml")
         for source in cfg.sources:
             assert source.name
-            assert source.seed_url
             assert source.output_folder
             assert isinstance(source.css_selectors, dict)
+            if source.source_type == "html":
+                assert source.seed_url
+            else:
+                assert source.api_base_url
 
     def test_four_distinct_output_folders(self):
         """All 4 sources have distinct output_folder values."""

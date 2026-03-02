@@ -40,14 +40,11 @@ Monkai collects Buddhist scriptures from authoritative Vietnamese digital librar
 ```mermaid
 flowchart TD
     Config[config.yaml\nSingle source of truth] --> Crawler
-    Crawler[crawler.py\nAsync download + dedup] --> RawFiles[data/raw/\nHTML · PDF · EPUB]
-    RawFiles --> Parser[parser.py\nMetadata extraction]
-    Parser --> MetaJSON[*.meta.json\nScriptureMetadata]
-    MetaJSON --> Indexer[indexer.py\nBuild index.json]
-    Indexer --> IndexFile[data/index.json\nPhase 2 contract]
+    Crawler[crawler.py + api_adapter.py\nAsync HTTP + deduplication] --> JsonFiles[data/book-data/vbeta/\nCanonical JSON]
+    JsonFiles --> Indexer[indexer.py\nBuild index.json]
+    Indexer --> IndexFile[data/books/index.json\nPhase 2 contract]
     IndexFile --> Validator[validate.py\nQuality gates]
-    Validator -->|Pass| BookBuilder[book_builder.py\nEPUB structure generation]
-    BookBuilder --> Phase2[Phase 2\nAI Chat Interface]
+    Validator -->|Pass| Phase2[Phase 2\nAI Chat Interface]
 ```
 
 ### Key Design Principles
@@ -63,14 +60,12 @@ flowchart TD
 | Component | Status |
 |-----------|--------|
 | Environment setup | ✅ Complete |
-| Data models (Pydantic) | ✅ Complete |
+| Data models (Pydantic API mappings) | ✅ Complete |
 | Utilities package | ✅ Complete |
-| Web crawler (`crawler.py`) | ✅ Complete |
-| 177 tests passing | ✅ Complete |
-| Metadata parser (`parser.py`) | ✅ Complete |
+| API Web crawler (`crawler.py`) | ✅ Complete |
+| 148 tests passing | ✅ Complete |
 | Index builder (`indexer.py`) | ✅ Complete |
 | Validation utility (`validate.py`) | ✅ Complete |
-| Book builder (`book_builder.py`) | ✅ Complete |
 | Phase 2 — AI chat interface | 📋 Planned |
 | Phase 3 — Advanced features | 📋 Planned |
 
@@ -139,57 +134,43 @@ uv sync        # reads pyproject.toml, creates .venv, installs all deps
 output_dir: data          # Root directory for downloaded files
 log_file: logs/crawl.log  # Rotating log file path
 
-sources:
-  - name: thuvienhoasen
-    seed_url: https://thuvienhoasen.org/p16a0/kinh-dien
-    rate_limit_seconds: 1.5        # Minimum 1.0 — enforced by the crawler
-    output_folder: thuvienhoasen
-    file_type_hints:
-      - html
-    css_selectors:
-      catalog_links: "a.list-item-title"
-      file_links: "a.download-link"
-      title: "h1.entry-title"
-      category: ".breadcrumb li:nth-child(2)"
-      subcategory: ".breadcrumb li:last-child"
-```
+api_base_url: https://api.phapbao.org
 
-**To add a new source**, append a new entry to `sources` — no code changes needed.
+api_endpoints:
+  categories: /categories/get-selectlist-categories?hasAllOption=false
+  books: /search/get-books-selectlist-by-categoryId
+  toc: /search/get-tableofcontents-by-bookId
+  pages: /search/get-pages-by-tableofcontentid/{id}
+
+sources:
+  - name: vbeta
+```
 
 ### Configured Sources
 
-| Source | Content | Rate Limit |
-|--------|---------|------------|
-| `thuvienhoasen.org` | Vietnamese triple canon (Kinh, Luật, Luận) | 1.5s |
-| `budsas.org` | Pali Nikaya texts | 1.5s |
-| `chuabaphung.vn` | Daily chanting scriptures | 2.0s |
-| `dhammadownload.com` | Bilingual Pali texts + PDFs | 1.5s |
-
-All sources are configured in `config.yaml`. Add a fifth source by appending a new entry — no code changes needed.
+| Source | Content |
+|--------|---------|
+| `vbeta.vn` | Comprehensive digitized Vietnamese Tripitaka API |
 
 ## Data Models
 
 All models are defined in `models.py` using Pydantic v2.
 
-### ScriptureMetadata
+### ChapterBookData (Canonical Format)
 
-The per-file metadata record written by `parser.py`:
+The per-chapter data contract ingested to Disk:
 
 ```python
-class ScriptureMetadata(BaseModel):
-    id: str                    # "{source_slug}__{title_slug}"  e.g. "thuvienhoasen__tam-kinh"
-    title: str                 # Original Vietnamese title
-    title_pali: str | None     # Pali equivalent (null if unavailable)
-    title_sanskrit: str | None # Sanskrit equivalent (null if unavailable)
-    category: Literal["Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"]
-    subcategory: str           # e.g. "Trường Bộ", "Bát Nhã"
-    source: str                # e.g. "thuvienhoasen"
-    url: str                   # Canonical source URL
-    author_translator: str | None
-    file_path: str             # Relative: "data/raw/source/cat/file.html"
-    file_format: Literal["html", "pdf", "epub", "other"]
-    copyright_status: Literal["public_domain", "unknown"]
-    created_at: datetime       # ISO 8601 UTC, timezone-aware required
+class ChapterBookData(BaseModel):
+    meta: ChapterMeta = Field(..., alias="_meta")
+    id: str                                 # e.g. "vbeta__1-kinh-pham-vong"
+    chapter_id: int
+    chapter_name: str
+    chapter_seo_name: str
+    chapter_view_count: int = 0
+    page_count: int
+    book: BookInfo
+    pages: list[PageEntry]                  # array of HTML payloads
 ```
 
 ### IndexRecord
@@ -276,12 +257,11 @@ devbox run test
 Build a structured, validated corpus of Buddhist scriptures.
 
 - [x] Utility modules and data models
-- [x] Unit test coverage (113 tests)
-- [x] Web crawler with async download, rate limiting, and deduplication
-- [x] All 4 sources configured in `config.yaml`
-- [x] Metadata parser with CSS selector extraction
-- [x] Index builder generating `data/index.json`
-- [x] Validation utility with quality gate reporting
+- [x] Unit test coverage (148 tests)
+- [x] API Crawler mapping DTO responses incrementally
+- [x] Web APIs configured in `config.yaml`
+- [x] Index builder generating `data/books/index.json`
+- [x] Validation utility with strict Schema quality gate reporting
 
 ### Phase 2 — AI Chat Interface
 
