@@ -49,17 +49,15 @@ def test_wildcard_disallow_all():
 def test_robots_cached_per_domain():
     """Verify robots.txt HTTP fetch happens only once per domain, not once per URL."""
     cache = RobotsCache()
-    fetch_count = 0
 
-    def counting_read(self):
-        nonlocal fetch_count
-        fetch_count += 1
-        # Don't make real network calls — just count and return
-        return None
+    mock_response = MagicMock()
+    mock_response.read.return_value = b"User-agent: *\nAllow: /"
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = MagicMock(return_value=False)
 
-    with patch.object(RobotFileParser, "read", counting_read):
+    with patch("utils.robots.urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
         robots_allowed(cache, "https://example.com/page1")
         robots_allowed(cache, "https://example.com/page2")
 
     # robots.txt must be fetched exactly once for the domain, not once per URL
-    assert fetch_count == 1
+    assert mock_urlopen.call_count == 1

@@ -24,12 +24,23 @@ class RobotsCache:
         if domain not in self._cache:
             parser = RobotFileParser()
             robots_url = f"{domain}/robots.txt"
+            parser.set_url(robots_url)
             try:
-                parser.set_url(robots_url)
-                parser.read()
+                import urllib.request
+                req = urllib.request.Request(robots_url, headers={'User-Agent': USER_AGENT})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    raw = response.read()
+                    lines = raw.decode("utf-8", errors="ignore").splitlines()
+                parser.parse(lines)
+            except urllib.error.HTTPError as err:
+                # RobotFileParser.read() considers 401/403 as disallow_all=True.
+                # We fail-open because WAFs often block bots from /robots.txt
+                parser.allow_all = True
             except (OSError, urllib.error.URLError):
-                # If robots.txt can't be fetched, treat as allow-all
-                pass
+                # If robots.txt can't be fetched (timeout/dns), treat as allow-all
+                parser.allow_all = True
+
+
             self._cache[domain] = parser
 
         return self._cache[domain]

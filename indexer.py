@@ -5,26 +5,27 @@ from pathlib import Path
 
 import typer
 
-from models import CrawlerConfig, IndexRecord, ScriptureMetadata
+from models import BookIndexRecord, CrawlerConfig
 from utils.config import load_config
 from utils.logging import setup_logger
 
 app = typer.Typer()
 
 
-def scan_meta_files(output_dir: Path) -> list[Path]:
-    """Recursively find all .json metadata files under output_dir/meta.
+def scan_book_manifests(output_dir: Path) -> list[Path]:
+    """Recursively find all book manifest .json files under output_dir/books.
 
-    Returns a sorted list for deterministic processing order.
+    Excludes index.json itself. Returns a sorted list for deterministic processing order.
+    Returns [] if output_dir/books does not exist.
     """
-    meta_dir = output_dir / "meta"
-    if not meta_dir.exists():
+    books_dir = output_dir / "books"
+    if not books_dir.exists():
         return []
-    return sorted(meta_dir.rglob("*.json"))
+    return sorted(p for p in books_dir.rglob("*.json") if p.name != "index.json")
 
 
-def load_existing_index(index_path: Path, logger) -> dict[str, IndexRecord]:
-    """Load data/index.json into a {record.id: IndexRecord} dict.
+def load_existing_index(index_path: Path, logger) -> dict[str, BookIndexRecord]:
+    """Load data/books/index.json into a {record.id: BookIndexRecord} dict.
 
     Returns empty dict if index_path does not exist or is corrupt.
     Logs a warning for each malformed entry and skips it without crashing.
@@ -33,10 +34,10 @@ def load_existing_index(index_path: Path, logger) -> dict[str, IndexRecord]:
         return {}
     try:
         entries = json.loads(index_path.read_text(encoding="utf-8"))
-        result: dict[str, IndexRecord] = {}
+        result: dict[str, BookIndexRecord] = {}
         for entry in entries:
             try:
-                record = IndexRecord(**entry)
+                record = BookIndexRecord(**entry)
                 result[record.id] = record
             except Exception as e:
                 logger.warning(f"[indexer] Skipping malformed index entry: {e}")
@@ -45,58 +46,45 @@ def load_existing_index(index_path: Path, logger) -> dict[str, IndexRecord]:
         return {}  # Corrupt index.json → start fresh
 
 
-def meta_to_index_record(meta_path: Path, logger) -> IndexRecord | None:
-    """Convert a .meta.json file to an IndexRecord, with disk consistency check.
+def manifest_to_book_record(manifest_path: Path, logger) -> BookIndexRecord | None:
+    """Convert a book manifest JSON to a BookIndexRecord.
 
-    Returns None if:
-    - meta.json is missing, unreadable, or fails ScriptureMetadata validation
-    - The referenced file_path does not exist on disk or is empty (orphaned record)
-    Never raises — all exceptions are caught and logged.
+    Returns None on any exception; logs error.
+    No disk consistency check needed (book manifests are always fresh from book_builder).
     """
     try:
-        content = meta_path.read_text(encoding="utf-8")
-        meta = ScriptureMetadata.model_validate_json(content)
-
-        # Disk consistency check: raw file must exist and be non-empty
-        file_path = Path(meta.file_path)
-        if not file_path.exists() or file_path.stat().st_size == 0:
-            logger.warning(
-                f"[indexer] Orphaned meta.json (file missing): {meta_path}"
-            )
-            return None
-
-        return IndexRecord(
-            id=meta.id,
-            title=meta.title,
-            category=meta.category,
-            subcategory=meta.subcategory,
-            source=meta.source,
-            url=meta.url,
-            file_path=meta.file_path,
-            file_format=meta.file_format,
-            copyright_status=meta.copyright_status,
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        return BookIndexRecord(
+            id=data["book_slug"],
+            title=data["book_title"],
+            category=data["category"],
+            subcategory=data.get("subcategory", ""),
+            source=data["source"],
+            author_translator=data.get("author_translator"),
+            total_chapters=data.get("total_chapters", 0),
+            manifest_path=str(manifest_path),
         )
     except Exception as e:
-        logger.error(f"[indexer] Failed to process {meta_path}: {e}")
+        logger.error(f"[indexer] Failed to process {manifest_path}: {e}")
         return None
 
 
 def build_index(cfg: CrawlerConfig, logger) -> None:
-    """Build or incrementally update data/index.json from all .meta.json files.
+    """Build or incrementally update data/books/index.json from all book manifests.
 
     Idempotent: records already in the index (by id) are never overwritten.
-    New records are appended. Orphaned records (missing raw file) are excluded.
+    New records are appended.
     """
     output_dir = Path(cfg.output_dir)
-    index_path = output_dir / "index.json"
+    index_path = output_dir / "books" / "index.json"
 
-    existing: dict[str, IndexRecord] = load_existing_index(index_path, logger)
-    meta_files = scan_meta_files(output_dir)
+    existing: dict[str, BookIndexRecord] = load_existing_index(index_path, logger)
+    manifest_files = scan_book_manifests(output_dir)
 
-    excluded_count = 0  # counts both orphans (missing file) and meta.json parse errors
+    excluded_count = 0
 
-    for meta_path in meta_files:
-        record = meta_to_index_record(meta_path, logger)
+    for manifest_path in manifest_files:
+        record = manifest_to_book_record(manifest_path, logger)
         if record is None:
             excluded_count += 1
             continue
@@ -112,7 +100,7 @@ def build_index(cfg: CrawlerConfig, logger) -> None:
     )
 
     logger.info(
-        f"[indexer] Indexed {len(records)} records, {excluded_count} excluded (orphans or errors)"
+        f"[indexer] Indexed {len(records)} books, {excluded_count} excluded (errors)"
     )
 
 

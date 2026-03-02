@@ -88,3 +88,21 @@ class IndexRecord(BaseModel):
     file_path: str
     file_format: Literal["html", "pdf", "epub", "other"]
     copyright_status: Literal["public_domain", "unknown"]
+
+
+class BookIndexRecord(BaseModel):
+    """Book-level index record for data/books/index.json.
+
+    One entry per book, aggregated from book manifests produced by book_builder.py.
+    author_translator is null when absent — never omitted.
+    """
+    id: str                  # book_slug
+    title: str               # book_title
+    category: Literal[
+        "Nikaya", "Đại Thừa", "Mật Tông", "Thiền", "Tịnh Độ"
+    ]
+    subcategory: str
+    source: str
+    author_translator: str | None
+    total_chapters: int
+    manifest_path: str       # relative path e.g. "data/books/thuvienkinhphat/slug.json"

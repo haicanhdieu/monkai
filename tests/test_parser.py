@@ -572,3 +572,106 @@ def test_nfr6_coverage_warning_logged(
 
     warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
     assert any("Coverage" in c and "below 90%" in c for c in warning_calls)
+
+
+# ---------------------------------------------------------------------------
+# ID generation — uniqueness across books (bug fix verification)
+# ---------------------------------------------------------------------------
+
+THUVIENKINHPHAT_HTML_TRUONGBO = """\
+<!DOCTYPE html>
+<html>
+<head><title>Kinh Trường Bộ: 1. Kinh Phạm Võng</title></head>
+<body><p>Nội dung chương 1 Trường Bộ.</p></body>
+</html>
+"""
+
+THUVIENKINHPHAT_HTML_TRUNGBO = """\
+<!DOCTYPE html>
+<html>
+<head><title>Kinh Trung Bộ: 1. Kinh Căn Bổn Pháp Môn</title></head>
+<body><p>Nội dung chương 1 Trung Bộ.</p></body>
+</html>
+"""
+
+
+@pytest.fixture
+def thuvienkinhphat_source() -> SourceConfig:
+    return SourceConfig(
+        name="thuvienkinhphat",
+        seed_url="https://thuvienkinhphat.net/thu-vien.html",
+        rate_limit_seconds=1.5,
+        output_folder="thuvienkinhphat",
+        css_selectors={
+            "catalog_links": "li strong a",
+            "file_links": "",
+            "title": "",
+            "category": "",
+            "subcategory": "",
+            "content": "body",
+        },
+    )
+
+
+def test_id_unique_across_books_same_chapter_number(
+    tmp_path: Path, thuvienkinhphat_source: SourceConfig, mock_logger: MagicMock
+) -> None:
+    """Chapters with the same number in different books must produce different IDs."""
+    truongbo_file = tmp_path / "truong01.html"
+    trungbo_file = tmp_path / "trung01.html"
+    truongbo_file.write_text(THUVIENKINHPHAT_HTML_TRUONGBO, encoding="utf-8")
+    trungbo_file.write_text(THUVIENKINHPHAT_HTML_TRUNGBO, encoding="utf-8")
+
+    # Real URL pattern: /buddha-sasana/{book-key}/{file}.html — path_parts[1] = book-key
+    result_truong = extract_metadata(
+        truongbo_file,
+        "https://thuvienkinhphat.net/buddha-sasana/kinh-truongbo/truong01.html",
+        thuvienkinhphat_source,
+        mock_logger,
+    )
+    result_trung = extract_metadata(
+        trungbo_file,
+        "https://thuvienkinhphat.net/buddha-sasana/kinh-trungbo/trung01.html",
+        thuvienkinhphat_source,
+        mock_logger,
+    )
+
+    assert result_truong is not None
+    assert result_trung is not None
+    # Same chapter number (1) but different books → IDs must differ
+    assert result_truong.id != result_trung.id
+    assert "truong-bo" in result_truong.id
+    assert "trung-bo" in result_trung.id
+
+
+def test_id_uses_file_stem_when_book_title_absent(
+    tmp_path: Path, thuvienkinhphat_source: SourceConfig, mock_logger: MagicMock
+) -> None:
+    """When book_title cannot be determined (unknown URL path), file stem guarantees uniqueness."""
+    file_a = tmp_path / "unknown-book-01.html"
+    file_b = tmp_path / "unknown-book-02.html"
+    # Both resolve to chapter "01" via filename fallback — different file stems ensure unique IDs
+    html = "<html><head><title>Nội dung</title></head><body>Content</body></html>"
+    file_a.write_text(html, encoding="utf-8")
+    file_b.write_text(html, encoding="utf-8")
+
+    # Real URL pattern: /buddha-sasana/{key}/{file} — "unrecognized-key" won't match any book
+    result_a = extract_metadata(
+        file_a,
+        "https://thuvienkinhphat.net/buddha-sasana/unrecognized-key/unknown-book-01.html",
+        thuvienkinhphat_source,
+        mock_logger,
+    )
+    result_b = extract_metadata(
+        file_b,
+        "https://thuvienkinhphat.net/buddha-sasana/unrecognized-key/unknown-book-02.html",
+        thuvienkinhphat_source,
+        mock_logger,
+    )
+
+    assert result_a is not None
+    assert result_b is not None
+    assert result_a.id != result_b.id
+    # File stem should appear in the ID
+    assert "unknown-book-01" in result_a.id
+    assert "unknown-book-02" in result_b.id

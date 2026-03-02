@@ -420,7 +420,11 @@ def extract_metadata(
                 # title = chapter (no separate title concept for thuvienkinhphat)
                 title = chapter or file_path.stem
 
-        scripture_id = make_id(source.name, title)
+        # Include book_title in ID so chapters with the same number across
+        # different books produce unique IDs (e.g. Kinh Trường Bộ 01 ≠ Kinh Trung Bộ 01).
+        # Fall back to the file stem (always unique per file) when book_title is absent.
+        id_title = f"{book_title} {title}" if book_title else file_path.stem
+        scripture_id = make_id(source.name, id_title)
         copyright_status = classify_copyright(source.name, category)
 
         return ScriptureMetadata(

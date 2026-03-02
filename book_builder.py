@@ -29,7 +29,7 @@ def extract_chapter_order(meta_file: str) -> int:
     return int(match.group(1)) if match else 9999
 
 
-def build_books(source_name: str, meta_dir: Path, books_dir: Path, logger) -> None:
+def build_books(source_name: str, meta_dir: Path, books_dir: Path, logger) -> int:
     """Group meta JSONs by book_title and write ordered book manifests.
 
     Output: one JSON per book at books_dir/{book-slug}.json
@@ -38,7 +38,7 @@ def build_books(source_name: str, meta_dir: Path, books_dir: Path, logger) -> No
     meta_files = sorted(meta_dir.glob("*.json"))
     if not meta_files:
         logger.warning(f"[book_builder] No meta JSON files found in {meta_dir}")
-        return
+        return 0
 
     # Group chapters by book_title
     books: dict[str, dict] = {}
@@ -119,6 +119,7 @@ def build_books(source_name: str, meta_dir: Path, books_dir: Path, logger) -> No
         )
 
     logger.info(f"[book_builder] Built {len(books)} book manifests for '{source_name}'")
+    return len(books)
 
 
 @app.command()
@@ -139,10 +140,15 @@ def build(
         logger.error(f"[book_builder] No source found: {source}")
         raise typer.Exit(1)
 
+    total_books = 0
     for src in sources:
         meta_dir = Path(cfg.output_dir) / "meta" / src.name
         books_dir = Path(cfg.output_dir) / "books" / src.name
-        build_books(src.name, meta_dir, books_dir, logger)
+        total_books += build_books(src.name, meta_dir, books_dir, logger)
+
+    if total_books == 0:
+        logger.error("[book_builder] No book manifests produced across all sources.")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
