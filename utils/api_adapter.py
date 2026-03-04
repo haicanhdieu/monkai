@@ -1,5 +1,6 @@
 # utils/api_adapter.py
 import asyncio
+import datetime
 import logging
 import random
 from pathlib import Path
@@ -14,10 +15,10 @@ from models import (
     ApiTocItem,
     ApiBookDetail,
     ApiPage,
-    ChapterBookData,
-    ChapterMeta,
-    BookInfo,
     PageEntry,
+    BookMeta,
+    ChapterEntry,
+    BookData,
 )
 from utils.slugify import slugify_title
 from utils.state import CrawlState
@@ -82,6 +83,16 @@ class VbetaApiAdapter:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return file_path
 
+    def _raw_file_exists(self, path_parts: list[str]) -> bool:
+        """Check if a raw file exists on disk."""
+        raw_dir = self.output_dir / "raw" / self.config.output_folder
+        return raw_dir.joinpath(*path_parts).exists()
+
+    def _book_data_exists(self, cat_seo: str, book_seo: str) -> bool:
+        """Check if a processed book-data file already exists."""
+        path = self.output_dir / "book-data" / self.config.output_folder / cat_seo / f"{book_seo}.json"
+        return path.exists()
+
     async def fetch_categories(self) -> list[ApiCategory]:
         """Level 1: Fetch all categories."""
         url = f"{self.base_url}{self.endpoints.get('category', '/category')}"
@@ -95,9 +106,6 @@ class VbetaApiAdapter:
 
     async def fetch_books_for_category(self, cat_id: int) -> list[ApiBookSelectItem]:
         """Level 2: Fetch books for a category."""
-        # The schema analysis says: /api/search/get-books-selectlist-by-categoryId/{catId}
-        # In config yaml this was just configured as '/book'. We assume the url format here
-        # or append it. Based on PRD we construct the rest.
         url_stub = self.endpoints.get("book", "/api/search/get-books-selectlist-by-categoryId")
         # Ensure it has trailing slash if not templated
         if "{" not in url_stub and not url_stub.endswith("/"):
@@ -145,102 +153,196 @@ class VbetaApiAdapter:
         self._save_raw(["chapters", f"{chapter_id}.json"], data)
         return data
 
-    def _save_canonical(self, chapter_data: ChapterBookData) -> None:
-        """Save canonical Domain model output."""
-        canonical_dir = self.output_dir / "book-data" / self.config.output_folder
-        file_path = canonical_dir / chapter_data.book.category_seo_name / chapter_data.book.seo_name / f"{chapter_data.chapter_seo_name}.json"
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as f:
-             # Use model_dump_json directly for canonical serialization
-             f.write(chapter_data.model_dump_json(by_alias=True, indent=2))
-
     async def process_all(self):
-        """Main orchestrator for API traversal."""
-        logger.info(f"[api_adapter] Starting traversal for source: {self.config.name}")
-        categories = await self.fetch_categories()
-        
-        for cat in categories:
-            books = await self.fetch_books_for_category(cat.value)
-            
-            for book_item in books:
-                toc_data = await self.fetch_toc_for_book(book_item.value)
-                if not toc_data:
-                    continue
-                
-                try:
-                    if not toc_data.get("result"):
-                        logger.warning(f"[api_adapter] Book {book_item.value} has no TOC result (null), skipping.")
-                        continue
-                        
-                    book_detail = ApiBookDetail(**toc_data["result"])
-                    toc_items = [ApiTocItem(**item) for item in toc_data["result"].get("tableOfContents", {}).get("items", [])]
-                except Exception as e:
-                     logger.error(f"[api_adapter] Failed to parse TOC for book {book_item.value}: {e}")
-                     continue
+        """Main orchestrator: Phase 1 crawl raw data, Phase 2 build book JSONs."""
+        logger.info(f"[api_adapter] Phase 1: Crawling raw data for {self.config.name}")
+        book_registry = await self._crawl_phase()  # returns list of (book_id, cat_seo, book_seo)
 
+        logger.info(f"[api_adapter] Phase 2: Building book-data for {len(book_registry)} books")
+        self._build_phase(book_registry)
+
+    async def _crawl_phase(self) -> list[tuple[int, str, str]]:
+        """
+        Fetch all levels from API → save raw JSON.
+        Skips any level whose raw file already exists on disk.
+        Books within a category are processed concurrently (up to CONCURRENCY at a time).
+        Returns list of (book_id, cat_seo_name, book_seo_name).
+        """
+        CONCURRENCY = 5  # max simultaneous in-flight book/chapter coroutines
+        semaphore = asyncio.Semaphore(CONCURRENCY)
+
+        # Level 1: Categories
+        if self._raw_file_exists(["categories.json"]):
+            logger.info("[api_adapter] Skip (disk): categories.json")
+            with open(self.output_dir / "raw" / self.config.output_folder / "categories.json") as f:
+                raw = json.load(f)
+            categories = [ApiCategory(**c) for c in raw.get("result", [])]
+        else:
+            categories = await self.fetch_categories()
+
+        # Collect results from all concurrent book tasks
+        book_registry: list[tuple[int, str, str]] = []
+
+        async def _process_book(cat: ApiCategory, cat_seo: str, book_item: ApiBookSelectItem) -> tuple[int, str, str] | None:
+            """Process one book (TOC + all chapters). Runs under semaphore."""
+            async with semaphore:
+                # Level 3a: TOC
+                if self._raw_file_exists(["toc", f"book_{book_item.value}.json"]):
+                    with open(self.output_dir / "raw" / self.config.output_folder / "toc" / f"book_{book_item.value}.json") as f:
+                        toc_data = json.load(f)
+                else:
+                    toc_data = await self.fetch_toc_for_book(book_item.value)
+                    if not toc_data:
+                        return None
+
+                try:
+                    result = toc_data.get("result")
+                    if not result:
+                        return None
+                    book_detail = ApiBookDetail(**result)
+                    toc_items = [ApiTocItem(**item) for item in result.get("tableOfContents", {}).get("items", [])]
+                except Exception as e:
+                    logger.error(f"[api_adapter] Failed to parse TOC for book {book_item.value}: {e}")
+                    return None
+
+                # Level 3b: Chapter pages
+                # Fast path: all chapters already on disk — skip the entire inner loop
+                all_chapter_ids = [t.id for t in toc_items]
+                missing_chapter_ids = [
+                    cid for cid in all_chapter_ids
+                    if not self._raw_file_exists(["chapters", f"{cid}.json"])
+                ]
+
+                if not missing_chapter_ids:
+                    logger.info(
+                        f"[api_adapter] Skip (disk): all {len(all_chapter_ids)} chapters for "
+                        f"book {book_item.value} ({book_detail.seo_name})"
+                    )
+                else:
+                    for toc_item in toc_items:
+                        chapter_id = toc_item.id
+                        api_chapter_url = self._get_chapter_url(chapter_id)
+
+                        if self._raw_file_exists(["chapters", f"{chapter_id}.json"]):
+                            continue  # already on disk, no log spam
+
+                        if self.state.is_downloaded(api_chapter_url):
+                            logger.info(f"[api_adapter] Skip (state): {api_chapter_url}")
+                            continue
+
+                        pages_data = await self.fetch_chapter_pages(chapter_id)
+                        if not pages_data:
+                            self.state.mark_error(api_chapter_url)
+                            self.state.save()
+                            continue
+
+                        self.state.mark_downloaded(api_chapter_url)
+                        self.state.save()
+                        logger.info(f"[api_adapter] Crawled: chapters/{chapter_id}.json")
+
+                return (book_item.value, cat_seo, book_detail.seo_name)
+
+        for cat in categories:
+            cat_seo = cat.seo_name or slugify_title(cat.label)
+
+            # Level 2: Books per category
+            if self._raw_file_exists(["books", f"by_category_{cat.value}.json"]):
+                logger.info(f"[api_adapter] Skip (disk): books/by_category_{cat.value}.json")
+                with open(self.output_dir / "raw" / self.config.output_folder / "books" / f"by_category_{cat.value}.json") as f:
+                    raw = json.load(f)
+                books = [ApiBookSelectItem(**b) for b in raw.get("result", [])]
+            else:
+                books = await self.fetch_books_for_category(cat.value)
+
+            # Process all books in this category concurrently
+            logger.info(f"[api_adapter] Processing {len(books)} books for category '{cat_seo}' (concurrency={CONCURRENCY})")
+            results = await asyncio.gather(
+                *[_process_book(cat, cat_seo, book_item) for book_item in books],
+                return_exceptions=False,
+            )
+            book_registry.extend(r for r in results if r is not None)
+
+        return book_registry
+
+    def _build_phase(self, book_registry: list[tuple[int, str, str]]) -> None:
+        """
+        Read raw data → aggregate → write one BookData JSON per book.
+        Skips books whose output file already exists.
+        """
+        for book_id, cat_seo, book_seo in book_registry:
+            if self._book_data_exists(cat_seo, book_seo):
+                logger.info(f"[api_adapter] Skip (exists): book-data/{cat_seo}/{book_seo}.json")
+                continue
+
+            toc_path = self.output_dir / "raw" / self.config.output_folder / "toc" / f"book_{book_id}.json"
+            if not toc_path.exists():
+                logger.warning(f"[api_adapter] Missing TOC raw file for book {book_id}, skipping build")
+                continue
+
+            try:
+                with open(toc_path) as f:
+                    toc_data = json.load(f)
+
+                result = toc_data["result"]
+                book_detail = ApiBookDetail(**result)
+                toc_items = [ApiTocItem(**item) for item in result.get("tableOfContents", {}).get("items", [])]
+
+                chapters: list[ChapterEntry] = []
                 for toc_item in toc_items:
-                     chapter_id = toc_item.id
-                     # Check idempotency
-                     api_chapter_url = self._get_chapter_url(chapter_id)
-                     
-                     if self.state.is_downloaded(api_chapter_url):
-                         logger.info(f"[api_adapter] Skip (state): {api_chapter_url}")
-                         continue
-                         
-                     pages_data = await self.fetch_chapter_pages(chapter_id)
-                     if not pages_data:
-                         self.state.mark_error(api_chapter_url)
-                         self.state.save()
-                         continue
-                         
-                     try:
-                         # Ensure pages map correctly
-                         raw_pages = pages_data["result"].get("pages", [])
-                         api_pages = [ApiPage(**p) for p in raw_pages]
-                         
-                         domain_pages = [PageEntry(
-                             page_number=p.page_number, 
-                             sort_number=p.sort_number, 
-                             html_content=p.html_content
-                         ) for p in api_pages]
-                         
-                         import datetime
-                         now = datetime.datetime.now(datetime.timezone.utc)
-                         
-                         book_info = BookInfo(
-                             id=book_detail.id,
-                             name=book_detail.name,
-                             seo_name=book_detail.seo_name,
-                             cover_image_url=book_detail.cover_image_url,
-                             author=book_detail.author,
-                             author_id=book_detail.author_id,
-                             publisher=book_detail.publisher,
-                             publication_year=book_detail.publication_year,
-                             category_id=book_detail.category_id,
-                             category_name=book_detail.category_name,
-                             category_seo_name=cat.seo_name or slugify_title(book_detail.category_name)
-                         )
-                         
-                         chapter_seo = toc_item.seo_name
-                         
-                         canonical_data = ChapterBookData(
-                             _meta=ChapterMeta(fetched_at=now, api_chapter_url=api_chapter_url),
-                             id=f"{self.config.name}__{chapter_seo}",
-                             chapter_id=chapter_id,
-                             chapter_name=toc_item.name,
-                             chapter_seo_name=chapter_seo,
-                             chapter_view_count=toc_item.view_count,
-                             page_count=len(domain_pages),
-                             book=book_info,
-                             pages=domain_pages
-                         )
-                         
-                         self._save_canonical(canonical_data)
-                         self.state.mark_downloaded(api_chapter_url)
-                         self.state.save()
-                         logger.info(f"[api_adapter] Downloaded: {api_chapter_url}")
-                         
-                     except Exception as e:
-                         logger.error(f"[api_adapter] Error transforming/saving chapter {chapter_id}: {e}")
-                         self.state.mark_error(api_chapter_url)
-                         self.state.save()
+                    chapter_path = self.output_dir / "raw" / self.config.output_folder / "chapters" / f"{toc_item.id}.json"
+                    if not chapter_path.exists():
+                        logger.warning(f"[api_adapter] Missing chapter raw file {toc_item.id}, skipping chapter")
+                        continue
+
+                    with open(chapter_path) as f:
+                        ch_data = json.load(f)
+
+                    raw_pages = ch_data["result"].get("pages", [])
+                    pages = [PageEntry(
+                        page_number=p.get("pageNumber"),
+                        sort_number=p["sortNumber"],
+                        html_content=p["htmlContent"]
+                    ) for p in raw_pages]
+
+                    chapters.append(ChapterEntry(
+                        chapter_id=toc_item.id,
+                        chapter_name=toc_item.name,
+                        chapter_seo_name=toc_item.seo_name,
+                        chapter_view_count=toc_item.view_count,
+                        page_count=len(pages),
+                        pages=pages
+                    ))
+
+                book_data = BookData(
+                    _meta=BookMeta(built_at=datetime.datetime.now(datetime.timezone.utc)),
+                    id=f"{self.config.name}__{book_seo}",
+                    book_id=book_detail.id,
+                    book_name=book_detail.name,
+                    book_seo_name=book_detail.seo_name,
+                    cover_image_url=book_detail.cover_image_url,
+                    author=book_detail.author,
+                    author_id=book_detail.author_id,
+                    publisher=book_detail.publisher,
+                    publication_year=book_detail.publication_year,
+                    category_id=book_detail.category_id,
+                    category_name=book_detail.category_name,
+                    category_seo_name=cat_seo,
+                    total_chapters=len(chapters),
+                    chapters=chapters
+                )
+
+                self._save_book_data(book_data, cat_seo)
+                logger.info(f"[api_adapter] Built: book-data/{cat_seo}/{book_seo}.json ({len(chapters)} chapters)")
+
+            except Exception as e:
+                logger.error(f"[api_adapter] Error building book {book_id} ({book_seo}): {e}")
+
+    def _save_book_data(self, book_data: BookData, cat_seo: str) -> None:
+        """Save canonical BookData JSON: one file per book."""
+        out_path = (
+            self.output_dir / "book-data" / self.config.output_folder
+            / cat_seo / f"{book_data.book_seo_name}.json"
+        )
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(book_data.model_dump_json(by_alias=True, indent=2))

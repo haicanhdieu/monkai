@@ -194,8 +194,10 @@ class PageEntry(BaseModel):
 
 class ChapterBookData(BaseModel):
     """
-    Canonical output format. One file per chapter.
+    DEPRECATED: Canonical output format v1 — one file per chapter.
     Path: data/book-data/vbeta/{cat_seo}/{book_seo}/{chapter_seo}.json
+    Do NOT remove — existing crawled data may still reference this schema.
+    Use BookData (schema v2.0) for new output.
     """
     meta: ChapterMeta = Field(..., alias="_meta")
     id: str                                 # e.g. "vbeta__1-kinh-pham-vong"
@@ -206,4 +208,45 @@ class ChapterBookData(BaseModel):
     page_count: int
     book: BookInfo
     pages: list[PageEntry]
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# ─── New Book-level Domain Layer (schema v2.0) ──────────────────────────
+
+class BookMeta(BaseModel):
+    source: str = "vbeta"
+    schema_version: str = "2.0"
+    built_at: datetime
+
+
+class ChapterEntry(BaseModel):
+    """A chapter with its pages, embedded inside BookData."""
+    chapter_id: int
+    chapter_name: str
+    chapter_seo_name: str
+    chapter_view_count: int = 0
+    page_count: int
+    pages: list[PageEntry]
+
+
+class BookData(BaseModel):
+    """
+    Canonical output format v2: one file per book.
+    Path: data/book-data/vbeta/{cat_seo}/{book_seo}.json
+    """
+    meta: BookMeta = Field(..., alias="_meta")
+    id: str                                  # e.g. "vbeta__bo-trung-quan"
+    book_id: int
+    book_name: str
+    book_seo_name: str
+    cover_image_url: str | None = None
+    author: str | None = None
+    author_id: int | None = None
+    publisher: str | None = None
+    publication_year: int | None = None
+    category_id: int
+    category_name: str
+    category_seo_name: str
+    total_chapters: int
+    chapters: list[ChapterEntry]
     model_config = ConfigDict(populate_by_name=True)

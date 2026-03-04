@@ -125,3 +125,163 @@ async def test_idempotency_skip_downloaded(source_config, mock_session, mock_sta
     # We expect 2 GET calls: 1 for Categories, 1 for Books.
     assert mock_session.get.call_count == 2
     mock_state.is_downloaded.assert_called_with(expected_url)
+
+
+# ─── New Phase Tests ─────────────────────────────────────────────────────────
+
+# Shared fixture data
+_TOC_RAW = {
+    "result": {
+        "id": 1,
+        "name": "Book 1",
+        "seoName": "book-1",
+        "categoryId": 1,
+        "categoryName": "Kinh",
+        "coverImageUrl": None,
+        "author": None,
+        "authorId": None,
+        "publisher": None,
+        "publicationYear": None,
+        "tableOfContents": {
+            "items": [
+                {
+                    "id": 12439,
+                    "name": "Chapter One",
+                    "seoName": "chapter-one",
+                    "viewCount": 5,
+                    "minPageNumber": 1,
+                    "maxPageNumber": 2,
+                }
+            ]
+        },
+    },
+    "success": True,
+}
+
+_CHAPTER_RAW = {
+    "result": {
+        "pages": [
+            {"pageNumber": 1, "sortNumber": 1, "htmlContent": "<p>Page 1</p>"},
+            {"pageNumber": 2, "sortNumber": 2, "htmlContent": "<p>Page 2</p>"},
+        ]
+    }
+}
+
+
+@pytest.mark.asyncio
+async def test_crawl_phase_skips_chapter_if_raw_exists(source_config, mock_session, mock_state, tmp_path):
+    """Given chapters/12439.json exists on disk, _crawl_phase should NOT call session.get for that chapter."""
+    adapter = VbetaApiAdapter(source_config, mock_session, mock_state, str(tmp_path))
+
+    # Pre-seed raw files so every level is skipped from disk
+    raw_dir = tmp_path / "raw" / "vbeta"
+    (raw_dir).mkdir(parents=True, exist_ok=True)
+
+    # categories.json on disk
+    import json as _json
+    cats_data = {"result": [{"value": 1, "label": "Kinh", "seoName": "kinh"}]}
+    (raw_dir / "categories.json").write_text(_json.dumps(cats_data))
+
+    # books on disk
+    (raw_dir / "books").mkdir(parents=True, exist_ok=True)
+    books_data = {"result": [{"value": 1, "label": "Book 1", "seoName": "book-1"}]}
+    (raw_dir / "books" / "by_category_1.json").write_text(_json.dumps(books_data))
+
+    # toc on disk
+    (raw_dir / "toc").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "toc" / "book_1.json").write_text(_json.dumps(_TOC_RAW))
+
+    # chapters/12439.json on disk — this is the key pre-condition
+    (raw_dir / "chapters").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "chapters" / "12439.json").write_text(_json.dumps(_CHAPTER_RAW))
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        registry = await adapter._crawl_phase()
+
+    # session.get should NOT be called at all because every level hit disk
+    mock_session.get.assert_not_called()
+    mock_session.post.assert_not_called()
+    # Still returns the book registry
+    assert registry == [(1, "kinh", "book-1")]
+
+
+@pytest.mark.asyncio
+async def test_crawl_phase_skips_categories_if_raw_exists(source_config, mock_session, mock_state, tmp_path):
+    """Given categories.json exists on disk, _crawl_phase should NOT call session.get for categories endpoint."""
+    adapter = VbetaApiAdapter(source_config, mock_session, mock_state, str(tmp_path))
+
+    raw_dir = tmp_path / "raw" / "vbeta"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    import json as _json
+    # Only categories on disk — books/toc/chapters will not exist, so network would be called for them
+    cats_data = {"result": []}  # empty result → no books to traverse
+    (raw_dir / "categories.json").write_text(_json.dumps(cats_data))
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        registry = await adapter._crawl_phase()
+
+    # categories endpoint was NOT called because file was read from disk
+    for call in mock_session.get.call_args_list:
+        url = call.args[0] if call.args else call.kwargs.get("url", "")
+        assert "categories" not in url, f"categories endpoint was unexpectedly called: {url}"
+
+    assert registry == []
+
+
+def test_build_phase_creates_book_json(source_config, mock_state, tmp_path):
+    """Given raw toc and chapter files, _build_phase should create book-data/{cat}/{book}.json."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    import json as _json
+    raw_dir = tmp_path / "raw" / "vbeta"
+    (raw_dir / "toc").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "chapters").mkdir(parents=True, exist_ok=True)
+
+    (raw_dir / "toc" / "book_1.json").write_text(_json.dumps(_TOC_RAW))
+    (raw_dir / "chapters" / "12439.json").write_text(_json.dumps(_CHAPTER_RAW))
+
+    adapter._build_phase([(1, "kinh", "book-1")])
+
+    out_path = tmp_path / "book-data" / "vbeta" / "kinh" / "book-1.json"
+    assert out_path.exists(), "Expected book-data output file to be created"
+
+    with open(out_path) as f:
+        result = _json.load(f)
+
+    assert len(result["chapters"]) == 1
+    assert result["total_chapters"] == 1
+    assert result["chapters"][0]["chapter_id"] == 12439
+    assert len(result["chapters"][0]["pages"]) == 2
+
+
+def test_build_phase_skips_if_book_json_exists(source_config, mock_state, tmp_path):
+    """Given the output book JSON already exists, _build_phase should not overwrite it."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    import json as _json
+    # Create the existing output file with a sentinel value
+    out_dir = tmp_path / "book-data" / "vbeta" / "kinh"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sentinel_content = {"sentinel": True}
+    out_file = out_dir / "book-1.json"
+    out_file.write_text(_json.dumps(sentinel_content))
+
+    # Also seed the raw files (in case skip logic fails and build runs)
+    raw_dir = tmp_path / "raw" / "vbeta"
+    (raw_dir / "toc").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "chapters").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "toc" / "book_1.json").write_text(_json.dumps(_TOC_RAW))
+    (raw_dir / "chapters" / "12439.json").write_text(_json.dumps(_CHAPTER_RAW))
+
+    mtime_before = out_file.stat().st_mtime
+    adapter._build_phase([(1, "kinh", "book-1")])
+    mtime_after = out_file.stat().st_mtime
+
+    # File should not have been touched (mtime unchanged)
+    assert mtime_before == mtime_after, "book-data output file was unexpectedly overwritten"
+
+    # Content should still be the sentinel, not a real BookData JSON
+    with open(out_file) as f:
+        content = _json.load(f)
+    assert content == sentinel_content
