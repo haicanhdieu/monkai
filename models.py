@@ -250,3 +250,47 @@ class BookData(BaseModel):
     total_chapters: int
     chapters: list[ChapterEntry]
     model_config = ConfigDict(populate_by_name=True)
+
+
+# ─── Index Layer (data/book-data/index.json) ─────────────────────────────
+
+import uuid as _uuid  # noqa: E402 — local import to avoid polluting top-level namespace
+
+
+class BookArtifact(BaseModel):
+    """One retrievable format/source of a book."""
+    source: str                    # e.g. "vbeta"
+    format: str                    # e.g. "json", "epub"
+    path: str                      # relative to data/book-data/, e.g. "vbeta/kinh/bo-trung-quan.json"
+    built_at: datetime
+
+
+class BookIndexEntry(BaseModel):
+    """Lightweight book record in the central index. No chapter/page content."""
+    id: str                        # UUID v4 — our system ID, stable across rebuilds
+    source_book_id: str            # Source system's native book ID as string, e.g. "512" from vbeta
+    book_name: str
+    book_seo_name: str
+    cover_image_url: str | None = None
+    author: str | None = None
+    publisher: str | None = None
+    publication_year: int | None = None
+    category_id: int
+    category_name: str
+    category_seo_name: str
+    total_chapters: int
+    artifacts: list[BookArtifact]
+
+
+class BookIndexMeta(BaseModel):
+    schema_version: str = "1.0"
+    built_at: datetime
+    total_books: int
+
+
+class BookIndex(BaseModel):
+    """Root model for data/book-data/index.json"""
+    meta: BookIndexMeta = Field(..., alias="_meta")
+    books: list[BookIndexEntry]
+    model_config = ConfigDict(populate_by_name=True)
+

@@ -15,6 +15,7 @@ import pytest
 from models import BookIndexRecord, CrawlerConfig, SourceConfig
 from indexer import (
     build_index,
+    build_book_data_index,
     load_existing_index,
     manifest_to_book_record,
     scan_book_manifests,
@@ -416,3 +417,113 @@ def test_build_index_logs_summary_with_books_and_excluded(
     log_msg = str(mock_logger.info.call_args)
     assert "books" in log_msg.lower()
     assert "excluded" in log_msg.lower()
+
+
+# ---------------------------------------------------------------------------
+# Helpers for build_book_data_index tests
+# ---------------------------------------------------------------------------
+
+def make_book_data_file(
+    book_data_dir: Path,
+    source: str,
+    cat_seo: str,
+    book_seo: str,
+    book_id: int,
+) -> Path:
+    """Write a minimal valid BookData (schema v2.0) JSON file at
+    book_data_dir/{source}/{cat_seo}/{book_seo}.json.
+    """
+    out_path = book_data_dir / source / cat_seo / f"{book_seo}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    book_data = {
+        "_meta": {
+            "source": source,
+            "schema_version": "2.0",
+            "built_at": "2026-03-04T17:13:36Z",
+        },
+        "id": f"{source}__{book_seo}",
+        "book_id": book_id,
+        "book_name": book_seo.replace("-", " ").title(),
+        "book_seo_name": book_seo,
+        "cover_image_url": None,
+        "author": None,
+        "author_id": None,
+        "publisher": None,
+        "publication_year": None,
+        "category_id": 1,
+        "category_name": "Kinh",
+        "category_seo_name": cat_seo,
+        "total_chapters": 10,
+        "chapters": [],
+    }
+    out_path.write_text(json.dumps(book_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# build_book_data_index
+# ---------------------------------------------------------------------------
+
+def test_build_book_data_index_creates_index_json(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Given a valid BookData (v2.0) file, index.json is created with correct schema."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_file(book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=512)
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    index_path = book_data_dir / "index.json"
+    assert index_path.exists()
+
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+    book = data["books"][0]
+    assert book["source_book_id"] == "512"           # must be a string
+    assert isinstance(book["source_book_id"], str)
+    # validate UUID4 format (8-4-4-4-12 hex groups)
+    import re
+    assert re.match(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        book["id"],
+        re.IGNORECASE,
+    ), f"Not a valid UUID4: {book['id']}"
+    assert book["artifacts"][0]["format"] == "json"
+    assert book["artifacts"][0]["source"] == "vbeta"
+
+
+def test_build_book_data_index_preserves_uuid_on_rebuild(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """UUID is preserved across rebuilds (matched by source + source_book_id)."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_file(book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=512)
+
+    # First build — capture UUID
+    build_book_data_index(tmp_path, mock_logger)
+    index_path = book_data_dir / "index.json"
+    data1 = json.loads(index_path.read_text(encoding="utf-8"))
+    original_uuid = data1["books"][0]["id"]
+
+    # Second build — UUID must be identical
+    build_book_data_index(tmp_path, mock_logger)
+    data2 = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data2["books"][0]["id"] == original_uuid
+
+
+def test_build_book_data_index_excludes_index_json_itself(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """index.json found during scan is not parsed as a book entry."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_file(book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=512)
+
+    # First run creates index.json
+    build_book_data_index(tmp_path, mock_logger)
+
+    # Second run — index.json is present but must NOT be counted as a book
+    build_book_data_index(tmp_path, mock_logger)
+
+    index_path = book_data_dir / "index.json"
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1  # only the one real book

@@ -11,7 +11,7 @@ def main():
     
     stages = [
         ("crawler", ["uv", "run", "python", "crawler.py", "--source", "all"]),
-        ("indexer", ["uv", "run", "python", "indexer.py"]),
+        ("build-index", ["uv", "run", "python", "indexer.py", "build-index"]),
         ("validate", ["uv", "run", "python", "validate.py"]),
     ]
     
@@ -27,15 +27,16 @@ def main():
             logger.error(f"Pipeline HALTED: Failed to execute stage '{name}': {e}")
             sys.exit(1)
             
-    # 🔴 CRITICAL and 🟠 HIGH ISSUE FIX: Output final pipeline summary
+    # Output final pipeline summary
     logger.info("End-to-End Pipeline Completed Successfully!")
     logger.info("--- FINAL SUMMARY ---")
-    index_path = "data/books/index.json"
+    index_path = "data/book-data/index.json"
     if os.path.exists(index_path):
         try:
             with open(index_path, "r", encoding="utf-8") as f:
                 index_data = json.load(f)
-                logger.info(f"Total records processed end-to-end: {len(index_data)}")
+            total = index_data.get("_meta", {}).get("total_books", len(index_data.get("books", [])))
+            logger.info(f"Total books indexed end-to-end: {total}")
         except Exception as e:
             logger.error(f"Failed to read {index_path}: {e}")
     else:
