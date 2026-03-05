@@ -222,7 +222,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
                 source_book_id=source_book_id,
                 book_name=book_data.book_name,
                 book_seo_name=book_data.book_seo_name,
-                cover_image_url=book_data.cover_image_url,
+                cover_image_url=book_data.cover_image_local_path or book_data.cover_image_url,
                 author=book_data.author,
                 publisher=book_data.publisher,
                 publication_year=book_data.publication_year,

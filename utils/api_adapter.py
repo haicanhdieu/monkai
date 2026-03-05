@@ -201,6 +201,39 @@ class VbetaApiAdapter:
 
         return cover_local
 
+    def _build_url_to_local_map(
+        self,
+        book_folder: Path,
+        cover_url: str | None,
+        pages_data_list: list[dict],
+    ) -> dict[str, str]:
+        """Build {original_url: relative_local_path} for all downloaded images of a book.
+
+        Paths are relative to data/book-data/ root (consistent with BookArtifact.path).
+        Only includes URLs whose derived filename actually exists in the book folder.
+        """
+        dest_img_dir = book_folder / "images"
+        if not dest_img_dir.exists():
+            return {}
+        book_data_dir = self.output_dir / "book-data"
+        url_to_local: dict[str, str] = {}
+
+        # Cover image
+        if cover_url:
+            filename = self._derive_image_filename(cover_url)
+            dest = dest_img_dir / filename
+            if dest.exists():
+                url_to_local[cover_url] = str(dest.relative_to(book_data_dir))
+
+        # Content images
+        for url in self._extract_image_urls(pages_data_list):
+            filename = self._derive_image_filename(url)
+            dest = dest_img_dir / filename
+            if dest.exists():
+                url_to_local[url] = str(dest.relative_to(book_data_dir))
+
+        return url_to_local
+
     async def fetch_categories(self) -> list[ApiCategory]:
         """Level 1: Fetch all categories."""
         url = f"{self.base_url}{self.endpoints.get('category', '/category')}"
@@ -464,6 +497,32 @@ class VbetaApiAdapter:
                     book_id, book_folder, book_detail.cover_image_url
                 )
                 book_data.cover_image_local_path = cover_local
+
+                # Collect raw pages data to build the URL→local map
+                all_pages_data: list[dict] = []
+                for toc_item in toc_items:
+                    chapter_path = (
+                        self.output_dir / "raw" / self.config.output_folder
+                        / "chapters" / f"{toc_item.id}.json"
+                    )
+                    if chapter_path.exists():
+                        with open(chapter_path) as f:
+                            ch = json.load(f)
+                        all_pages_data.extend(ch.get("result", {}).get("pages", []))
+
+                # Rewrite <img src="URL"> → <img src="local/rel/path"> in each page
+                url_to_local = self._build_url_to_local_map(
+                    book_folder, book_detail.cover_image_url, all_pages_data
+                )
+                if url_to_local:
+                    for chapter in chapters:
+                        for page in chapter.pages:
+                            rewritten = page.html_content
+                            for orig_url, local_path in url_to_local.items():
+                                rewritten = rewritten.replace(orig_url, local_path)
+                            if rewritten != page.html_content:
+                                page.original_html_content = page.html_content
+                                page.html_content = rewritten
 
                 self._save_book_data(book_data, cat_seo)
                 logger.info(f"[api_adapter] Built: book-data/{cat_seo}/{book_seo}/book.json ({len(chapters)} chapters)")

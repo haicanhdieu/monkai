@@ -192,6 +192,19 @@ async def test_full_pipeline_crawl_build_index(source_config, mock_state, tmp_pa
     assert json_artifact["path"].endswith("book.json"), \
         f"json artifact path should end with book.json, got: {json_artifact['path']}"
 
+    # ── AC 1/2: img src rewriting in page HTML ──────────────────────────────
+    # Page sort_number=2 contains 'fig1.png' in _CHAPTER_RAW
+    page_with_img = book_data["chapters"][0]["pages"][1]
+    assert "https://cdn.example.com/images/fig1.png" not in page_with_img["html_content"], \
+        "HTTP img URL should be rewritten to local path"
+    assert page_with_img["original_html_content"] is not None, \
+        "original_html_content should be preserved after rewriting"
+
+    # ── AC 4: index.json cover_image_url should be local path ───────────────
+    assert not book_entry["cover_image_url"].startswith("https://"), \
+        "index.json cover_image_url should be local relative path, not HTTP URL"
+
+
 
 @pytest.mark.asyncio
 async def test_full_pipeline_idempotent(source_config, mock_state, tmp_path):

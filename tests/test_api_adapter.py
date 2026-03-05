@@ -395,3 +395,131 @@ def test_copy_images_to_book_folder(source_config, mock_state, tmp_path):
     assert (book_folder / "images" / "fig1.png").exists()
     assert cover_local is not None
     assert cover_local.endswith("cover.jpg")
+
+
+def test_build_phase_rewrites_img_src_in_pages(source_config, mock_state, tmp_path):
+    """_build_phase rewrites <img src=URL> to local path in PageEntry.html_content.
+
+    AC 1: html_content has local path (no HTTP URL).
+    AC 2: original_html_content is preserved with original HTML.
+    AC 3: Pages without images have original_html_content=None and unchanged html_content.
+    """
+    import json as _json
+
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    # Page 1: text only (no img)
+    # Page 2: contains <img src='https://cdn.example.com/images/fig1.png'>
+    toc_raw = {
+        "result": {
+            "id": 5,
+            "name": "Bo Test",
+            "seoName": "bo-test",
+            "categoryId": 1,
+            "categoryName": "Kinh",
+            "coverImageUrl": None,
+            "author": None,
+            "authorId": None,
+            "publisher": None,
+            "publicationYear": None,
+            "tableOfContents": {
+                "items": [
+                    {
+                        "id": 9001,
+                        "name": "Chapter One",
+                        "seoName": "chapter-one",
+                        "viewCount": 0,
+                        "minPageNumber": 1,
+                        "maxPageNumber": 2,
+                    }
+                ]
+            },
+        },
+        "success": True,
+    }
+    chapter_raw = {
+        "result": {
+            "pages": [
+                {"pageNumber": 1, "sortNumber": 1, "htmlContent": "<p>Just text</p>"},
+                {
+                    "pageNumber": 2,
+                    "sortNumber": 2,
+                    "htmlContent": "<p>Text</p><img src='https://cdn.example.com/images/fig1.png'>",
+                },
+            ]
+        }
+    }
+
+    raw_dir = tmp_path / "raw" / "vbeta"
+    (raw_dir / "toc").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "chapters").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "toc" / "book_5.json").write_text(_json.dumps(toc_raw))
+    (raw_dir / "chapters" / "9001.json").write_text(_json.dumps(chapter_raw))
+
+    # Pre-seed downloaded image in raw/vbeta/images/<book_id>/ so _copy_images_to_book_folder
+    # finds it and the url_to_local map is populated.
+    raw_img_dir = tmp_path / "raw" / "vbeta" / "images" / "5"
+    raw_img_dir.mkdir(parents=True, exist_ok=True)
+    (raw_img_dir / "fig1.png").write_bytes(b"FAKE")
+
+    adapter._build_phase([(5, "kinh", "bo-test")])
+
+    book_json_path = tmp_path / "book-data" / "vbeta" / "kinh" / "bo-test" / "book.json"
+    assert book_json_path.exists()
+
+    with open(book_json_path) as f:
+        book_data = _json.load(f)
+
+    pages = book_data["chapters"][0]["pages"]
+    page_text_only = pages[0]  # sort_number=1, no img
+    page_with_img = pages[1]   # sort_number=2, has fig1.png
+
+    # AC 3: Text-only page unchanged, original_html_content is null
+    assert page_text_only["original_html_content"] is None
+    assert page_text_only["html_content"] == "<p>Just text</p>"
+
+    # AC 1: HTTP URL replaced with local path
+    assert "https://cdn.example.com/images/fig1.png" not in page_with_img["html_content"], \
+        "HTTP img URL should be rewritten to local path"
+    assert "fig1.png" in page_with_img["html_content"], \
+        "Local filename should appear in rewritten html_content"
+
+    # AC 2: original HTML preserved
+    assert page_with_img["original_html_content"] is not None, \
+        "original_html_content should be set for pages that were rewritten"
+    assert "https://cdn.example.com/images/fig1.png" in page_with_img["original_html_content"], \
+        "original_html_content should still have the original HTTP URL"
+
+
+def test_build_url_to_local_map_returns_empty_if_no_images_dir(source_config, mock_state, tmp_path):
+    """Returns empty dict when book folder has no images/ subdirectory."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+    book_folder = tmp_path / "book-data" / "vbeta" / "kinh" / "some-book"
+    book_folder.mkdir(parents=True, exist_ok=True)
+    result = adapter._build_url_to_local_map(book_folder, "https://example.com/cover.jpg", [])
+    assert result == {}
+
+
+def test_build_url_to_local_map_only_maps_existing_files(source_config, mock_state, tmp_path):
+    """Only includes URLs whose file actually exists in the images/ folder."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    book_folder = tmp_path / "book-data" / "vbeta" / "kinh" / "some-book"
+    img_dir = book_folder / "images"
+    img_dir.mkdir(parents=True, exist_ok=True)
+
+    # Only cover.jpg is present, fig1.png is not
+    (img_dir / "cover.jpg").write_bytes(b"COVER")
+
+    pages_data = [{"htmlContent": "<img src='https://cdn.example.com/fig1.png'>"}]
+    result = adapter._build_url_to_local_map(
+        book_folder,
+        "https://cdn.example.com/images/cover.jpg",
+        pages_data,
+    )
+
+    # cover URL should be mapped (file exists)
+    assert any("cover.jpg" in v for v in result.values()), "cover.jpg should be in map"
+    # fig1.png should NOT be mapped (file does not exist)
+    assert not any("fig1.png" in v for v in result.values()), "fig1.png should NOT be in map"
+
