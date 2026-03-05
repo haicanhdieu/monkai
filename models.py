@@ -189,7 +189,8 @@ class BookInfo(BaseModel):
 class PageEntry(BaseModel):
     page_number: int | None = None
     sort_number: int
-    html_content: str
+    html_content: str                        # may have local img paths post-build
+    original_html_content: str | None = None # original HTML with remote URLs (set during build)
 
 
 class ChapterBookData(BaseModel):
@@ -232,7 +233,7 @@ class ChapterEntry(BaseModel):
 class BookData(BaseModel):
     """
     Canonical output format v2: one file per book.
-    Path: data/book-data/vbeta/{cat_seo}/{book_seo}.json
+    Path: data/book-data/vbeta/{cat_seo}/{book_seo}/book.json
     """
     meta: BookMeta = Field(..., alias="_meta")
     id: str                                  # e.g. "vbeta__bo-trung-quan"
@@ -240,6 +241,7 @@ class BookData(BaseModel):
     book_name: str
     book_seo_name: str
     cover_image_url: str | None = None
+    cover_image_local_path: str | None = None  # relative path to local copy, e.g. "vbeta/kinh/slug/images/cover.jpg"
     author: str | None = None
     author_id: int | None = None
     publisher: str | None = None
@@ -260,8 +262,8 @@ import uuid as _uuid  # noqa: E402 — local import to avoid polluting top-level
 class BookArtifact(BaseModel):
     """One retrievable format/source of a book."""
     source: str                    # e.g. "vbeta"
-    format: str                    # e.g. "json", "epub"
-    path: str                      # relative to data/book-data/, e.g. "vbeta/kinh/bo-trung-quan.json"
+    format: str                    # "json", "epub", "mobi", "image" — no Literal constraint, extensible
+    path: str                      # relative to data/book-data/, e.g. "vbeta/kinh/bo-trung-quan/book.json"
     built_at: datetime
 
 

@@ -94,20 +94,21 @@ def _make_cfg(tmp_path: Path) -> CrawlerConfig:
 # ---------------------------------------------------------------------------
 
 def test_scan_book_manifests_finds_all_json(tmp_path: Path) -> None:
-    books_dir = tmp_path / "book-data"
-    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
-    make_book_manifest(books_dir, "vbeta", "kinh-b", "Kinh B")
-    make_book_manifest(books_dir, "vbeta", "kinh-c", "Kinh C")
+    book_data_dir = tmp_path / "book-data"
+    # New structure: book.json inside book folders
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "kinh-a", 1)
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "kinh-b", 2)
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "kinh-c", 3)
 
     result = scan_book_manifests(tmp_path)
     assert len(result) == 3
 
 
 def test_scan_book_manifests_excludes_index_json(tmp_path: Path) -> None:
-    books_dir = tmp_path / "book-data"
-    make_book_manifest(books_dir, "vbeta", "kinh-a", "Kinh A")
-    # Place an index.json in books/
-    (books_dir / "index.json").write_text("[]", encoding="utf-8")
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "kinh-a", 1)
+    # Place an index.json in book-data/
+    (book_data_dir / "index.json").write_text("[]", encoding="utf-8")
 
     result = scan_book_manifests(tmp_path)
     assert len(result) == 1
@@ -115,14 +116,13 @@ def test_scan_book_manifests_excludes_index_json(tmp_path: Path) -> None:
 
 
 def test_scan_book_manifests_returns_sorted(tmp_path: Path) -> None:
-    books_dir = tmp_path / "book-data"
-    make_book_manifest(books_dir, "vbeta", "c-kinh", "C Kinh")
-    make_book_manifest(books_dir, "vbeta", "a-kinh", "A Kinh")
-    make_book_manifest(books_dir, "vbeta", "b-kinh", "B Kinh")
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "c-kinh", 3)
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "a-kinh", 1)
+    make_book_data_folder(book_data_dir, "vbeta", "nikaya", "b-kinh", 2)
 
     result = scan_book_manifests(tmp_path)
-    # The helper outputs chapter-1.json under the slug path
-    # But because they are named chapter-1.json, we sort by parent.name
+    # book.json inside each book folder; sort by parent folder name
     names = [p.parent.name for p in result]
     assert names == sorted(names)
 
@@ -527,3 +527,87 @@ def test_build_book_data_index_excludes_index_json_itself(
     index_path = book_data_dir / "index.json"
     data = json.loads(index_path.read_text(encoding="utf-8"))
     assert data["_meta"]["total_books"] == 1  # only the one real book
+
+
+# ---------------------------------------------------------------------------
+# New: folder-based book.json structure tests
+# ---------------------------------------------------------------------------
+
+def make_book_data_folder(
+    book_data_dir: Path,
+    source: str,
+    cat_seo: str,
+    book_seo: str,
+    book_id: int,
+    with_images: bool = False,
+) -> Path:
+    """Write a minimal BookData (v2.0) JSON at {book_seo}/book.json (new folder structure)."""
+    book_folder = book_data_dir / source / cat_seo / book_seo
+    book_folder.mkdir(parents=True, exist_ok=True)
+    book_data = {
+        "_meta": {
+            "source": source,
+            "schema_version": "2.0",
+            "built_at": "2026-03-05T00:00:00Z",
+        },
+        "id": f"{source}__{book_seo}",
+        "book_id": book_id,
+        "book_name": book_seo.replace("-", " ").title(),
+        "book_seo_name": book_seo,
+        "cover_image_url": None,
+        "cover_image_local_path": None,
+        "author": None,
+        "author_id": None,
+        "publisher": None,
+        "publication_year": None,
+        "category_id": 1,
+        "category_name": "Kinh",
+        "category_seo_name": cat_seo,
+        "total_chapters": 1,
+        "chapters": [],
+    }
+    out_path = book_folder / "book.json"
+    out_path.write_text(json.dumps(book_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    if with_images:
+        img_dir = book_folder / "images"
+        img_dir.mkdir(exist_ok=True)
+        (img_dir / "cover.jpg").write_bytes(b"FAKE_COVER")
+    return out_path
+
+
+def test_scan_book_manifests_finds_book_json_in_folders(tmp_path: Path) -> None:
+    """scan_book_manifests() finds book.json files inside book folders (new structure)."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_folder(book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=42)
+    make_book_data_folder(book_data_dir, "vbeta", "kinh", "kinh-a", book_id=43)
+
+    result = scan_book_manifests(tmp_path)
+    assert len(result) == 2
+    assert all(p.name == "book.json" for p in result)
+
+
+def test_build_book_data_index_with_folder_structure(tmp_path: Path, mock_logger: MagicMock) -> None:
+    """build_book_data_index() works with folder-based book.json structure and includes image artifacts."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_folder(
+        book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=42, with_images=True
+    )
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    index_path = book_data_dir / "index.json"
+    assert index_path.exists()
+
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+
+    book = data["books"][0]
+    assert book["book_seo_name"] == "bo-trung-quan"
+
+    artifact_formats = {a["format"] for a in book["artifacts"]}
+    assert "json" in artifact_formats, "json artifact missing"
+    assert "image" in artifact_formats, "image artifact missing"
+
+    json_artifact = next(a for a in book["artifacts"] if a["format"] == "json")
+    assert json_artifact["path"].endswith("book.json"), \
+        f"Expected path ending book.json, got: {json_artifact['path']}"

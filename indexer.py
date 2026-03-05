@@ -15,14 +15,15 @@ app = typer.Typer()
 
 
 def scan_book_manifests(output_dir: Path) -> list[Path]:
-    """Recursively find all book chapter JSON files under output_dir/book-data/vbeta.
+    """Find all book.json manifest files under output_dir/book-data/.
 
-    Excludes any index.json files. Returns a sorted list.
+    New structure: data/book-data/vbeta/{cat}/{book_seo}/book.json
+    Excludes index.json. Returns sorted list.
     """
     books_dir = output_dir / "book-data"
     if not books_dir.exists():
         return []
-    return sorted(p for p in books_dir.rglob("*.json") if p.name != "index.json")
+    return sorted(p for p in books_dir.rglob("book.json"))
 
 
 def load_existing_index(index_path: Path, logger) -> dict[str, BookIndexRecord]:
@@ -103,7 +104,16 @@ def build_index(cfg: CrawlerConfig, logger) -> None:
     index_path = output_dir / "books" / "index.json"
 
     existing: dict[str, BookIndexRecord] = load_existing_index(index_path, logger)
-    manifest_files = scan_book_manifests(output_dir)
+    # Legacy scan: finds chapter-level JSON files (not book.json or index.json)
+    # scan_book_manifests() now only finds book.json (new structure); build_index is legacy
+    legacy_books_dir = output_dir / "book-data"
+    if legacy_books_dir.exists():
+        manifest_files = sorted(
+            p for p in legacy_books_dir.rglob("*.json")
+            if p.name not in ("index.json", "book.json")
+        )
+    else:
+        manifest_files = []
 
     excluded_count = 0
 
@@ -222,6 +232,23 @@ def build_book_data_index(output_dir: Path, logger) -> None:
                 total_chapters=book_data.total_chapters,
                 artifacts=[artifact],
             )
+
+        # Add image artifacts from images/ subfolder alongside book.json
+        img_dir = file_path.parent / "images"
+        if img_dir.exists():
+            for img_file in sorted(img_dir.iterdir()):
+                if img_file.is_file():
+                    img_rel = str(img_file.relative_to(book_data_dir))
+                    img_artifact = BookArtifact(
+                        source=source,
+                        format="image",
+                        path=img_rel,
+                        built_at=book_data.meta.built_at,
+                    )
+                    entry = book_map[book_key]
+                    existing_paths = {a.path for a in entry.artifacts}
+                    if img_rel not in existing_paths:
+                        entry.artifacts.append(img_artifact)
 
     books = list(book_map.values())
     index = BookIndex(

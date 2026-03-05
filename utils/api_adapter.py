@@ -1,9 +1,13 @@
 # utils/api_adapter.py
 import asyncio
 import datetime
+import hashlib
 import logging
 import random
+import re
+import shutil
 from pathlib import Path
+from urllib.parse import urlparse
 import json
 
 import aiohttp
@@ -89,9 +93,113 @@ class VbetaApiAdapter:
         return raw_dir.joinpath(*path_parts).exists()
 
     def _book_data_exists(self, cat_seo: str, book_seo: str) -> bool:
-        """Check if a processed book-data file already exists."""
-        path = self.output_dir / "book-data" / self.config.output_folder / cat_seo / f"{book_seo}.json"
-        return path.exists()
+        """Check if a processed book folder already exists."""
+        path = self.output_dir / "book-data" / self.config.output_folder / cat_seo / book_seo
+        return path.is_dir()
+
+    # ── Image helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _extract_image_urls(pages_data_list: list[dict]) -> list[str]:
+        """Extract unique <img src=...> URLs from a list of raw page dicts."""
+        seen: set[str] = set()
+        result: list[str] = []
+        for page in pages_data_list:
+            html = page.get("htmlContent", "")
+            for url in re.findall(r'<img[^>]+src=["\']([^"\']+)["\']', html):
+                if url not in seen:
+                    seen.add(url)
+                    result.append(url)
+        return result
+
+    @staticmethod
+    def _derive_image_filename(url: str) -> str:
+        """Derive a safe local filename from an image URL."""
+        path = urlparse(url).path
+        name = path.rsplit("/", 1)[-1] if "/" in path else path
+        if not name or len(name) > 100:
+            ext = path.rsplit(".", 1)[-1][:4] if "." in path else "img"
+            name = f"img_{hashlib.md5(url.encode()).hexdigest()[:8]}.{ext}"
+        return name
+
+    def _save_raw_image(self, path_parts: list[str], data: bytes) -> Path:
+        """Save raw image bytes to data/raw/vbeta/images/..."""
+        raw_dir = self.output_dir / "raw" / self.config.output_folder
+        file_path = raw_dir.joinpath(*path_parts)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_bytes(data)
+        return file_path
+
+    def _raw_images_exist(self, book_id: int) -> bool:
+        """Check if raw image folder for this book is non-empty."""
+        img_dir = self.output_dir / "raw" / self.config.output_folder / "images" / str(book_id)
+        return img_dir.is_dir() and any(img_dir.iterdir())
+
+    async def _download_book_images(
+        self,
+        book_id: int,
+        cover_url: str | None,
+        pages_data_list: list[dict],
+    ) -> None:
+        """
+        Download cover + content images for a book to raw/images/{book_id}/.
+        Skips if raw/images/{book_id}/ already exists and is non-empty (idempotent).
+        """
+        if self._raw_images_exist(book_id):
+            logger.info(f"[api_adapter] Skip (disk): raw images for book {book_id}")
+            return
+
+        urls: list[str] = []
+        if cover_url:
+            urls.append(cover_url)
+        content_urls = self._extract_image_urls(pages_data_list)
+        urls.extend(content_urls)
+
+        for url in urls:
+            filename = self._derive_image_filename(url)
+            try:
+                jitter = random.uniform(0.1, 0.3)
+                await asyncio.sleep(self.config.rate_limit_seconds + jitter)
+                async with self.session.get(url, allow_redirects=True) as resp:
+                    if resp.status >= 400:
+                        logger.warning(f"[api_adapter] Image download failed {resp.status}: {url}")
+                        continue
+                    data = await resp.read()
+                self._save_raw_image(["images", str(book_id), filename], data)
+                logger.info(f"[api_adapter] Downloaded image: images/{book_id}/{filename}")
+            except Exception as e:
+                logger.error(f"[api_adapter] Error downloading image {url}: {e}")
+
+    def _copy_images_to_book_folder(
+        self,
+        book_id: int,
+        book_folder: Path,
+        cover_url: str | None,
+    ) -> str | None:
+        """
+        Copy images from raw/images/{book_id}/ to {book_folder}/images/.
+        Returns cover_local_path relative to data/book-data/ root, or None.
+        """
+        raw_img_dir = self.output_dir / "raw" / self.config.output_folder / "images" / str(book_id)
+        if not raw_img_dir.exists():
+            return None
+
+        dest_img_dir = book_folder / "images"
+        dest_img_dir.mkdir(parents=True, exist_ok=True)
+
+        cover_local: str | None = None
+        for src_file in raw_img_dir.iterdir():
+            if src_file.is_file():
+                shutil.copy2(src_file, dest_img_dir / src_file.name)
+                rel_path = str((dest_img_dir / src_file.name).relative_to(
+                    self.output_dir / "book-data"
+                ))
+                if cover_url:
+                    cover_filename = self._derive_image_filename(cover_url)
+                    if src_file.name == cover_filename:
+                        cover_local = rel_path
+
+        return cover_local
 
     async def fetch_categories(self) -> list[ApiCategory]:
         """Level 1: Fetch all categories."""
@@ -240,6 +348,22 @@ class VbetaApiAdapter:
                         self.state.save()
                         logger.info(f"[api_adapter] Crawled: chapters/{chapter_id}.json")
 
+                # Collect all raw pages data and download images
+                all_pages_data: list[dict] = []
+                for toc_item in toc_items:
+                    chapter_path = (
+                        self.output_dir / "raw" / self.config.output_folder
+                        / "chapters" / f"{toc_item.id}.json"
+                    )
+                    if chapter_path.exists():
+                        with open(chapter_path) as f:
+                            ch = json.load(f)
+                        all_pages_data.extend(ch.get("result", {}).get("pages", []))
+
+                await self._download_book_images(
+                    book_item.value, book_detail.cover_image_url, all_pages_data
+                )
+
                 return (book_item.value, cat_seo, book_detail.seo_name)
 
         for cat in categories:
@@ -331,18 +455,29 @@ class VbetaApiAdapter:
                     chapters=chapters
                 )
 
+                # Copy images to book folder and set local cover path
+                book_folder = (
+                    self.output_dir / "book-data" / self.config.output_folder
+                    / cat_seo / book_seo
+                )
+                cover_local = self._copy_images_to_book_folder(
+                    book_id, book_folder, book_detail.cover_image_url
+                )
+                book_data.cover_image_local_path = cover_local
+
                 self._save_book_data(book_data, cat_seo)
-                logger.info(f"[api_adapter] Built: book-data/{cat_seo}/{book_seo}.json ({len(chapters)} chapters)")
+                logger.info(f"[api_adapter] Built: book-data/{cat_seo}/{book_seo}/book.json ({len(chapters)} chapters)")
 
             except Exception as e:
                 logger.error(f"[api_adapter] Error building book {book_id} ({book_seo}): {e}")
 
     def _save_book_data(self, book_data: BookData, cat_seo: str) -> None:
-        """Save canonical BookData JSON: one file per book."""
-        out_path = (
+        """Save canonical BookData JSON: {book_seo}/book.json inside book folder."""
+        book_folder = (
             self.output_dir / "book-data" / self.config.output_folder
-            / cat_seo / f"{book_data.book_seo_name}.json"
+            / cat_seo / book_data.book_seo_name
         )
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        book_folder.mkdir(parents=True, exist_ok=True)
+        out_path = book_folder / "book.json"
         with open(out_path, "w", encoding="utf-8") as f:
             f.write(book_data.model_dump_json(by_alias=True, indent=2))

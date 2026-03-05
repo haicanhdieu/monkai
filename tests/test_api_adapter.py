@@ -243,7 +243,7 @@ def test_build_phase_creates_book_json(source_config, mock_state, tmp_path):
 
     adapter._build_phase([(1, "kinh", "book-1")])
 
-    out_path = tmp_path / "book-data" / "vbeta" / "kinh" / "book-1.json"
+    out_path = tmp_path / "book-data" / "vbeta" / "kinh" / "book-1" / "book.json"
     assert out_path.exists(), "Expected book-data output file to be created"
 
     with open(out_path) as f:
@@ -260,11 +260,11 @@ def test_build_phase_skips_if_book_json_exists(source_config, mock_state, tmp_pa
     adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
 
     import json as _json
-    # Create the existing output file with a sentinel value
-    out_dir = tmp_path / "book-data" / "vbeta" / "kinh"
+    # Create the existing output FOLDER (new structure: book-1/book.json)
+    out_dir = tmp_path / "book-data" / "vbeta" / "kinh" / "book-1"
     out_dir.mkdir(parents=True, exist_ok=True)
     sentinel_content = {"sentinel": True}
-    out_file = out_dir / "book-1.json"
+    out_file = out_dir / "book.json"
     out_file.write_text(_json.dumps(sentinel_content))
 
     # Also seed the raw files (in case skip logic fails and build runs)
@@ -285,3 +285,113 @@ def test_build_phase_skips_if_book_json_exists(source_config, mock_state, tmp_pa
     with open(out_file) as f:
         content = _json.load(f)
     assert content == sentinel_content
+
+
+# ─── New Image + Folder Tests ────────────────────────────────────────────────
+
+def test_extract_image_urls_basic():
+    """Static helper returns unique img src URLs from raw page dicts."""
+    pages = [
+        {"htmlContent": '<p>Hello</p><img src="https://example.com/a.jpg">'},
+        {"htmlContent": '<img src="https://example.com/b.png"><img src="https://example.com/a.jpg">'},
+    ]
+    urls = VbetaApiAdapter._extract_image_urls(pages)
+    assert urls == ["https://example.com/a.jpg", "https://example.com/b.png"]
+
+
+def test_extract_image_urls_no_imgs():
+    """Returns empty list when HTML has no img tags."""
+    pages = [{"htmlContent": "<p>Just text</p>"}]
+    assert VbetaApiAdapter._extract_image_urls(pages) == []
+
+
+def test_derive_image_filename_normal():
+    url = "https://cdn.example.com/images/cover.jpg"
+    assert VbetaApiAdapter._derive_image_filename(url) == "cover.jpg"
+
+
+def test_derive_image_filename_fallback():
+    url = "https://cdn.example.com/images/" + "x" * 200
+    name = VbetaApiAdapter._derive_image_filename(url)
+    assert name.startswith("img_")
+    assert len(name) < 30
+
+
+@pytest.mark.asyncio
+async def test_download_book_images_skips_if_raw_exists(source_config, mock_session, mock_state, tmp_path):
+    """If raw/images/{book_id}/ is non-empty, no HTTP calls are made."""
+    adapter = VbetaApiAdapter(source_config, mock_session, mock_state, str(tmp_path))
+
+    # Pre-seed raw image folder
+    img_dir = tmp_path / "raw" / "vbeta" / "images" / "99"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    (img_dir / "cover.jpg").write_bytes(b"FAKE")
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        await adapter._download_book_images(99, "https://example.com/cover.jpg", [])
+
+    mock_session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_download_book_images_downloads_cover(source_config, mock_session, mock_state, tmp_path):
+    """Given a cover URL, downloads and saves the raw image file."""
+    adapter = VbetaApiAdapter(source_config, mock_session, mock_state, str(tmp_path))
+
+    cover_bytes = b"FAKE_COVER"
+    mock_resp = AsyncMock()
+    mock_resp.status = 200
+    mock_resp.read = AsyncMock(return_value=cover_bytes)
+    ctx = AsyncMock()
+    ctx.__aenter__ = AsyncMock(return_value=mock_resp)
+    ctx.__aexit__ = AsyncMock(return_value=None)
+    mock_session.get.return_value = ctx
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        with patch("random.uniform", return_value=0.1):
+            await adapter._download_book_images(7, "https://cdn.example.com/images/cover.jpg", [])
+
+    saved = tmp_path / "raw" / "vbeta" / "images" / "7" / "cover.jpg"
+    assert saved.exists()
+    assert saved.read_bytes() == cover_bytes
+
+
+def test_build_phase_creates_book_folder(source_config, mock_state, tmp_path):
+    """_build_phase creates {book_seo}/book.json (folder structure)."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    import json as _json
+    raw_dir = tmp_path / "raw" / "vbeta"
+    (raw_dir / "toc").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "chapters").mkdir(parents=True, exist_ok=True)
+    (raw_dir / "toc" / "book_1.json").write_text(_json.dumps(_TOC_RAW))
+    (raw_dir / "chapters" / "12439.json").write_text(_json.dumps(_CHAPTER_RAW))
+
+    adapter._build_phase([(1, "kinh", "book-1")])
+
+    book_folder = tmp_path / "book-data" / "vbeta" / "kinh" / "book-1"
+    assert book_folder.is_dir(), "Book folder should be a directory"
+    assert (book_folder / "book.json").exists(), "book.json should exist inside folder"
+
+
+def test_copy_images_to_book_folder(source_config, mock_state, tmp_path):
+    """_copy_images_to_book_folder copies files and returns correct cover local path."""
+    adapter = VbetaApiAdapter(source_config, MagicMock(), mock_state, str(tmp_path))
+
+    # Seed raw images for book_id=5
+    raw_img_dir = tmp_path / "raw" / "vbeta" / "images" / "5"
+    raw_img_dir.mkdir(parents=True, exist_ok=True)
+    (raw_img_dir / "cover.jpg").write_bytes(b"COVER")
+    (raw_img_dir / "fig1.png").write_bytes(b"FIG1")
+
+    book_folder = tmp_path / "book-data" / "vbeta" / "kinh" / "my-book"
+    book_folder.mkdir(parents=True, exist_ok=True)
+
+    cover_local = adapter._copy_images_to_book_folder(
+        5, book_folder, "https://cdn.example.com/images/cover.jpg"
+    )
+
+    assert (book_folder / "images" / "cover.jpg").exists()
+    assert (book_folder / "images" / "fig1.png").exists()
+    assert cover_local is not None
+    assert cover_local.endswith("cover.jpg")
