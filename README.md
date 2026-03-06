@@ -194,39 +194,30 @@ class IndexRecord(BaseModel):
 
 ```text
 monkai/
-├── config.yaml              # All source configuration (4 sources)
-├── crawler.py               # Async web crawler CLI entry point
-├── parser.py                # Metadata extraction
-├── indexer.py               # Index building
-├── book_builder.py          # EPUB structure compilation
-├── models.py                # Pydantic data models
+├── crawler/                 # Phase 1 Crawler component
+│   ├── config.yaml          # All source configuration (4 sources)
+│   ├── crawler.py           # Async web crawler CLI entry point
+│   ├── parser.py            # Metadata extraction
+│   ├── indexer.py           # Index building
+│   ├── book_builder.py      # EPUB structure compilation
+│   ├── models.py            # Pydantic data models
+│   ├── utils/
+│   │   ├── config.py        # Load and validate config.yaml
+│   │   ├── dedup.py         # SHA-256 duplicate detection
+│   │   ├── logging.py       # Dual-output rotating logger
+│   │   ├── robots.py        # robots.txt caching and compliance
+│   │   ├── slugify.py       # Vietnamese ID generation
+│   │   └── state.py         # Crawl state persistence
+│   ├── tests/               # Test suite for Phase 1
+│   │   └── ...              # Test files
+│   ├── data/                # Created on first crawl run
+│   │   ├── raw/             # Downloaded files: source/category/filename
+│   │   ├── crawl-state.json # Per-URL download state (resumable)
+│   │   └── index.json       # Flat manifest for Phase 2
+│   └── logs/                # Rotating log files
 ├── pyproject.toml           # Project manifest and dependencies
-├── utils/
-│   ├── config.py            # Load and validate config.yaml
-│   ├── dedup.py             # SHA-256 duplicate detection
-│   ├── logging.py           # Dual-output rotating logger
-│   ├── robots.py            # robots.txt caching and compliance
-│   ├── slugify.py           # Vietnamese ID generation
-│   └── state.py             # Crawl state persistence
-├── tests/
-│   ├── conftest.py
-│   ├── test_catalog_fetch.py     # Catalog fetch + URL extraction
-│   ├── test_crawl_state_integration.py  # State tracking + resume
-│   ├── test_crawler.py           # CLI shell + robots.txt compliance
-│   ├── test_dedup.py             # SHA-256 deduplication utilities
-│   ├── test_deduplication.py     # End-to-end dedup + 4-source config
-│   ├── test_download.py          # Async download + file storage
-│   ├── test_incremental.py       # CrawlState persistence
-│   ├── test_metadata_schema.py   # Pydantic validation
-│   ├── test_robots.py            # robots.txt caching
-│   └── test_slugify.py           # Vietnamese ID generation
-├── docs/
-│   └── ke-hoach-thu-vien-kinh-phat.md   # Full project plan (Vietnamese)
-├── data/                    # Created on first crawl run
-│   ├── raw/                 # Downloaded files: source/category/filename
-│   ├── crawl-state.json     # Per-URL download state (resumable)
-│   └── index.json           # Flat manifest for Phase 2
-└── logs/                    # Rotating log files
+└── docs/
+    └── ke-hoach-thu-vien-kinh-phat.md   # Full project plan (Vietnamese)
 ```
 
 ## Testing

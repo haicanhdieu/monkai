@@ -1,5 +1,11 @@
 # tests/conftest.py
 import pytest
+import sys
+import os
+from datetime import datetime, UTC
+
+# Add parent directory to sys.path so tests can import from utils without crawling module context issues
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from datetime import datetime, UTC
 
 

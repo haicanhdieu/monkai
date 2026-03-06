@@ -30,7 +30,7 @@ def main():
     # Output final pipeline summary
     logger.info("End-to-End Pipeline Completed Successfully!")
     logger.info("--- FINAL SUMMARY ---")
-    index_path = "data/book-data/index.json"
+    index_path = os.path.join("data", "book-data", "index.json")
     if os.path.exists(index_path):
         try:
             with open(index_path, "r", encoding="utf-8") as f:

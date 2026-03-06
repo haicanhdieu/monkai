@@ -9,15 +9,15 @@
       "uv sync"
     ],
     "scripts": {
-      "crawl": "uv run python crawler.py",
-      "parse": "uv run python parser.py",
-      "index": "uv run python indexer.py",
-      "validate": "uv run python validate.py",
-      "build": "uv run python book_builder.py",
-      "test": "uv run pytest",
-      "lint": "uv run ruff check .",
-      "format": "uv run ruff format .",
-      "pipeline": "python pipeline.py"
+      "crawl": "cd crawler && uv run python crawler.py",
+      "parse": "cd crawler && uv run python parser.py",
+      "index": "cd crawler && uv run python indexer.py",
+      "validate": "cd crawler && uv run python validate.py",
+      "build": "cd crawler && uv run python book_builder.py",
+      "test": "cd crawler && uv run pytest",
+      "lint": "cd crawler && uv run ruff check .",
+      "format": "cd crawler && uv run ruff format .",
+      "pipeline": "cd crawler && uv run python pipeline.py"
     }
   }
 }
