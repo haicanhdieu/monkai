@@ -11,7 +11,7 @@
 | **Tên dự án** | Thư Viện Kinh Phật Thông Minh |
 | **Ngôn ngữ chính** | Tiếng Việt |
 | **Công nghệ cốt lõi** | Python (Crawler) · React/HTML (Frontend) · Claude API (LLM) |
-| **Số phase** | 2 phase chính + 1 phase mở rộng |
+| **Số phase** | 3 phase chính + 1 phase mở rộng |
 | **Ước tính thời gian** | 4–6 tuần |
 
 ---
@@ -114,11 +114,68 @@ Mỗi bản kinh được lưu với schema sau:
 
 ---
 
-## 💬 Phase 2 — Giao Diện Chat Thông Minh
+## 📖 Phase 2 — Giao Diện Đọc Kinh (PWA Reader UI)
+
+**Mục tiêu:** Xây dựng Progressive Web App (PWA) cung cấp giao diện đọc kinh tĩnh, offline-capable, lấy dữ liệu trực tiếp từ kho JSON trên web tĩnh hoặc public repo.
+
+### 2.1 Kiến Trúc Hệ Thống
+
+```
+┌─────────────────────────────────┐
+│         Người Dùng              │
+│    (Trình duyệt / PWA App)      │
+└──────────────┬──────────────────┘
+               │ Fetch JSON
+┌──────────────▼──────────────────┐
+│         Frontend (React/Vite)   │
+│  - Danh mục kinh                │
+│  - Giao diện đọc (Reader UI)    │
+│  - Tìm kiếm offline (cơ bản)    │
+└──────────────┬──────────────────┘
+               │ Host tĩnh
+┌──────────────▼──────────────────┐
+│         Kho Kinh Văn            │
+│  (JSON hosted trên web tĩnh)    │
+└─────────────────────────────────┘
+```
+
+### 2.2 Tính Năng Cốt Lõi
+
+| Tính năng | Mô tả |
+|---|---|
+| **Đọc kinh offline** | PWA cache dữ liệu để đọc không cần mạng |
+| **Responsive Design** | Giao diện tối ưu cho Desktop, Tablet, Mobile |
+| **Tùy chỉnh giao diện** | Chế độ sáng/tối, font chữ, cỡ chữ, màu nền |
+| **Chỉ mục phụ lục/mục lục** | Điều hướng dễ dàng giữa các chương/quyển |
+| **Tìm kiếm cơ bản** | Tìm theo tựa đề kinh hoặc tác giả |
+| **Đánh dấu (Bookmark)** | Lưu lại vị trí đang đọc (local storage) |
+
+### 2.3 Tech Stack Frontend
+
+```
+React 18 + Vite
+├── Styling: Tailwind CSS + CSS Variables
+├── PWA: Vite PWA Plugin (Service Workers)
+├── State: Zustand / Context API
+├── Data Fetching: SWR / fetch
+└── Routing: React Router
+```
+
+### 2.4 Deliverables Phase 2
+
+- [ ] `frontend/index.html`, `vite.config.js`
+- [ ] Trang danh mục kinh (`Library.jsx`)
+- [ ] Trang đọc kinh cốt lõi (`SutraReader.jsx`)
+- [ ] Cấu hình PWA (manifest, service workers)
+- [ ] Thiết lập CI/CD deploy web tĩnh
+
+---
+
+## 💬 Phase 3 — Giao Diện Chat Thông Minh
 
 **Mục tiêu:** Xây dựng giao diện hội thoại đẹp, cho phép người dùng hỏi về kinh Phật theo ngôn ngữ tự nhiên.
 
-### 2.1 Kiến Trúc Hệ Thống
+### 3.1 Kiến Trúc Hệ Thống
 
 ```
 ┌─────────────────────────────────┐
@@ -151,7 +208,7 @@ Mỗi bản kinh được lưu với schema sau:
                 └───────────────┘
 ```
 
-### 2.2 Tính Năng Chat AI
+### 3.2 Tính Năng Chat AI
 
 | Tính năng | Mô tả |
 |---|---|
@@ -163,7 +220,7 @@ Mỗi bản kinh được lưu với schema sau:
 | **Gợi ý học** | "Tôi mới bắt đầu, nên đọc kinh nào?" |
 | **Ngữ cảnh hóa** | "Phật dạy gì về sự đau khổ?" |
 
-### 2.3 System Prompt cho AI
+### 3.3 System Prompt cho AI
 
 AI được cấu hình như một vị thầy Phật pháp:
 - Trả lời bằng tiếng Việt, ngôn từ trang nhã
@@ -172,7 +229,7 @@ AI được cấu hình như một vị thầy Phật pháp:
 - Không áp đặt giáo phái, tôn trọng mọi truyền thống
 - Khuyến khích thực hành, không chỉ lý thuyết
 
-### 2.4 Thiết Kế UI/UX
+### 3.4 Thiết Kế UI/UX
 
 **Màu sắc & Phong cách:**
 - Tông màu chủ đạo: vàng đất (#C8883A), nâu trầm (#3D2B1F), kem (#F5EDD6)
@@ -199,7 +256,7 @@ AI được cấu hình như một vị thầy Phật pháp:
 └──────────────┴──────────────────────────┘
 ```
 
-### 2.5 Tính Năng Bổ Sung
+### 3.5 Tính Năng Bổ Sung
 
 - 🔍 **Tìm kiếm ngữ nghĩa** — Tìm theo ý nghĩa, không chỉ từ khóa
 - 📖 **Chế độ đọc kinh** — Giao diện tối giản, font lớn, không phân tâm
@@ -209,7 +266,7 @@ AI được cấu hình như một vị thầy Phật pháp:
 - 📤 **Chia sẻ** — Copy link đến đoạn kinh cụ thể
 - 📱 **Responsive** — Dùng được trên điện thoại
 
-### 2.6 Tech Stack Frontend
+### 3.6 Tech Stack Backend & AI
 
 ```
 React 18
@@ -220,7 +277,7 @@ React 18
 └── Icons: Lucide React
 ```
 
-### 2.7 Deliverables Phase 2
+### 3.7 Deliverables Phase 3
 
 - [ ] `backend/main.py` — FastAPI server
 - [ ] `backend/rag.py` — Retrieval-Augmented Generation logic
@@ -232,7 +289,7 @@ React 18
 
 ---
 
-## 🚀 Phase 3 (Mở Rộng) — Tính Năng Nâng Cao
+## 🚀 Phase 4 (Mở Rộng) — Tính Năng Nâng Cao
 
 | Tính năng | Mô tả | Độ ưu tiên |
 |---|---|---|
@@ -250,9 +307,9 @@ React 18
 ```
 Tuần 1–2:   Phase 1 — Crawl & xây dựng dataset
 Tuần 3:     Phase 1 — Embeddings & vector DB
-Tuần 4:     Phase 2 — Backend API + RAG pipeline
-Tuần 5:     Phase 2 — Frontend UI + chat interface
-Tuần 6:     Testing, tối ưu, deploy
+Tuần 4:     Phase 2 — PWA Reader UI (Frontend)
+Tuần 5:     Phase 3 — Backend API + RAG pipeline (Chat AI)
+Tuần 6:     Phase 3 — Giao diện Chat + Testing, tối ưu, deploy
 ```
 
 ---
