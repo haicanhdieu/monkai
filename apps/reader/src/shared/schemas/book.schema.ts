@@ -51,23 +51,28 @@ function normalizeParagraphs(chapters: z.infer<typeof chapterSchema>[]): BookPar
   const paragraphs: BookParagraph[] = []
 
   for (const chapter of chapters) {
+    const pageTexts: string[] = []
+
     for (const page of chapter.pages) {
       const html = page.html_content ?? page.original_html_content ?? ''
       if (!html) {
         continue
       }
 
-      const text = decodeHtmlEntities(
-        html
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/(div|p|li)>/gi, '\n')
-        .replace(/<[^>]*>/g, ' ')
+      pageTexts.push(
+        decodeHtmlEntities(
+          html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(div|p|li)>/gi, '\n')
+            .replace(/<[^>]*>/g, ' ')
+        )
       )
-        .replace(/\s+/g, ' ')
-        .trim()
+    }
 
-      if (text.length > 0) {
-        paragraphs.push(text)
+    for (const line of pageTexts.flatMap((t) => t.split('\n'))) {
+      const paragraph = line.replace(/[ \t\r]+/g, ' ').trim()
+      if (paragraph.length > 0) {
+        paragraphs.push(paragraph)
       }
     }
   }

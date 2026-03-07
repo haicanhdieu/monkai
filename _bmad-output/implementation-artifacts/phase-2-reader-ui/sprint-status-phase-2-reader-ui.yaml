@@ -92,12 +92,12 @@ development_status:
   # Epic 4: Offline Reading & Seamless Continuity
   # StorageService, progress resume, book-data cache, background sync, bookmarks
   # ─────────────────────────────────────────────────────────────────
-  epic-4: backlog
-  4-1-storageservice-layer: backlog
-  4-2-reading-progress-persistence-and-resume: backlog
-  4-3-full-book-data-offline-caching: backlog
-  4-4-background-catalog-sync: backlog
-  4-5-bookmarks-view: backlog
+  epic-4: in-progress
+  4-1-storageservice-layer: ready-for-dev
+  4-2-reading-progress-persistence-and-resume: ready-for-dev
+  4-3-full-book-data-offline-caching: ready-for-dev
+  4-4-background-catalog-sync: ready-for-dev
+  4-5-bookmarks-view: ready-for-dev
   epic-4-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────
