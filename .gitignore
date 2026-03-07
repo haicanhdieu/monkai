@@ -1,10 +1,6 @@
 # Generated artifacts - never commit
-apps/crawler/data/raw/
-apps/crawler/data/meta/
-apps/crawler/data/book-data/
-apps/crawler/data/books/
-apps/crawler/data/crawl-state.json
-apps/crawler/data/index.json
+book-data/
+apps/crawler/data/
 apps/crawler/logs/
 
 # Python environment
