@@ -1,0 +1,126 @@
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#c8883a",
+            "background-light": "#f5edd6",
+            "background-dark": "#1f1a13",
+            "accent-brown": "#3d2b1f",
+            "neutral-soft": "#e8dfc4",
+          },
+          fontFamily: {
+            "display": ["Inter", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-accent-brown dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header Section -->
+<header class="flex items-center justify-between px-6 pt-12 pb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl">local_library</span>
+<h1 class="text-2xl font-bold tracking-tight text-accent-brown dark:text-slate-100">Trang Chủ</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-primary/10 text-accent-brown dark:text-slate-100">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 px-6 overflow-y-auto pb-24">
+<!-- Hero Section: Continue Reading -->
+<section class="mt-6">
+<h2 class="text-lg font-semibold mb-4 text-accent-brown dark:text-slate-200">Tiếp tục đọc</h2>
+<div class="bg-white dark:bg-zinc-900 rounded-xl overflow-hidden shadow-sm border border-primary/10">
+<div class="relative h-48 w-full bg-cover bg-center" data-alt="Serene Buddhist temple architecture in soft sunlight" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDTzjxjWrMp6EsBWqmjkNc4gMgd36RobvPy3Hn7IHbNApvehN6gnM5iDR5F-2jFodw1L8v29u8y2-Yyb6Z4iszsr9ak3tNOZnTXIIKz2yQBrkqkr-5JKwN62a2BtTffn-X9zQPdEpIK-p92eT70LJQ7u10diw_JVGj2eWh-vcuRjZdDWvDIEqMnW22JaloK3OiipmTzYBZl7mGku2SLydA-Yot7TWlOHsapn5AHpRmzFw9-1Uz01ZEbPwRJjxN0k37Kp2Io3NCvybY')">
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+<span class="bg-primary text-white text-xs font-bold px-2 py-1 rounded">Đang đọc</span>
+</div>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start mb-2">
+<div>
+<h3 class="text-xl font-bold text-accent-brown dark:text-white">Kinh Pháp Hoa</h3>
+<p class="text-primary font-medium text-sm">Chương 2: Phương Tiện</p>
+</div>
+<button class="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined">play_arrow</span>
+</button>
+</div>
+<div class="mt-6">
+<div class="flex justify-between text-xs mb-2 text-accent-brown/70 dark:text-slate-400">
+<span>Tiến độ: 16%</span>
+<span>Trang 14 / 89</span>
+</div>
+<div class="w-full bg-neutral-soft dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 16%"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Quick Actions / Categories -->
+<section class="mt-10">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-primary/10 p-4 rounded-xl flex flex-col items-center justify-center gap-2 border border-primary/20">
+<span class="material-symbols-outlined text-primary text-3xl">auto_stories</span>
+<span class="text-sm font-semibold">Kinh Điển</span>
+</div>
+<div class="bg-primary/10 p-4 rounded-xl flex flex-col items-center justify-center gap-2 border border-primary/20">
+<span class="material-symbols-outlined text-primary text-3xl">self_improvement</span>
+<span class="text-sm font-semibold">Thiền Định</span>
+</div>
+</div>
+</section>
+<!-- Daily Inspiration -->
+<section class="mt-10 mb-6">
+<h2 class="text-lg font-semibold mb-4 text-accent-brown dark:text-slate-200">Lời Phật dạy hôm nay</h2>
+<div class="bg-primary/5 border-l-4 border-primary p-6 rounded-r-lg">
+<p class="italic text-accent-brown dark:text-slate-300 leading-relaxed">
+          "Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ."
+        </p>
+<p class="mt-3 text-sm font-bold text-primary">— Trích Kinh Di Giáo</p>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light dark:bg-background-dark border-t border-primary/10 px-6 py-3 pb-8 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">home</span>
+<span class="text-[10px] font-bold">Trang Chủ</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-accent-brown dark:text-slate-400 opacity-60" href="#">
+<span class="material-symbols-outlined">library_books</span>
+<span class="text-[10px] font-medium">Thư Viện</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-accent-brown dark:text-slate-400 opacity-60" href="#">
+<span class="material-symbols-outlined">bookmarks</span>
+<span class="text-[10px] font-medium">Dấu Trang</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-accent-brown dark:text-slate-400 opacity-60" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">Cài Đặt</span>
+</a>
+</nav>
+</body></html>

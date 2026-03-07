@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;family=Lora:ital,wght@0,400;0,500;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8893c",
+                        "background-light": "#f8f7f6",
+                        "background-dark": "#1f1a13",
+                        "earthy-brown": "#3D2B1F",
+                        "cream-bg": "#F5EDD6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Lora", "serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F5EDD6;
+        }
+        .serif-text {
+            font-family: 'Lora', serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-cream-bg text-earthy-brown font-display antialiased">
+<!-- Status Bar Spacer (iOS Style) -->
+<div class="h-12 w-full"></div>
+<!-- Header -->
+<div class="sticky top-0 z-10 bg-cream-bg/95 backdrop-blur-sm border-b border-primary/10">
+<div class="flex items-center p-4 justify-between">
+<button class="text-earthy-brown flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back_ios</span>
+</button>
+<h1 class="text-earthy-brown text-lg font-bold leading-tight tracking-tight flex-1 text-center pr-10">Đánh Dấu &amp; Ghi Chú</h1>
+</div>
+<!-- Tabs -->
+<div class="px-4">
+<div class="flex border-b border-primary/20 gap-8">
+<a class="flex flex-col items-center justify-center border-b-2 border-primary text-earthy-brown pb-3 pt-2" href="#">
+<p class="text-sm font-bold tracking-wide">Đánh Dấu</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-earthy-brown/60 pb-3 pt-2" href="#">
+<p class="text-sm font-bold tracking-wide">Ghi Chú</p>
+</a>
+</div>
+</div>
+</div>
+<!-- Content Area -->
+<main class="p-4 space-y-4 pb-24">
+<!-- Section: Today -->
+<div class="space-y-3">
+<h3 class="text-xs font-bold uppercase tracking-widest text-primary/80 px-1">Hôm nay</h3>
+<!-- Bookmark Card 1 -->
+<div class="bg-white/40 border border-earthy-brown/10 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<h4 class="text-earthy-brown text-base font-bold leading-tight">Kinh Địa Tạng - Quyển Thượng</h4>
+<span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">CHƯƠNG II</span>
+</div>
+<p class="serif-text text-earthy-brown/80 text-md italic leading-relaxed">
+                        "...phát nguyện rộng lớn, cứu độ chúng sanh trong cõi u minh, khiến cho đều đặn đặng giải thoát, bấy giờ Ngài mới chứng quả Bồ Đề."
+                    </p>
+<div class="mt-4 flex items-center justify-between border-t border-earthy-brown/5 pt-3">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary text-xl">share</span>
+<span class="material-symbols-outlined text-primary text-xl">delete</span>
+</div>
+<span class="text-[10px] text-earthy-brown/50 font-medium">10:30 AM</span>
+</div>
+</div>
+</div>
+<!-- Bookmark Card 2 -->
+<div class="bg-white/40 border border-earthy-brown/10 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<h4 class="text-earthy-brown text-base font-bold leading-tight">Kinh Di Đà</h4>
+<span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">PHẨM 1</span>
+</div>
+<p class="serif-text text-earthy-brown/80 text-md italic leading-relaxed">
+                        "Xá Lợi Phất! Cõi đó vì sao tên là Cực Lạc? Vì chúng sanh trong cõi đó không có bị những sự khổ, chỉ hưởng những sự vui..."
+                    </p>
+<div class="mt-4 flex items-center justify-between border-t border-earthy-brown/5 pt-3">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary text-xl">share</span>
+<span class="material-symbols-outlined text-primary text-xl">delete</span>
+</div>
+<span class="text-[10px] text-earthy-brown/50 font-medium">08:15 AM</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Yesterday -->
+<div class="space-y-3 pt-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-primary/80 px-1">Hôm qua</h3>
+<!-- Bookmark Card 3 -->
+<div class="bg-white/40 border border-earthy-brown/10 rounded-xl overflow-hidden shadow-sm">
+<div class="p-4">
+<div class="flex justify-between items-start mb-2">
+<h4 class="text-earthy-brown text-base font-bold leading-tight">Kinh Kim Cang</h4>
+<span class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">PHÁP HỘI</span>
+</div>
+<p class="serif-text text-earthy-brown/80 text-md italic leading-relaxed">
+                        "Phàm sở hữu tướng giai thị hư vọng. Nhược kiến chư tướng phi tướng tức kiến Như Lai."
+                    </p>
+<div class="mt-4 flex items-center justify-between border-t border-earthy-brown/5 pt-3">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-primary text-xl">share</span>
+<span class="material-symbols-outlined text-primary text-xl">delete</span>
+</div>
+<span class="text-[10px] text-earthy-brown/50 font-medium">16:45 PM</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section: Older -->
+<div class="space-y-3 pt-2">
+<h3 class="text-xs font-bold uppercase tracking-widest text-primary/80 px-1">Tuần trước</h3>
+<div class="bg-white/40 border border-earthy-brown/10 rounded-xl overflow-hidden shadow-sm opacity-80">
+<div class="p-4">
+<h4 class="text-earthy-brown text-base font-bold leading-tight mb-2">Chú Đại Bi</h4>
+<p class="serif-text text-earthy-brown/80 text-md italic leading-relaxed">
+                        "Nam mô hắc ra đát na đa ra dạ da. Nam mô a rị da. Bà lô yết đế thước bát ra da..."
+                    </p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-cream-bg/95 backdrop-blur-md border-t border-primary/20 pb-8 pt-2 px-6 flex justify-between items-center z-20">
+<a class="flex flex-col items-center gap-1 text-earthy-brown/40" href="#">
+<span class="material-symbols-outlined text-[28px]">home</span>
+<span class="text-[10px] font-bold">Trang Chủ</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-earthy-brown/40" href="#">
+<span class="material-symbols-outlined text-[28px]">menu_book</span>
+<span class="text-[10px] font-bold">Kinh Điển</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-[28px] fill-[1]">bookmark</span>
+<span class="text-[10px] font-bold">Đánh Dấu</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-earthy-brown/40" href="#">
+<span class="material-symbols-outlined text-[28px]">settings</span>
+<span class="text-[10px] font-bold">Cài Đặt</span>
+</a>
+</nav>
+<!-- Home Indicator (iOS Style) -->
+<div class="fixed bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-earthy-brown/20 rounded-full z-30"></div>
+</body></html>

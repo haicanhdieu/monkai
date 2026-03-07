@@ -60,23 +60,48 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 
 export class StaticJsonDataService implements DataService {
   private readonly baseUrl: string
+  private catalogPromise: Promise<CatalogIndex> | null = null
 
   constructor(private readonly fetchImpl: typeof fetch = fetch, baseUrl = resolveBookDataBaseUrl()) {
     this.baseUrl = baseUrl
   }
 
   async getCatalog(): Promise<CatalogIndex> {
-    const response = await this.fetchJson('/book-data/index.json')
-    const parsed = catalogSchema.safeParse(response)
-    if (!parsed.success) {
-      throw new DataError('parse', 'Catalog payload failed schema validation', parsed.error.flatten())
+    if (this.catalogPromise) {
+      return this.catalogPromise
     }
 
-    return parsed.data
+    this.catalogPromise = (async () => {
+      try {
+        const response = await this.fetchJson('/book-data/index.json')
+        const parsed = catalogSchema.safeParse(response)
+        if (!parsed.success) {
+          throw new DataError('parse', 'Catalog payload failed schema validation', parsed.error.flatten())
+        }
+        return parsed.data
+      } catch (error) {
+        this.catalogPromise = null
+        throw error
+      }
+    })()
+
+    return this.catalogPromise
   }
 
   async getBook(id: string): Promise<Book> {
-    const response = await this.fetchJson(`/book-data/${encodeURIComponent(id)}.json`)
+    const catalog = await this.getCatalog()
+    const bookEntry = catalog.books.find((b) => b.id === id)
+
+    if (!bookEntry) {
+      throw new DataError('not_found', `Book not found in catalog: ${id}`)
+    }
+
+    const jsonArtifact = bookEntry.artifacts.find((a) => a.format === 'json')
+    if (!jsonArtifact) {
+      throw new DataError('not_found', `JSON artifact not found for book: ${id}`)
+    }
+
+    const response = await this.fetchJson(`/book-data/${jsonArtifact.path}`)
     const parsed = bookSchema.safeParse(response)
     if (!parsed.success) {
       throw new DataError('parse', `Book payload failed schema validation for id: ${id}`, parsed.error.flatten())

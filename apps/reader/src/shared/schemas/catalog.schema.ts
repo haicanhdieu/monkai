@@ -42,6 +42,10 @@ function toCatalogBook(raw: z.infer<typeof rawCatalogBookSchema>): CatalogBook {
     subcategory: raw.book_seo_name ?? 'General',
     translator: raw.author ?? 'Unknown translator',
     coverImageUrl: raw.cover_image_url ?? null,
+    artifacts: (raw.artifacts ?? []).map((a) => ({
+      format: a.format,
+      path: a.path,
+    })),
   }
 }
 

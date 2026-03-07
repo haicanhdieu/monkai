@@ -1,0 +1,3 @@
+export CODEX_HOME=./.codex
+export STITCH_PROJECT_ID=7608307594726401832
+codex --search --yolo

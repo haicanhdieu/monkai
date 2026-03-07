@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Lora:ital,wght@0,400..700;1,400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8893c",
+                        "background-light": "#f8f7f6",
+                        "background-dark": "#1f1a13",
+                        "earth-brown": "#3D2B1F",
+                        "cream-soft": "#F5EDD6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Lora", "serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-earth-brown antialiased">
+<div class="relative flex h-screen w-full flex-col bg-cream-soft overflow-hidden mx-auto max-w-[430px] shadow-2xl">
+<header class="sticky top-0 z-10 bg-cream-soft/95 backdrop-blur-md px-4 pt-6 pb-4">
+<div class="flex items-center gap-3 mb-4">
+<button class="text-earth-brown">
+<span class="material-symbols-outlined text-[28px]">arrow_back_ios</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight text-earth-brown">Thư Viện</h1>
+</div>
+<div class="relative group">
+<div class="flex items-center w-full bg-white/50 border border-primary/20 rounded-xl px-4 h-12 transition-all focus-within:ring-2 focus-within:ring-primary focus-within:bg-white">
+<span class="material-symbols-outlined text-primary/70 mr-3">search</span>
+<input class="bg-transparent border-none focus:ring-0 p-0 w-full text-earth-brown text-base font-medium placeholder-earth-brown/40" type="text" value="Bát Nhã"/>
+<button class="text-earth-brown/40 hover:text-earth-brown">
+<span class="material-symbols-outlined">cancel</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+<p class="text-xs font-semibold uppercase tracking-widest text-primary/60 px-2 py-2">Kết quả tìm kiếm</p>
+<div class="bg-white/40 hover:bg-white/60 transition-colors rounded-xl p-4 cursor-pointer group">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<h3 class="text-lg font-bold leading-snug group-hover:text-primary transition-colors">
+<span class="text-primary">Bát Nhã</span> Ba La Mật Đa Tâm Kinh
+                        </h3>
+<p class="font-serif text-[15px] leading-relaxed text-earth-brown/80 italic">
+                            "Khi Bồ Tát Quán Tự Tại hành sâu <span class="bg-primary/20 text-earth-brown font-bold px-1 rounded-sm">Bát Nhã</span> Ba La Mật Đa, Người soi thấy năm uẩn đều không..."
+                        </p>
+</div>
+<span class="material-symbols-outlined text-primary/40 mt-1">chevron_right</span>
+</div>
+</div>
+<div class="bg-white/40 hover:bg-white/60 transition-colors rounded-xl p-4 cursor-pointer group">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<h3 class="text-lg font-bold leading-snug group-hover:text-primary transition-colors">
+                            Kinh Đại <span class="text-primary">Bát Nhã</span>
+</h3>
+<p class="font-serif text-[15px] leading-relaxed text-earth-brown/80 italic">
+                            "Phật thuyết <span class="bg-primary/20 text-earth-brown font-bold px-1 rounded-sm">Bát Nhã</span> Ba La Mật, đây là đại thần chú, là đại minh chú..."
+                        </p>
+</div>
+<span class="material-symbols-outlined text-primary/40 mt-1">chevron_right</span>
+</div>
+</div>
+<div class="bg-white/40 hover:bg-white/60 transition-colors rounded-xl p-4 cursor-pointer group">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<h3 class="text-lg font-bold leading-snug group-hover:text-primary transition-colors">
+<span class="text-primary">Bát Nhã</span> Đăng Luận Thích
+                        </h3>
+<p class="font-serif text-[15px] leading-relaxed text-earth-brown/80 italic line-clamp-2">
+                            Luận về ánh sáng trí tuệ <span class="bg-primary/20 text-earth-brown font-bold px-1 rounded-sm">Bát Nhã</span> soi rọi mọi nẻo đường vô minh...
+                        </p>
+</div>
+<span class="material-symbols-outlined text-primary/40 mt-1">chevron_right</span>
+</div>
+</div>
+<div class="bg-white/40 hover:bg-white/60 transition-colors rounded-xl p-4 cursor-pointer group">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<h3 class="text-lg font-bold leading-snug group-hover:text-primary transition-colors">
+                            Ma Ha <span class="text-primary">Bát Nhã</span> Ba La Mật
+                        </h3>
+<p class="font-serif text-[15px] leading-relaxed text-earth-brown/80 italic line-clamp-2">
+                            Trí tuệ lớn lao đưa người qua bờ giác ngộ, đoạn trừ mọi khổ ách...
+                        </p>
+</div>
+<span class="material-symbols-outlined text-primary/40 mt-1">chevron_right</span>
+</div>
+</div>
+</main>
+<nav class="bg-white/90 backdrop-blur-md border-t border-primary/10 px-4 pb-8 pt-2">
+<div class="flex items-center justify-around">
+<a class="flex flex-col items-center gap-1 py-1 px-4 text-earth-brown/50" href="#">
+<span class="material-symbols-outlined text-[26px]">home</span>
+<span class="text-[10px] font-semibold uppercase tracking-wider">Trang chủ</span>
+</a>
+<a class="flex flex-col items-center gap-1 py-1 px-4 text-primary" href="#">
+<span class="material-symbols-outlined active-icon text-[26px]">book_2</span>
+<span class="text-[10px] font-semibold uppercase tracking-wider">Thư viện</span>
+</a>
+<a class="flex flex-col items-center gap-1 py-1 px-4 text-earth-brown/50" href="#">
+<span class="material-symbols-outlined text-[26px]">favorite</span>
+<span class="text-[10px] font-semibold uppercase tracking-wider">Yêu thích</span>
+</a>
+<a class="flex flex-col items-center gap-1 py-1 px-4 text-earth-brown/50" href="#">
+<span class="material-symbols-outlined text-[26px]">settings</span>
+<span class="text-[10px] font-semibold uppercase tracking-wider">Cài đặt</span>
+</a>
+</div>
+</nav>
+<div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-earth-brown/10 rounded-full"></div>
+</div>
+</body></html>

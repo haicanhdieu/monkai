@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tất cả danh mục</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8893c",
+                        "background-light": "#f8f7f6",
+                        "background-dark": "#1f1a13",
+                        "earthy-dark": "#3D2B1F",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-earthy-dark dark:text-slate-100">
+<div class="relative flex h-screen max-w-md mx-auto flex-col overflow-hidden bg-[#F5EDD6] dark:bg-background-dark shadow-xl">
+<!-- Header Section -->
+<header class="flex items-center px-4 py-4 border-b border-primary/10">
+<button aria-label="Back" class="flex size-10 items-center justify-center rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-earthy-dark dark:text-slate-100 text-2xl">arrow_back</span>
+</button>
+<h1 class="ml-2 text-xl font-bold leading-tight tracking-tight text-earthy-dark dark:text-slate-100">Tất cả danh mục</h1>
+</header>
+<!-- Category List -->
+<main class="flex-1 overflow-y-auto">
+<nav class="flex flex-col">
+<!-- Nikaya -->
+<a class="flex items-center justify-between px-6 py-5 border-b border-earthy-dark/5 hover:bg-primary/5 active:bg-primary/10 transition-colors" href="#">
+<span class="text-lg font-medium">Nikaya</span>
+<span class="material-symbols-outlined text-earthy-dark/40 dark:text-slate-400">chevron_right</span>
+</a>
+<!-- Đại Thừa -->
+<a class="flex items-center justify-between px-6 py-5 border-b border-earthy-dark/5 hover:bg-primary/5 active:bg-primary/10 transition-colors" href="#">
+<span class="text-lg font-medium">Đại Thừa</span>
+<span class="material-symbols-outlined text-earthy-dark/40 dark:text-slate-400">chevron_right</span>
+</a>
+<!-- Luận Thích -->
+<a class="flex items-center justify-between px-6 py-5 border-b border-earthy-dark/5 hover:bg-primary/5 active:bg-primary/10 transition-colors" href="#">
+<span class="text-lg font-medium">Luận Thích</span>
+<span class="material-symbols-outlined text-earthy-dark/40 dark:text-slate-400">chevron_right</span>
+</a>
+<!-- Ký Sự -->
+<a class="flex items-center justify-between px-6 py-5 border-b border-earthy-dark/5 hover:bg-primary/5 active:bg-primary/10 transition-colors" href="#">
+<span class="text-lg font-medium">Ký Sự</span>
+<span class="material-symbols-outlined text-earthy-dark/40 dark:text-slate-400">chevron_right</span>
+</a>
+<!-- Thiền Tông -->
+<a class="flex items-center justify-between px-6 py-5 border-b border-earthy-dark/5 hover:bg-primary/5 active:bg-primary/10 transition-colors" href="#">
+<span class="text-lg font-medium">Thiền Tông</span>
+<span class="material-symbols-outlined text-earthy-dark/40 dark:text-slate-400">chevron_right</span>
+</a>
+</nav>
+<!-- Extra space for smooth scrolling -->
+<div class="h-10"></div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="flex border-t border-earthy-dark/10 bg-[#F5EDD6] dark:bg-background-dark px-4 pb-8 pt-2 safe-area-bottom">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-earthy-dark/60 dark:text-slate-400" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">home</span>
+</div>
+<p class="text-[10px] font-semibold uppercase tracking-wider">Trang chủ</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl fill-1" style="font-variation-settings: 'FILL' 1">book_2</span>
+</div>
+<p class="text-[10px] font-bold uppercase tracking-wider">Thư viện</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-earthy-dark/60 dark:text-slate-400" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">favorite</span>
+</div>
+<p class="text-[10px] font-semibold uppercase tracking-wider">Yêu thích</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-earthy-dark/60 dark:text-slate-400" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">settings</span>
+</div>
+<p class="text-[10px] font-semibold uppercase tracking-wider">Cài đặt</p>
+</a>
+</nav>
+</div>
+</body></html>

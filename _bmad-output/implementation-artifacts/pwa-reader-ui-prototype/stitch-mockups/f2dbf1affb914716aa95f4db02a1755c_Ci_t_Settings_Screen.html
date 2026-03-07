@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8883a",
+                        "background-light": "#F5EDD6",
+                        "background-dark": "#1f1a13",
+                        "text-main": "#3D2B1F",
+                        "neutral-soft": "#e8dfc4"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .active-theme {
+            background-color: #c8883a;
+            color: white;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10">
+<div class="flex items-center p-4 justify-between max-w-md mx-auto w-full">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-lg font-semibold tracking-tight">Cài Đặt</h1>
+<div class="w-10"></div> <!-- Spacer for centering -->
+</div>
+</header>
+<main class="flex-1 max-w-md mx-auto w-full px-4 py-6 space-y-8">
+<!-- Customization Section -->
+<section class="space-y-4">
+<h2 class="text-sm font-bold uppercase tracking-widest text-primary/80 px-1">Tùy chỉnh</h2>
+<div class="bg-white/50 dark:bg-white/5 rounded-xl p-5 space-y-6 shadow-sm border border-primary/5">
+<!-- Font Size Control -->
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">format_size</span>
+<span class="font-medium">Cỡ chữ</span>
+</div>
+<span class="text-sm font-medium opacity-70">Trung bình</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-sm">text_fields</span>
+<div class="relative flex-1 h-1.5 bg-neutral-soft dark:bg-zinc-700 rounded-full">
+<div class="absolute left-0 top-0 h-full w-1/2 bg-primary rounded-full"></div>
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 bg-white border-2 border-primary rounded-full shadow-md"></div>
+</div>
+<span class="material-symbols-outlined text-xl">text_fields</span>
+</div>
+</div>
+<!-- Theme Toggle -->
+<div class="space-y-4 pt-2 border-t border-primary/10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">palette</span>
+<span class="font-medium">Giao diện</span>
+</div>
+<div class="grid grid-cols-3 gap-2 bg-neutral-soft/50 dark:bg-zinc-800 p-1 rounded-lg">
+<button class="flex flex-col items-center justify-center py-3 gap-1 rounded-md active-theme transition-all">
+<span class="material-symbols-outlined">light_mode</span>
+<span class="text-[10px] font-bold uppercase">Sáng</span>
+</button>
+<button class="flex flex-col items-center justify-center py-3 gap-1 rounded-md hover:bg-primary/10 transition-all">
+<span class="material-symbols-outlined">coffee</span>
+<span class="text-[10px] font-bold uppercase">Sepia</span>
+</button>
+<button class="flex flex-col items-center justify-center py-3 gap-1 rounded-md hover:bg-primary/10 transition-all">
+<span class="material-symbols-outlined">dark_mode</span>
+<span class="text-[10px] font-bold uppercase">Tối</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Storage Section -->
+<section class="space-y-4">
+<h2 class="text-sm font-bold uppercase tracking-widest text-primary/80 px-1">Lưu trữ</h2>
+<div class="bg-white/50 dark:bg-white/5 rounded-xl p-5 shadow-sm border border-primary/5">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">cloud_done</span>
+<div>
+<p class="font-medium leading-tight">Lưu trữ ngoại tuyến</p>
+<p class="text-xs opacity-60 mt-0.5">Đã tải: 45MB</p>
+</div>
+</div>
+<button class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg border border-red-100 dark:border-red-900/30 active:scale-95 transition-transform">
+                        XÓA DỮ LIỆU
+                    </button>
+</div>
+<div class="flex items-center justify-between pt-4 border-t border-primary/10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">download</span>
+<p class="font-medium">Tự động tải kinh văn mới</p>
+</div>
+<div class="w-10 h-6 bg-primary rounded-full relative">
+<div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Info Section -->
+<section class="space-y-4">
+<h2 class="text-sm font-bold uppercase tracking-widest text-primary/80 px-1">Thông tin</h2>
+<div class="bg-white/50 dark:bg-white/5 rounded-xl overflow-hidden shadow-sm border border-primary/5">
+<button class="w-full flex items-center justify-between p-4 hover:bg-primary/5 transition-colors border-b border-primary/5 text-left">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">info</span>
+<span>Về ứng dụng</span>
+</div>
+<span class="material-symbols-outlined opacity-30">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-4 hover:bg-primary/5 transition-colors text-left">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">share</span>
+<span>Chia sẻ với bạn bè</span>
+</div>
+<span class="material-symbols-outlined opacity-30">chevron_right</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="sticky bottom-0 w-full bg-background-light dark:bg-background-dark border-t border-primary/10 pb-6 pt-2">
+<div class="flex justify-around items-center max-w-md mx-auto">
+<a class="flex flex-col items-center gap-1 text-text-main/60 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">Trang chủ</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-text-main/60 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="text-[10px] font-medium">Kinh văn</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-text-main/60 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="text-[10px] font-medium">Tìm kiếm</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">settings</span>
+<span class="text-[10px] font-bold">Cài đặt</span>
+</a>
+</div>
+</nav>
+</body></html>

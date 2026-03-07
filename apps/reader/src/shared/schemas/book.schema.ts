@@ -19,6 +19,38 @@ const rawBookSchema = z.object({
   chapters: z.array(chapterSchema).default([]),
 })
 
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+}
+
+function decodeHtmlEntities(input: string): string {
+  const fromCodePointSafe = (codePoint: number, fallback: string): string => {
+    if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) {
+      return fallback
+    }
+    return String.fromCodePoint(codePoint)
+  }
+
+  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (full, entity: string) => {
+    if (entity.startsWith('#x') || entity.startsWith('#X')) {
+      const codePoint = Number.parseInt(entity.slice(2), 16)
+      return Number.isNaN(codePoint) ? full : fromCodePointSafe(codePoint, full)
+    }
+
+    if (entity.startsWith('#')) {
+      const codePoint = Number.parseInt(entity.slice(1), 10)
+      return Number.isNaN(codePoint) ? full : fromCodePointSafe(codePoint, full)
+    }
+
+    return NAMED_HTML_ENTITIES[entity] ?? full
+  })
+}
+
 function normalizeParagraphs(chapters: z.infer<typeof chapterSchema>[]): BookParagraph[] {
   const paragraphs: BookParagraph[] = []
 
@@ -29,11 +61,12 @@ function normalizeParagraphs(chapters: z.infer<typeof chapterSchema>[]): BookPar
         continue
       }
 
-      const text = html
+      const text = decodeHtmlEntities(
+        html
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<\/(div|p|li)>/gi, '\n')
         .replace(/<[^>]*>/g, ' ')
-        .replace(/&nbsp;/g, ' ')
+      )
         .replace(/\s+/g, ' ')
         .trim()
 

@@ -8,6 +8,11 @@ export interface CatalogCategory {
   count: number
 }
 
+export interface CatalogArtifact {
+  format: string
+  path: string
+}
+
 export interface CatalogBook {
   id: string
   title: string
@@ -16,6 +21,7 @@ export interface CatalogBook {
   subcategory: string
   translator: string
   coverImageUrl: string | null
+  artifacts: CatalogArtifact[]
 }
 
 export interface CatalogIndex {

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Thư Viện - Buddhist PWA</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8923c",
+                        "background-light": "#f5edd6",
+                        "background-dark": "#1f1a13",
+                        "earthy-brown": "#3d2b1f",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-earthy-brown dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header / Sticky Search Section -->
+<header class="sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pt-4 pb-2 border-b border-primary/10">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-earthy-brown dark:text-slate-100 cursor-pointer">menu</span>
+<h1 class="text-lg font-bold tracking-tight text-earthy-brown dark:text-slate-100">Thư Viện</h1>
+<div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-xl">account_circle</span>
+</div>
+</div>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-primary">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-earthy-brown dark:text-slate-100 placeholder:text-earthy-brown/50 focus:ring-2 focus:ring-primary/50 text-sm" placeholder="Tìm kiếm kinh điển..." type="text"/>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 px-4 py-6 overflow-y-auto">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-xl font-bold text-earthy-brown dark:text-slate-100">Categories</h2>
+<span class="text-sm font-medium text-primary">Xem tất cả</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Category Card 1 -->
+<div class="group relative aspect-square rounded-xl border border-earthy-brown/10 bg-white dark:bg-slate-800 dark:border-slate-700 p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all hover:border-primary/50">
+<div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">auto_stories</span>
+</div>
+<div class="z-10 bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">menu_book</span>
+</div>
+<div class="z-10">
+<h3 class="font-bold text-lg text-earthy-brown dark:text-slate-100">Nikaya</h3>
+<p class="text-xs text-earthy-brown/60 dark:text-slate-400">Kinh tạng nguyên thủy</p>
+</div>
+</div>
+<!-- Category Card 2 -->
+<div class="group relative aspect-square rounded-xl border border-earthy-brown/10 bg-white dark:bg-slate-800 dark:border-slate-700 p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all hover:border-primary/50">
+<div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">spa</span>
+</div>
+<div class="z-10 bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">storm</span>
+</div>
+<div class="z-10">
+<h3 class="font-bold text-lg text-earthy-brown dark:text-slate-100">Đại Thừa</h3>
+<p class="text-xs text-earthy-brown/60 dark:text-slate-400">Mahayana Sutras</p>
+</div>
+</div>
+<!-- Category Card 3 -->
+<div class="group relative aspect-square rounded-xl border border-earthy-brown/10 bg-white dark:bg-slate-800 dark:border-slate-700 p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all hover:border-primary/50">
+<div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">history_edu</span>
+</div>
+<div class="z-10 bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">description</span>
+</div>
+<div class="z-10">
+<h3 class="font-bold text-lg text-earthy-brown dark:text-slate-100">Luận Thích</h3>
+<p class="text-xs text-earthy-brown/60 dark:text-slate-400">Commentaries</p>
+</div>
+</div>
+<!-- Category Card 4 -->
+<div class="group relative aspect-square rounded-xl border border-earthy-brown/10 bg-white dark:bg-slate-800 dark:border-slate-700 p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all hover:border-primary/50">
+<div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-6xl">gavel</span>
+</div>
+<div class="z-10 bg-primary/10 w-10 h-10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">balance</span>
+</div>
+<div class="z-10">
+<h3 class="font-bold text-lg text-earthy-brown dark:text-slate-100">Luật Tạng</h3>
+<p class="text-xs text-earthy-brown/60 dark:text-slate-400">Vinaya Pitaka</p>
+</div>
+</div>
+</div>
+<!-- Featured Section -->
+<div class="mt-8 mb-4">
+<h2 class="text-xl font-bold text-earthy-brown dark:text-slate-100 mb-4">Mới cập nhật</h2>
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-4 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-earthy-brown/5">
+<div class="w-16 h-20 bg-primary/10 rounded flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-3xl">book_2</span>
+</div>
+<div>
+<h4 class="font-semibold text-earthy-brown dark:text-slate-100">Kinh Kim Cang</h4>
+<p class="text-sm text-earthy-brown/60 dark:text-slate-400">Đại Thừa - Bản dịch mới</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg border border-earthy-brown/5">
+<div class="w-16 h-20 bg-primary/10 rounded flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-3xl">book_2</span>
+</div>
+<div>
+<h4 class="font-semibold text-earthy-brown dark:text-slate-100">Trung Bộ Kinh</h4>
+<p class="text-sm text-earthy-brown/60 dark:text-slate-400">Nikaya - Tuyển tập</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom spacing for nav -->
+<div class="h-20"></div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light dark:bg-background-dark border-t border-earthy-brown/10 px-6 py-2 pb-6 z-30">
+<div class="flex justify-between items-center max-w-md mx-auto">
+<a class="flex flex-col items-center gap-1 text-earthy-brown/50 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Trang chủ</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined active-icon">library_books</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Thư viện</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-earthy-brown/50 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Yêu thích</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-earthy-brown/50 dark:text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium uppercase tracking-wider">Cài đặt</span>
+</a>
+</div>
+</nav>
+</body></html>

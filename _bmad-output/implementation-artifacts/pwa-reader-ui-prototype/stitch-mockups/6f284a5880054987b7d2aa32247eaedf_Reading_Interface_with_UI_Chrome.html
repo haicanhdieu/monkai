@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reading Interface - Kinh Pháp Hoa</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c8883a",
+                        "background-light": "#f5edd6",
+                        "background-dark": "#1f1a13",
+                        "text-main": "#3d2b1f",
+                    },
+                    fontFamily: {
+                        "display": ["Newsreader", "serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Newsreader', serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .ui-shadow {
+            box-shadow: 0 4px 20px -2px rgba(61, 43, 31, 0.15);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-slate-100 min-h-screen relative overflow-hidden">
+<!-- Top UI Bar (Floating) -->
+<div class="fixed top-4 left-4 right-4 z-50">
+<div class="flex items-center justify-between bg-white/90 dark:bg-background-dark/90 backdrop-blur-md rounded-xl p-3 ui-shadow border border-primary/10">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">arrow_back_ios_new</span>
+</button>
+<h2 class="text-lg font-semibold tracking-tight">Kinh Pháp Hoa</h2>
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">more_horiz</span>
+</button>
+</div>
+</div>
+<!-- Main Reading Content -->
+<main class="h-screen overflow-y-auto px-6 pt-24 pb-48 font-display">
+<div class="max-w-2xl mx-auto space-y-8">
+<h1 class="text-3xl font-bold text-center mb-12 text-primary">Phẩm Thứ Nhất: Tự</h1>
+<p class="text-xl leading-relaxed first-letter:text-5xl first-letter:font-bold first-letter:mr-3 first-letter:float-left first-letter:text-primary">
+                Tôi nghe như vầy: Một thuở nọ Đức Phật ở trong núi Kỳ-xà-quật nơi thành Vương-xá, cùng với chúng đại Tỳ-kheo là mười hai nghìn người câu hội. Các vị đó đều là bực A-la-hán, mọi lậu hoặc đã sạch, không còn có phiền não, đều đã đắc tự lợi, dứt hết các sự ràng buộc trong các cõi, tâm được tự tại.
+            </p>
+<p class="text-xl leading-relaxed">
+                Tên của các vị đó là: A-nhã Kiều-trần-như, Ma-ha Ca-diếp, Ưu-lâu-tần-loa Ca-diếp, Già-da Ca-diếp, Na-đề Ca-diếp, Xá-lợi Phất, Đại Mục-kiền-liên, Ma-ha Ca-chiên-diên, A-nâu-lâu-đà, Kiếp-tân-na, Kiều-phạm-ba-đề, Ly-bà-đa, Tất-lăng-già-bà-sa, Bạc-câu-la, Ma-ha Câu-hy-la, Nan-đà, Tôn-đà-la Nan-đà, Phú-lâu-na Di-đa-la-ni tử, Tu-bồ-đề, A-nan, La-hầu-la...
+            </p>
+<p class="text-xl leading-relaxed">
+                Lại có các vị đại Bồ-tát tám vạn người, đều ở bực bất thối chuyển nơi đạo Vô-thượng Chánh-đẳng Chánh-giác, thảy đều đắc đà-la-ni, nhạo thuyết biện tài, chuyển bánh xe pháp bất thối chuyển, đã từng cúng dường vô lượng trăm nghìn các đức Phật...
+            </p>
+<p class="text-xl leading-relaxed italic opacity-80">
+                Lúc bấy giờ, Đức Thế Tôn vây quanh bởi bốn chúng, cung kính cúng dường, tôn trọng ngợi khen. Vì các vị Bồ-tát mà nói kinh Đại thừa tên là Vô Lượng Nghĩa, là pháp dạy Bồ-tát, là điều chư Phật hộ niệm.
+            </p>
+</div>
+</main>
+<!-- Bottom UI Controls (Floating) -->
+<div class="fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-4">
+<!-- Progress Bar Overlay -->
+<div class="bg-white/95 dark:bg-background-dark/95 backdrop-blur-md rounded-2xl p-4 ui-shadow border border-primary/10">
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center px-1">
+<span class="text-sm font-bold text-primary">Trang 14/89</span>
+<span class="text-xs font-medium opacity-60">Chương 1</span>
+</div>
+<div class="relative h-6 flex items-center">
+<div class="w-full h-1.5 bg-primary/20 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[16%] rounded-full"></div>
+</div>
+<!-- Thumb indicator -->
+<div class="absolute left-[16%] -translate-x-1/2 size-4 bg-primary rounded-full border-2 border-white shadow-sm"></div>
+</div>
+</div>
+<!-- Controls Row -->
+<div class="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-primary/10">
+<button class="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-primary">format_size</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">A-</span>
+</button>
+<button class="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-primary">format_size</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">A+</span>
+</button>
+<button class="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-primary">dark_mode</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Giao diện</span>
+</button>
+<button class="flex flex-col items-center gap-1 py-2 rounded-lg hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined text-primary">menu_book</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Mục lục</span>
+</button>
+</div>
+</div>
+<!-- Navigation Tab Bar (Floating Pill) -->
+<nav class="bg-white/95 dark:bg-background-dark/95 backdrop-blur-md rounded-full px-6 py-3 flex items-center justify-between ui-shadow border border-primary/10 max-w-sm mx-auto w-full">
+<a class="text-primary flex items-center justify-center p-2 rounded-full" href="#">
+<span class="material-symbols-outlined">home</span>
+</a>
+<a class="text-primary/40 flex items-center justify-center p-2 rounded-full" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+</a>
+<a class="text-primary/40 flex items-center justify-center p-2 rounded-full" href="#">
+<span class="material-symbols-outlined">bookmark</span>
+</a>
+<a class="text-primary/40 flex items-center justify-center p-2 rounded-full" href="#">
+<span class="material-symbols-outlined">settings</span>
+</a>
+</nav>
+</div>
+<!-- iOS Home Indicator (Visual only) -->
+<div class="fixed bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-text-main/20 rounded-full z-[60]"></div>
+</body></html>

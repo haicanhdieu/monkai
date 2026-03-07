@@ -80,12 +80,12 @@ development_status:
   # Epic 3: Immersive Sutra Reader
   # Pagination engine, chromeless reader, tap/swipe, error states
   # ─────────────────────────────────────────────────────────────────
-  epic-3: backlog
-  3-1-pagination-engine-pure-typescript: backlog
-  3-2-reader-page-and-book-data-loading: backlog
-  3-3-readerengine-paginated-reading-with-tap-and-swipe: backlog
-  3-4-chromelesslayout-immersive-reading-mode: backlog
-  3-5-reader-error-states-and-loading-polish: backlog
+  epic-3: in-progress
+  3-1-pagination-engine-pure-typescript: review
+  3-2-reader-page-and-book-data-loading: review
+  3-3-readerengine-paginated-reading-with-tap-and-swipe: review
+  3-4-chromelesslayout-immersive-reading-mode: review
+  3-5-reader-error-states-and-loading-polish: review
   epic-3-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────
