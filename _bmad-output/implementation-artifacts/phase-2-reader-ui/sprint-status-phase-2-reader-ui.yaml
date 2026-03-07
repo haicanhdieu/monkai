@@ -70,10 +70,10 @@ development_status:
   # Epic 2: Library Discovery & Search
   # Data layer, category browse, offline MiniSearch
   # ─────────────────────────────────────────────────────────────────
-  epic-2: backlog
-  2-1-data-layer-schemas-services-and-query-hooks: backlog
-  2-2-category-browse-library-and-category-pages: backlog
-  2-3-global-search-with-minisearch: backlog
+  epic-2: done
+  2-1-data-layer-schemas-services-and-query-hooks: done
+  2-2-category-browse-library-and-category-pages: done
+  2-3-global-search-with-minisearch: done
   epic-2-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────

@@ -8,9 +8,9 @@ export const ROUTES = {
 } as const
 
 export function toRead(bookId: string): string {
-    return `/read/${bookId}`
+    return `/read/${encodeURIComponent(bookId)}`
 }
 
 export function toCategory(category: string): string {
-    return `/library/${category}`
+    return `/library/${encodeURIComponent(category)}`
 }
