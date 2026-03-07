@@ -59,15 +59,16 @@ describe('paginateBook — basic pagination (AC 1, 2)', () => {
     expect(result1).toEqual(result2)
   })
 
-  it('never places more paragraphs on a page than the height allows', () => {
+  it('never places more estimated lines on a page than the available height allows', () => {
     const paragraphs = makeParagraphs(500)
     const { viewportHeight, fontSize, lineHeight, paddingVertical } = STANDARD_OPTIONS
     const available = viewportHeight - 2 * paddingVertical
-    const pHeight = fontSize * lineHeight
+    const lineHeightPx = fontSize * lineHeight
 
     const result = paginateBook(paragraphs, STANDARD_OPTIONS)
     for (const page of result) {
-      expect(page.length * pHeight).toBeLessThanOrEqual(available)
+      const estimatedLineCount = page.reduce((acc, paragraph) => acc + Math.ceil(paragraph.length / 72), 0)
+      expect(estimatedLineCount * lineHeightPx).toBeLessThanOrEqual(available)
     }
   })
 
@@ -161,5 +162,28 @@ describe('paginateBook — edge cases', () => {
     const smallFontPages = paginateBook(paragraphs, smallFont)
 
     expect(smallFontPages.length).toBeLessThan(largeFontPages.length)
+  })
+
+  it('splits a very long paragraph across multiple pages', () => {
+    const longParagraph = 'a'.repeat(4000)
+    const result = paginateBook([longParagraph], STANDARD_OPTIONS)
+
+    expect(result.length).toBeGreaterThan(1)
+    expect(result.flat().join('')).toBe(longParagraph)
+  })
+
+  it('uses viewport width to paginate more aggressively on narrow screens', () => {
+    const paragraph = 'Lorem ipsum '.repeat(220).trim()
+
+    const wide = paginateBook(
+      [paragraph],
+      { ...STANDARD_OPTIONS, viewportWidth: 900, contentMaxWidth: 700, horizontalPadding: 48 },
+    )
+    const narrow = paginateBook(
+      [paragraph],
+      { ...STANDARD_OPTIONS, viewportWidth: 390, contentMaxWidth: 700, horizontalPadding: 48 },
+    )
+
+    expect(narrow.length).toBeGreaterThanOrEqual(wide.length)
   })
 })

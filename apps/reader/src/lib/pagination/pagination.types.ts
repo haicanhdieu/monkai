@@ -11,7 +11,10 @@
  */
 export interface PaginationOptions {
   viewportHeight: number
+  viewportWidth?: number
   fontSize: number
   lineHeight: number
   paddingVertical: number
+  contentMaxWidth?: number
+  horizontalPadding?: number
 }

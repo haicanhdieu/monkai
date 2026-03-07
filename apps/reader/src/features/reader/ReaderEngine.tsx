@@ -9,9 +9,16 @@ import { PageProgress } from './PageProgress'
 const READER_FONT_SIZE = 18
 const READER_LINE_HEIGHT = 1.6
 const READER_PADDING_VERTICAL = 80 // accounts for fixed top + bottom chrome overlays
+const READER_MAX_WIDTH = 700
 
 const EMPTY_PAGE_MESSAGE = 'Nội dung trống.'
 const SWIPE_THRESHOLD = 50 // px
+
+function getHorizontalPaddingPerSidePx(viewportWidth: number): number {
+  if (viewportWidth < 420) return 12
+  if (viewportWidth < 768) return 16
+  return 24
+}
 
 interface ReaderEngineProps {
   paragraphs: string[]
@@ -21,20 +28,52 @@ interface ReaderEngineProps {
 export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
   const { currentPage, setPages, setCurrentPage } = useReaderStore()
   const [fontsReady, setFontsReady] = useState(false)
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 390,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800,
+  }))
 
   // Wait for fonts before computing pagination to avoid fallback-font metric mismatch (AC 4 of 3.5)
   useEffect(() => {
     void document.fonts.ready.then(() => setFontsReady(true))
   }, [])
 
+  // Keep pagination responsive to viewport changes (resize/orientation)
+  useEffect(() => {
+    function syncViewport() {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    window.addEventListener('orientationchange', syncViewport)
+    return () => {
+      window.removeEventListener('resize', syncViewport)
+      window.removeEventListener('orientationchange', syncViewport)
+    }
+  }, [])
+
+  const horizontalPaddingPerSide = getHorizontalPaddingPerSidePx(viewport.width)
+  const horizontalPaddingTotal = horizontalPaddingPerSide * 2
+  const readerColumnMaxWidth = Math.min(
+    READER_MAX_WIDTH,
+    Math.max(280, viewport.width - horizontalPaddingTotal),
+  )
+
   const options: PaginationOptions = useMemo(
     () => ({
-      viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 800,
+      viewportHeight: viewport.height,
+      viewportWidth: viewport.width,
       fontSize: READER_FONT_SIZE,
       lineHeight: READER_LINE_HEIGHT,
       paddingVertical: READER_PADDING_VERTICAL,
+      contentMaxWidth: readerColumnMaxWidth,
+      horizontalPadding: horizontalPaddingTotal,
     }),
-    [],
+    [horizontalPaddingTotal, readerColumnMaxWidth, viewport.height, viewport.width],
   )
 
   // Compute pages from paragraphs only after fonts are ready
@@ -52,8 +91,12 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
   useEffect(() => {
     if (computedPages.length > 0) {
       setPages(computedPages)
+      const state = useReaderStore.getState()
+      if (state.currentPage > computedPages.length - 1) {
+        setCurrentPage(computedPages.length - 1)
+      }
     }
-  }, [computedPages, setPages])
+  }, [computedPages, setCurrentPage, setPages])
 
   // Navigation helpers — read current page from store at call time, page count from ref
   const navigateNext = () => {
@@ -140,8 +183,11 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     >
       {/* Responsive reading column — max-width ~700px, centered (AC 5) */}
       <div
-        className="mx-auto w-full flex-1 overflow-hidden px-6 py-4"
-        style={{ maxWidth: '700px' }}
+        className="mx-auto w-full flex-1 overflow-hidden py-4"
+        style={{
+          maxWidth: `${readerColumnMaxWidth}px`,
+          paddingInline: `${horizontalPaddingPerSide}px`,
+        }}
         role="region"
         aria-live="polite"
         aria-label="Nội dung kinh"
@@ -156,6 +202,8 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
               lineHeight: READER_LINE_HEIGHT,
               color: 'var(--color-text)',
               fontFamily: 'Lora, serif',
+              overflowWrap: 'anywhere',
+              wordBreak: 'break-word',
             }}
           >
             {para}

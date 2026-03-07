@@ -65,6 +65,13 @@ describe('ReaderEngine — rendering', () => {
     expect(col).toHaveAttribute('role', 'region')
     expect(col).toHaveAttribute('aria-live', 'polite')
   })
+
+  it('applies robust word wrapping to paragraph text', async () => {
+    await renderEngine(['x'.repeat(300)])
+    const paragraph = screen.getByText('x'.repeat(300))
+    expect(paragraph).toHaveStyle({ overflowWrap: 'anywhere' })
+    expect(paragraph).toHaveStyle({ wordBreak: 'break-word' })
+  })
 })
 
 describe('ReaderEngine — empty content (AC 3 of 3.5)', () => {
