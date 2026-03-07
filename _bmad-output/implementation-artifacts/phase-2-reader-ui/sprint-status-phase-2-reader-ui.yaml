@@ -58,12 +58,12 @@ development_status:
   # Epic 1: Installable PWA Foundation
   # React + Vite scaffold, design system, routing, SW, CI/CD
   # ─────────────────────────────────────────────────────────────────
-  epic-1: backlog
-  1-1-monorepo-setup-and-app-scaffold: backlog
-  1-2-design-system-and-reading-themes: backlog
-  1-3-app-shell-routing-and-bottom-navigation: backlog
-  1-4-pwa-manifest-and-app-shell-service-worker: backlog
-  1-5-ci-cd-pipeline-and-testing-infrastructure: backlog
+  epic-1: done
+  1-1-monorepo-setup-and-app-scaffold: done
+  1-2-design-system-and-reading-themes: done
+  1-3-app-shell-routing-and-bottom-navigation: done
+  1-4-pwa-manifest-and-app-shell-service-worker: done
+  1-5-ci-cd-pipeline-and-testing-infrastructure: done
   epic-1-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────

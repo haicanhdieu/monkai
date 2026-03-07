@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/Lora-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/Lora-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+.theme-sepia {
+  --color-background: #F5EDD6;
+  --color-text: #3D2B1F;
+  --color-text-muted: #7A5C42;
+  --color-accent: #C8883A;
+  --color-surface: #EDE0C4;
+  --color-border: #D4C4A0;
+}
+
+.theme-light {
+  --color-background: #FFFFFF;
+  --color-text: #1A1A1A;
+  --color-text-muted: #6B6B6B;
+  --color-accent: #C8883A;
+  --color-surface: #F5F5F5;
+  --color-border: #E0E0E0;
+}
+
+.theme-dark {
+  --color-background: #1A1207;
+  --color-text: #E8D5B0;
+  --color-text-muted: #B8A07C;
+  --color-accent: #D4944A;
+  --color-surface: #2A1E0F;
+  --color-border: #3D2B1F;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}

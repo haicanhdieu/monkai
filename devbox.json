@@ -10,17 +10,13 @@
     ],
     "scripts": {
       "crawl": "cd apps/crawler && uv run python crawler.py",
-      "parse": "cd apps/crawler && uv run python parser.py",
-      "index": "cd apps/crawler && uv run python indexer.py",
-      "validate": "cd apps/crawler && uv run python validate.py",
-      "build-books": "cd apps/crawler && uv run python book_builder.py",
+      "dev": "cd apps/reader && pnpm dev",
+      "build": "cd apps/reader && pnpm build",
+      "test": "cd apps/reader && pnpm test",
       "test:crawler": "cd apps/crawler && uv run pytest",
-      "lint": "cd apps/crawler && uv run ruff check .",
-      "format": "cd apps/crawler && uv run ruff format .",
-      "pipeline": "cd apps/crawler && uv run python pipeline.py",
-      "dev": "echo 'Reader not yet scaffolded — run after Epic 1'",
-      "build": "echo 'Reader not yet scaffolded — run after Epic 1'",
-      "test": "echo 'Run test:crawler for crawler tests or wait for Epic 1'"
+      "lint": "cd apps/reader && pnpm lint",
+      "build-books": "cd apps/crawler && uv run python book_builder.py",
+      "pipeline": "cd apps/crawler && uv run python pipeline.py"
     }
   }
 }

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi" class="theme-sepia">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monkai — Ngoại tuyến</title>
+  <style>
+    /* Inline all styles — no network access available */
+    :root {
+      --color-background: #F5EDD6;
+      --color-text: #3D2B1F;
+      --color-accent: #C8883A;
+      --color-border: #D4C4A0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--color-background);
+      color: var(--color-text);
+      font-family: Georgia, 'Times New Roman', serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    .container { max-width: 400px; }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    p { font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem; color: #7A5C42; }
+    a {
+      display: inline-block;
+      padding: 0.75rem 2rem;
+      background-color: var(--color-accent);
+      color: #F5EDD6;
+      text-decoration: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+    }
+    a:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🪷</h1>
+    <h1>Monkai</h1>
+    <p>Bạn đang ngoại tuyến.<br/>Vui lòng kiểm tra kết nối mạng của bạn.</p>
+    <a href="/">Về trang chủ</a>
+  </div>
+</body>
+</html>
