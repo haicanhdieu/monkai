@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-create-stories, step-04-final-validation]
+stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics, step-03-create-stories, step-04-final-validation, amendment-add-epic-0]
 inputDocuments:
   - _bmad-output/planning-artifacts/phase-2-reader-ui/prd-reader-ui.md
   - _bmad-output/planning-artifacts/phase-2-reader-ui/architecture.md
@@ -107,6 +107,11 @@ NFR8 (Accessibility - Touch Targets): All interactive elements (page turn zones,
 
 ## Epic List
 
+### Epic 0: Monorepo Restructure
+Developer-facing prerequisite that migrates the existing root-level crawler into `apps/crawler/` and prepares the repository layout for the Phase 2 reader app — with zero disruption to existing crawler functionality.
+**FRs covered:** none (infrastructure prerequisite)
+**NFRs addressed:** none (enables all future stories)
+
 ### Epic 1: Installable PWA Foundation
 Users can install the Monkai app to their home screen and open a working, navigable app shell — even offline.
 **FRs covered:** FR9 (partial — app shell), FR10 (partial — app shell cache)
@@ -134,6 +139,48 @@ Users can tailor their reading environment with font sizes and visual themes tha
 
 ---
 
+## Epic 0: Monorepo Restructure
+
+Developer-facing prerequisite that migrates the existing root-level crawler into `apps/crawler/` and prepares the repository layout for the Phase 2 reader app — with zero disruption to existing crawler functionality.
+
+### Story 0.1: Migrate Crawler to `apps/crawler/` & Establish Monorepo Layout
+
+As a **developer**,
+I want the existing crawler files moved to `apps/crawler/` and the root `devbox.json` updated with monorepo-aware commands,
+So that the repository is organized for multi-app development before any new code is written.
+
+**Acceptance Criteria:**
+
+**Given** the current monkai repository root contains `crawler.py`, `models.py`, `utils/`, `config.yaml`, `pyproject.toml`, `data/`, and `tests/`
+**When** the developer runs the migration
+**Then** all these files/directories are moved to `apps/crawler/` via `git mv`, preserving full git history
+
+**Given** `apps/crawler/` is the new crawler home
+**When** a developer runs `uv run pytest` from `apps/crawler/`
+**Then** all 170 existing tests pass without modification — no internal imports break
+
+**Given** `devbox.json` at the repo root
+**When** updated
+**Then** it contains the following script mappings:
+- `devbox run crawl` → `cd apps/crawler && uv run python crawler.py`
+- `devbox run dev` → placeholder that prints "Reader not yet scaffolded — run after Epic 1"
+- `devbox run build` → same placeholder
+- `devbox run test:crawler` → `cd apps/crawler && uv run pytest`
+
+**Given** a `book-data/` directory exists at the repo root (Phase 1 output)
+**When** the restructure is complete
+**Then** `book-data/` remains at the repo root — it is NOT moved (shared by crawler output and future reader fetch)
+
+**Given** the repo root after restructure
+**When** a developer lists the root directory
+**Then** it contains: `apps/` (with `crawler/` subdirectory), `book-data/`, `docs/`, `devbox.json`, `_bmad-output/`, `.github/`, `.gitignore` — and no stray Python files at root level
+
+**Given** `.github/workflows/` contains any existing CI workflow
+**When** reviewed
+**Then** any path references to root-level crawler files are updated to `apps/crawler/**`
+
+---
+
 ## Epic 1: Installable PWA Foundation
 
 Users can install the Monkai app to their home screen and open a working, navigable app shell — even offline.
@@ -146,17 +193,15 @@ So that the team has a consistent, working development environment to build upon
 
 **Acceptance Criteria:**
 
-**Given** the monkai repository root
-**When** the developer runs `git mv` to migrate crawler files
-**Then** `apps/crawler/` contains all Phase 1 files (`crawler.py`, `models.py`, `utils/`, `config.yaml`, `pyproject.toml`) and `uv run pytest` still passes from `apps/crawler/`
-
-**Given** `apps/reader/` is scaffolded via `npm create @vite-pwa/pwa@latest` (react-ts)
+**Given** the monorepo layout from Epic 0 (`apps/crawler/` exists, `devbox.json` updated)
+**When** the developer scaffolds the reader app
+**Then** `apps/reader/` is created via `npm create @vite-pwa/pwa@latest` (react-ts)
 **When** all dependencies are installed
 **Then** `package.json` pins: `tailwindcss@^3.4.x`, `react-router-dom`, `zustand`, `@tanstack/react-query`, `localforage`, `zod`, `minisearch`, `@radix-ui/react-slider`, `@radix-ui/react-dialog`, `vitest`, `@testing-library/react`, `playwright`, `concurrently`
 
-**Given** the `devbox.json` at repo root
-**When** a developer runs each command
-**Then** `devbox run crawl` executes `cd apps/crawler && uv run python crawler.py`, `devbox run dev` starts both mock server and Vite concurrently, `devbox run build` builds the reader, `devbox run test` runs Vitest
+**Given** the `devbox.json` placeholder scripts from Epic 0
+**When** updated for the real reader app
+**Then** `devbox run dev` starts both mock server and Vite concurrently (`concurrently`), `devbox run build` runs `cd apps/reader && pnpm build`, `devbox run test` runs `cd apps/reader && pnpm test`
 
 **Given** `apps/reader/scripts/mock-server.mjs` using Node built-in `http`
 **When** the developer runs `node scripts/mock-server.mjs`
