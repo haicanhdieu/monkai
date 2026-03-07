@@ -7,8 +7,7 @@ import { PageProgress } from './PageProgress'
 // Default reader font metrics — consistent with body typography
 const READER_FONT_SIZE = 18
 const READER_LINE_HEIGHT = 1.6
-const READER_PADDING_VERTICAL = 80 // accounts for fixed top + bottom chrome overlays
-const READER_MAX_WIDTH = 700
+const READER_PADDING_BOTTOM = 0 // tall enough to account for PageProgress and vertical padding to avoid overlap
 
 const EMPTY_PAGE_MESSAGE = 'Nội dung trống.'
 const SWIPE_THRESHOLD = 50 // px
@@ -58,11 +57,8 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
 
   const horizontalPaddingPerSide = getHorizontalPaddingPerSidePx(viewport.width)
   const horizontalPaddingTotal = horizontalPaddingPerSide * 2
-  const readerColumnMaxWidth = Math.min(
-    READER_MAX_WIDTH,
-    Math.max(280, viewport.width - horizontalPaddingTotal),
-  )
-  const availableHeight = viewport.height - 2 * READER_PADDING_VERTICAL
+  const readerColumnMaxWidth = Math.max(280, viewport.width - horizontalPaddingTotal)
+  const availableHeight = viewport.height - Math.max(0, READER_PADDING_BOTTOM)
 
   // null = not yet computed; show skeleton until first measurement completes
   const paginationResult = useDOMPagination(

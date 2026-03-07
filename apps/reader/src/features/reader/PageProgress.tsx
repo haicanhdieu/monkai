@@ -4,6 +4,7 @@ interface PageProgressProps {
 }
 
 export function PageProgress({ currentPage, totalPages }: PageProgressProps) {
+  return null;
   return (
     <p
       className="text-center text-xs select-none"
