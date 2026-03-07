@@ -19,36 +19,32 @@ const rawBookSchema = z.object({
   chapters: z.array(chapterSchema).default([]),
 })
 
-const NAMED_HTML_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-}
-
 function decodeHtmlEntities(input: string): string {
-  const fromCodePointSafe = (codePoint: number, fallback: string): string => {
-    if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) {
-      return fallback
-    }
-    return String.fromCodePoint(codePoint)
+  if (!input.includes('&')) {
+    return input
   }
 
-  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (full, entity: string) => {
-    if (entity.startsWith('#x') || entity.startsWith('#X')) {
-      const codePoint = Number.parseInt(entity.slice(2), 16)
-      return Number.isNaN(codePoint) ? full : fromCodePointSafe(codePoint, full)
+  const decodeOnceWithDom = (value: string): string => {
+    if (typeof document === 'undefined') {
+      return value
     }
 
-    if (entity.startsWith('#')) {
-      const codePoint = Number.parseInt(entity.slice(1), 10)
-      return Number.isNaN(codePoint) ? full : fromCodePointSafe(codePoint, full)
-    }
+    const textarea = document.createElement('textarea')
+    textarea.innerHTML = value
+    return textarea.value
+  }
 
-    return NAMED_HTML_ENTITIES[entity] ?? full
-  })
+  let decoded = input
+  // Decode multiple rounds to handle double-escaped payloads (e.g. "&amp;Agrave;").
+  for (let i = 0; i < 3; i++) {
+    const next = decodeOnceWithDom(decoded)
+    if (next === decoded) {
+      break
+    }
+    decoded = next
+  }
+
+  return decoded
 }
 
 function normalizeParagraphs(chapters: z.infer<typeof chapterSchema>[]): BookParagraph[] {

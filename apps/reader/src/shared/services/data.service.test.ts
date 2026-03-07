@@ -27,6 +27,7 @@ const validBookPayload = {
       pages: [
         { html_content: '<p>Bát Nhã tâm kinh</p>' },
         { html_content: '<p>A &amp; B &lt;C&gt; &quot;D&quot; &#39;E&#39; &#x26;</p>' },
+        { html_content: '<p>ĐO&Agrave;N &ldquo;TRUNG&rdquo; C&Ograve;N</p>' },
       ],
     },
   ],
@@ -113,6 +114,7 @@ describe('StaticJsonDataService', () => {
     expect(book.id).toBe('book-1')
     expect(book.content[0]).toContain('Bát Nhã')
     expect(book.content[1]).toBe('A & B <C> "D" \'E\' &')
+    expect(book.content[2]).toBe('ĐOÀN “TRUNG” CÒN')
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
