@@ -18,3 +18,25 @@ export interface PaginationOptions {
   contentMaxWidth?: number
   horizontalPadding?: number
 }
+
+/**
+ * Result of DOM-based pagination.
+ * - `pages`: paragraph content per page (for rendering).
+ * - `boundaries`: paragraph index of the first paragraph on each page (for bookmarks).
+ */
+export interface PageBoundaries {
+  pages: string[][]
+  boundaries: number[]
+}
+
+/**
+ * Options for DOM-measurement pagination hook.
+ */
+export interface DOMPaginationOptions {
+  bookId: string          // used as part of sessionStorage cache key to prevent cross-book collisions
+  availableHeight: number // px — container height (viewportHeight - verticalPadding*2)
+  columnWidth: number     // px — exact column width
+  fontSize: number
+  lineHeight: number
+  fontFamily: string
+}

@@ -1,121 +1,63 @@
 import type { PaginationOptions } from './pagination.types'
-
-const DEFAULT_CONTENT_MAX_WIDTH = 700
-const DEFAULT_HORIZONTAL_PADDING = 48
-const AVG_CHAR_WIDTH_EM = 0.6
-
-function lineHeightPx(fontSize: number, lineHeight: number): number {
-  return fontSize * lineHeight
-}
-
-function resolveCharsPerLine(options: PaginationOptions): number {
-  const contentMaxWidth = options.contentMaxWidth ?? DEFAULT_CONTENT_MAX_WIDTH
-  const horizontalPadding = options.horizontalPadding ?? DEFAULT_HORIZONTAL_PADDING
-  const viewportWidth = options.viewportWidth ?? contentMaxWidth + horizontalPadding
-
-  const usableWidth = Math.max(120, Math.min(contentMaxWidth, viewportWidth - horizontalPadding))
-  const charWidthPx = Math.max(1, options.fontSize * AVG_CHAR_WIDTH_EM)
-
-  return Math.max(12, Math.floor(usableWidth / charWidthPx))
-}
-
-function estimateLineCount(text: string, charsPerLine: number): number {
-  if (text.length === 0) {
-    return 1
-  }
-  return Math.max(1, Math.ceil(text.length / charsPerLine))
-}
-
-function splitParagraphToFit(paragraph: string, maxCharsPerPage: number): string[] {
-  const normalized = paragraph.trim()
-  if (normalized.length <= maxCharsPerPage) {
-    return [normalized]
-  }
-
-  const parts: string[] = []
-  let remaining = normalized
-
-  while (remaining.length > maxCharsPerPage) {
-    let cut = maxCharsPerPage
-    const nearestWhitespace = remaining.lastIndexOf(' ', cut)
-
-    // Keep chunks reasonably balanced when possible; hard-cut long uninterrupted words.
-    if (nearestWhitespace > Math.floor(maxCharsPerPage * 0.6)) {
-      cut = nearestWhitespace
-    }
-
-    const chunk = remaining.slice(0, cut).trim()
-    if (chunk.length === 0) {
-      parts.push(remaining.slice(0, maxCharsPerPage))
-      remaining = remaining.slice(maxCharsPerPage).trimStart()
-      continue
-    }
-
-    parts.push(chunk)
-    remaining = remaining.slice(cut).trimStart()
-  }
-
-  if (remaining.length > 0) {
-    parts.push(remaining)
-  }
-
-  return parts
-}
+import type { PageBoundaries } from './pagination.types'
 
 /**
- * Splits an array of paragraphs into viewport-sized pages.
+ * JSDOM-safe fallback pagination utility.
+ *
+ * Uses line-count estimation (no DOM access). Suitable for unit tests and
+ * SSR environments where `scrollHeight`/`clientHeight` are unavailable.
+ *
+ * For browser environments, use `useDOMPagination` hook instead, which
+ * measures actual rendered heights via a hidden DOM element.
  *
  * Rules:
  * - Available page height = `viewportHeight - 2 * paddingVertical`.
- * - Paragraphs may be split into smaller chunks if estimated wrapped height
- *   exceeds a page.
- * - Empty input returns `[[]]`.
+ * - Returns `PageBoundaries` with `pages` (content per page) and
+ *   `boundaries` (paragraph index of first paragraph on each page).
+ * - Empty input returns `{ pages: [[]], boundaries: [0] }`.
  */
-export function paginateBook(paragraphs: string[], options: PaginationOptions): string[][] {
+export function paginateBook(paragraphs: string[], options: PaginationOptions): PageBoundaries {
   const fontSize = Math.max(1, options.fontSize)
   const lineHeight = Math.max(0.1, options.lineHeight)
   const availableHeight = Math.max(1, options.viewportHeight - 2 * options.paddingVertical)
-  const linePx = lineHeightPx(fontSize, lineHeight)
+  const linePx = fontSize * lineHeight
   const maxLinesPerPage = Math.max(1, Math.floor(availableHeight / linePx))
-  const charsPerLine = resolveCharsPerLine({ ...options, fontSize })
-  const maxCharsPerPage = Math.max(1, maxLinesPerPage * charsPerLine)
-
-  if (paragraphs.length === 0) {
-    return [[]]
-  }
 
   const normalizedParagraphs = paragraphs
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph.length > 0)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
 
   if (normalizedParagraphs.length === 0) {
-    return [[]]
+    return { pages: [[]], boundaries: [0] }
   }
 
   const pages: string[][] = []
+  const boundaries: number[] = []
   let currentPage: string[] = []
   let currentLines = 0
+  let currentBoundaryIdx = 0
 
-  for (const paragraph of normalizedParagraphs) {
-    const chunks = splitParagraphToFit(paragraph, maxCharsPerPage)
+  for (let i = 0; i < normalizedParagraphs.length; i++) {
+    const para = normalizedParagraphs[i]
+    // Each paragraph occupies at least 1 line
+    const paraLines = 1
 
-    for (const chunk of chunks) {
-      const chunkLines = estimateLineCount(chunk, charsPerLine)
-
-      if (currentPage.length > 0 && currentLines + chunkLines > maxLinesPerPage) {
-        pages.push(currentPage)
-        currentPage = []
-        currentLines = 0
-      }
-
-      currentPage.push(chunk)
-      currentLines += chunkLines
+    if (currentPage.length > 0 && currentLines + paraLines > maxLinesPerPage) {
+      boundaries.push(currentBoundaryIdx)
+      pages.push(currentPage)
+      currentPage = []
+      currentLines = 0
+      currentBoundaryIdx = i
     }
+
+    currentPage.push(para)
+    currentLines += paraLines
   }
 
   if (currentPage.length > 0) {
+    boundaries.push(currentBoundaryIdx)
     pages.push(currentPage)
   }
 
-  return pages
+  return { pages, boundaries }
 }

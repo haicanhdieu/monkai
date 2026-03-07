@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { paginateBook } from '@/lib/pagination'
-import type { PaginationOptions } from '@/lib/pagination'
+import { useEffect, useRef, useState } from 'react'
+import { useDOMPagination } from './useDOMPagination'
 import { useReaderStore } from '@/stores/reader.store'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { PageProgress } from './PageProgress'
@@ -26,19 +25,21 @@ interface ReaderEngineProps {
 }
 
 export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
-  const { currentPage, setPages, setCurrentPage } = useReaderStore()
+  const { bookId, currentPage, setPages, setCurrentPage, setPageBoundaries } = useReaderStore()
   const [fontsReady, setFontsReady] = useState(false)
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 390,
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
   }))
+  // Always mounted — never inside a conditional branch — so measureRef.current is stable
+  const measureRef = useRef<HTMLDivElement>(null)
 
-  // Wait for fonts before computing pagination to avoid fallback-font metric mismatch (AC 4 of 3.5)
+  // Wait for fonts before computing pagination to avoid fallback-font metric mismatch
   useEffect(() => {
     void document.fonts.ready.then(() => setFontsReady(true))
   }, [])
 
-  // Keep pagination responsive to viewport changes (resize/orientation)
+  // Track viewport for column width calculation
   useEffect(() => {
     function syncViewport() {
       setViewport({
@@ -46,7 +47,6 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
         height: window.innerHeight,
       })
     }
-
     syncViewport()
     window.addEventListener('resize', syncViewport)
     window.addEventListener('orientationchange', syncViewport)
@@ -62,46 +62,46 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     READER_MAX_WIDTH,
     Math.max(280, viewport.width - horizontalPaddingTotal),
   )
+  const availableHeight = viewport.height - 2 * READER_PADDING_VERTICAL
 
-  const options: PaginationOptions = useMemo(
-    () => ({
-      viewportHeight: viewport.height,
-      viewportWidth: viewport.width,
+  // null = not yet computed; show skeleton until first measurement completes
+  const paginationResult = useDOMPagination(
+    paragraphs,
+    measureRef,
+    {
+      bookId,
+      availableHeight,
+      columnWidth: readerColumnMaxWidth,
       fontSize: READER_FONT_SIZE,
       lineHeight: READER_LINE_HEIGHT,
-      paddingVertical: READER_PADDING_VERTICAL,
-      contentMaxWidth: readerColumnMaxWidth,
-      horizontalPadding: horizontalPaddingTotal,
-    }),
-    [horizontalPaddingTotal, readerColumnMaxWidth, viewport.height, viewport.width],
+      fontFamily: 'Lora, serif',
+    },
+    fontsReady,
   )
 
-  // Compute pages from paragraphs only after fonts are ready
-  const computedPages = useMemo(() => {
-    if (!fontsReady) return []
-    return paginateBook(paragraphs, options)
-  }, [fontsReady, paragraphs, options])
+  const pages = paginationResult?.pages ?? []
+  const boundaries = paginationResult?.boundaries ?? [0]
 
   // Keep a ref so keyboard/swipe handlers always see the latest page count
-  // without stale closure issues (ref updated synchronously during render)
-  const computedPagesRef = useRef<string[][]>([])
-  computedPagesRef.current = computedPages
+  const pagesRef = useRef<string[][]>([])
+  pagesRef.current = pages
 
-  // Sync computed pages into store (AC 1 of 3.3)
+  // Sync computed pages into store
   useEffect(() => {
-    if (computedPages.length > 0) {
-      setPages(computedPages)
+    if (pages.length > 0) {
+      setPages(pages)
+      setPageBoundaries(boundaries)
       const state = useReaderStore.getState()
-      if (state.currentPage > computedPages.length - 1) {
-        setCurrentPage(computedPages.length - 1)
+      if (state.currentPage > pages.length - 1) {
+        setCurrentPage(pages.length - 1)
       }
     }
-  }, [computedPages, setCurrentPage, setPages])
+  }, [pages, boundaries, setCurrentPage, setPages, setPageBoundaries])
 
   // Navigation helpers — read current page from store at call time, page count from ref
   const navigateNext = () => {
     const state = useReaderStore.getState()
-    if (state.currentPage < computedPagesRef.current.length - 1) {
+    if (state.currentPage < pagesRef.current.length - 1) {
       setCurrentPage(state.currentPage + 1)
     }
   }
@@ -119,7 +119,7 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
   const navigatePrevRef = useRef(navigatePrev)
   navigatePrevRef.current = navigatePrev
 
-  // Keyboard navigation (AC 6)
+  // Keyboard navigation
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'ArrowRight' || e.key === 'PageDown') navigateNextRef.current()
@@ -129,7 +129,7 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     return () => window.removeEventListener('keydown', handleKey)
   }, []) // stable: handlers read via refs
 
-  // Touch/swipe handling (AC 2, 3)
+  // Touch/swipe handling
   const touchStartX = useRef(0)
   const swipeHandled = useRef(false)
 
@@ -147,8 +147,6 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     }
   }
 
-  // Tap zone detection uses window.innerWidth so it works in JSDOM (no layout needed)
-  // Left 20% → prev, right 20% → next, center 60% → delegated (AC 2, 3 of 3.3)
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (swipeHandled.current) return
     const ratio = e.clientX / (window.innerWidth || 1024)
@@ -157,64 +155,93 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     else onCenterTap?.()
   }
 
-  // Loading state — skeleton while fonts initialise (AC 4 of 3.5).
-  // paginateBook always returns at least [[]], so computedPages.length > 0 whenever fontsReady is true.
-  if (!fontsReady) {
+  // Hidden measurement div — always in the DOM (never inside a conditional branch) so
+  // measureRef.current is stable and the ResizeObserver never loses its target on
+  // skeleton ↔ content transitions
+  const measureDiv = (
+    <div
+      ref={measureRef}
+      aria-hidden="true"
+      data-testid="reader-measure-div"
+      style={{
+        position: 'absolute',
+        top: '-9999px',
+        left: '-9999px',
+        visibility: 'hidden',
+        overflow: 'hidden',
+        width: `${readerColumnMaxWidth}px`,
+        height: `${availableHeight}px`,
+        fontSize: `${READER_FONT_SIZE}px`,
+        lineHeight: READER_LINE_HEIGHT,
+        fontFamily: 'Lora, serif',
+        paddingInline: `${horizontalPaddingPerSide}px`,
+      }}
+    />
+  )
+
+  // Show skeleton while fonts are loading OR while first DOM measurement is pending
+  if (!fontsReady || paginationResult === null) {
     return (
-      <div className="flex-1 p-6" data-testid="reader-skeleton">
-        <SkeletonText lines={14} />
-      </div>
+      <>
+        <div className="flex-1 p-6" data-testid="reader-skeleton">
+          <SkeletonText lines={14} />
+        </div>
+        {measureDiv}
+      </>
     )
   }
 
-  const currentPageParagraphs = computedPages[currentPage] ?? []
-
-  // Empty content guard (AC 3 of 3.5)
+  const currentPageParagraphs = pages[currentPage] ?? []
   const displayParagraphs =
     currentPageParagraphs.length === 0 ? [EMPTY_PAGE_MESSAGE] : currentPageParagraphs
 
   return (
-    <div
-      className="flex-1 flex flex-col overflow-hidden cursor-pointer select-none"
-      onClick={handleClick}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      data-testid="reader-engine"
-    >
-      {/* Responsive reading column — max-width ~700px, centered (AC 5) */}
+    <>
       <div
-        className="mx-auto w-full flex-1 overflow-hidden py-4"
-        style={{
-          maxWidth: `${readerColumnMaxWidth}px`,
-          paddingInline: `${horizontalPaddingPerSide}px`,
-        }}
-        role="region"
-        aria-live="polite"
-        aria-label="Nội dung kinh"
-        data-testid="reader-text-column"
+        className="flex-1 flex flex-col overflow-hidden cursor-pointer select-none"
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        data-testid="reader-engine"
+        data-page-total={pages.length}
       >
-        {displayParagraphs.map((para, i) => (
-          <p
-            key={i}
-            className="mb-4 leading-relaxed"
-            style={{
-              fontSize: `${READER_FONT_SIZE}px`,
-              lineHeight: READER_LINE_HEIGHT,
-              color: 'var(--color-text)',
-              fontFamily: 'Lora, serif',
-              overflowWrap: 'anywhere',
-              wordBreak: 'break-word',
-            }}
-          >
-            {para}
-          </p>
-        ))}
+        {/* Responsive reading column — max-width ~700px, centered */}
+        <div
+          className="mx-auto w-full flex-1 overflow-hidden py-4"
+          style={{
+            maxWidth: `${readerColumnMaxWidth}px`,
+            paddingInline: `${horizontalPaddingPerSide}px`,
+          }}
+          role="region"
+          aria-live="polite"
+          aria-label="Nội dung kinh"
+          data-testid="reader-text-column"
+        >
+          {displayParagraphs.map((para, i) => (
+            <p
+              key={i}
+              className="mb-4 leading-relaxed"
+              style={{
+                fontSize: `${READER_FONT_SIZE}px`,
+                lineHeight: READER_LINE_HEIGHT,
+                color: 'var(--color-text)',
+                fontFamily: 'Lora, serif',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+              }}
+            >
+              {para}
+            </p>
+          ))}
+        </div>
+
+        {/* Page progress */}
+        <div className="pb-4 px-6">
+          <PageProgress currentPage={currentPage} totalPages={pages.length} />
+        </div>
       </div>
 
-      {/* Page progress (AC 7) */}
-      <div className="pb-4 px-6">
-        <PageProgress currentPage={currentPage} totalPages={computedPages.length} />
-      </div>
-    </div>
+      {measureDiv}
+    </>
   )
 }

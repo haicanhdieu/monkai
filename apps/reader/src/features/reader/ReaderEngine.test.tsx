@@ -11,13 +11,17 @@ const LEFT_TAP = 100
 const RIGHT_TAP = 950
 const CENTER_TAP = 512
 
-// Resolve document.fonts.ready immediately in all tests
+// Resolve document.fonts.ready immediately in all tests.
+// Mock scrollHeight/clientHeight so DOM measurement produces predictable pages:
+// scrollHeight (100) > clientHeight (90) means each paragraph triggers a new page.
 beforeEach(() => {
   Object.defineProperty(document, 'fonts', {
     value: { ready: Promise.resolve() },
     configurable: true,
     writable: true,
   })
+  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(100)
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(90)
   useReaderStore.getState().reset()
 })
 
@@ -111,7 +115,8 @@ describe('ReaderEngine — tap zone navigation (AC 2, 3, 4 of 3.3)', () => {
     await renderEngine()
     const engine = screen.getByTestId('reader-engine')
 
-    for (let i = 0; i < 20; i++) {
+    // Tap enough times to guarantee reaching the last page regardless of page count
+    for (let i = 0; i < 100; i++) {
       fireEvent.click(engine, { clientX: RIGHT_TAP })
     }
     const { currentPage, pages } = useReaderStore.getState()

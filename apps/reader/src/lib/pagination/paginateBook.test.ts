@@ -4,12 +4,10 @@ import type { PaginationOptions } from './pagination.types'
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
 
-/** Generate n synthetic paragraphs for performance testing. */
 function makeParagraphs(n: number): string[] {
   return Array.from({ length: n }, (_, i) => `Paragraph ${i + 1}: Some representative scripture text.`)
 }
 
-/** Standard viewport used across most tests. */
 const STANDARD_OPTIONS: PaginationOptions = {
   viewportHeight: 800,
   fontSize: 16,
@@ -17,173 +15,132 @@ const STANDARD_OPTIONS: PaginationOptions = {
   paddingVertical: 16,
 }
 
-// With STANDARD_OPTIONS:
-// availableHeight = 800 - 2*16 = 768
-// paragraphHeight = 16 * 1.5 = 24
-// pageCapacity    = floor(768 / 24) = 32 paragraphs per page
-
-// ─── AC 4: Empty input returns [[]] ──────────────────────────────────────────
+// ─── Empty input ──────────────────────────────────────────────────────────────
 
 describe('paginateBook — empty input', () => {
-  it('returns [[]] for an empty paragraph array (AC 4)', () => {
+  it('returns { pages: [[]], boundaries: [0] } for empty array', () => {
     const result = paginateBook([], STANDARD_OPTIONS)
-    expect(result).toEqual([[]])
+    expect(result.pages).toEqual([[]])
+    expect(result.boundaries).toEqual([0])
+  })
+
+  it('returns { pages: [[]], boundaries: [0] } for all-whitespace paragraphs', () => {
+    const result = paginateBook(['  ', '\t', ''], STANDARD_OPTIONS)
+    expect(result.pages).toEqual([[]])
+    expect(result.boundaries).toEqual([0])
   })
 })
 
-// ─── AC 1 & 2: Pure TypeScript, deterministic grouping ───────────────────────
+// ─── Return shape ─────────────────────────────────────────────────────────────
 
-describe('paginateBook — basic pagination (AC 1, 2)', () => {
-  it('returns a single page when all paragraphs fit', () => {
-    const paragraphs = makeParagraphs(10) // 10 < 32 per page
-    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toHaveLength(10)
+describe('paginateBook — return shape', () => {
+  it('returns a PageBoundaries object with pages and boundaries arrays', () => {
+    const result = paginateBook(makeParagraphs(5), STANDARD_OPTIONS)
+    expect(result).toHaveProperty('pages')
+    expect(result).toHaveProperty('boundaries')
+    expect(Array.isArray(result.pages)).toBe(true)
+    expect(Array.isArray(result.boundaries)).toBe(true)
   })
 
-  it('splits into correct page count for 100 paragraphs', () => {
-    // 100 paragraphs / 32 per page → 4 pages (3×32 + 4 remainder)
-    const paragraphs = makeParagraphs(100)
-    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    expect(result).toHaveLength(4)
-    expect(result[0]).toHaveLength(32)
-    expect(result[1]).toHaveLength(32)
-    expect(result[2]).toHaveLength(32)
-    expect(result[3]).toHaveLength(4)
+  it('pages and boundaries have the same length', () => {
+    const result = paginateBook(makeParagraphs(100), STANDARD_OPTIONS)
+    expect(result.pages.length).toBe(result.boundaries.length)
   })
 
-  it('produces deterministic output on repeated calls with same input', () => {
-    const paragraphs = makeParagraphs(200)
-    const result1 = paginateBook(paragraphs, STANDARD_OPTIONS)
-    const result2 = paginateBook(paragraphs, STANDARD_OPTIONS)
-    expect(result1).toEqual(result2)
+  it('first boundary is always 0', () => {
+    const result = paginateBook(makeParagraphs(10), STANDARD_OPTIONS)
+    expect(result.boundaries[0]).toBe(0)
   })
 
-  it('never places more estimated lines on a page than the available height allows', () => {
-    const paragraphs = makeParagraphs(500)
-    const { viewportHeight, fontSize, lineHeight, paddingVertical } = STANDARD_OPTIONS
-    const available = viewportHeight - 2 * paddingVertical
-    const lineHeightPx = fontSize * lineHeight
-
-    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    for (const page of result) {
-      const estimatedLineCount = page.reduce((acc, paragraph) => acc + Math.ceil(paragraph.length / 72), 0)
-      expect(estimatedLineCount * lineHeightPx).toBeLessThanOrEqual(available)
+  it('boundaries are monotonically increasing', () => {
+    const result = paginateBook(makeParagraphs(200), STANDARD_OPTIONS)
+    for (let i = 1; i < result.boundaries.length; i++) {
+      expect(result.boundaries[i]).toBeGreaterThan(result.boundaries[i - 1])
     }
   })
+})
 
-  it('preserves paragraph content and order across all pages', () => {
+// ─── Determinism ──────────────────────────────────────────────────────────────
+
+describe('paginateBook — determinism', () => {
+  it('produces identical output on repeated calls with same input', () => {
+    const paragraphs = makeParagraphs(200)
+    const r1 = paginateBook(paragraphs, STANDARD_OPTIONS)
+    const r2 = paginateBook(paragraphs, STANDARD_OPTIONS)
+    expect(r1).toEqual(r2)
+  })
+})
+
+// ─── Content preservation ─────────────────────────────────────────────────────
+
+describe('paginateBook — content preservation', () => {
+  it('preserves all paragraphs (none lost or duplicated)', () => {
     const paragraphs = makeParagraphs(70)
     const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    const flattened = result.flat()
+    const flattened = result.pages.flat()
     expect(flattened).toEqual(paragraphs)
   })
+
+  it('preserves paragraph order across pages', () => {
+    const paragraphs = makeParagraphs(50)
+    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
+    const flattened = result.pages.flat()
+    for (let i = 0; i < paragraphs.length; i++) {
+      expect(flattened[i]).toBe(paragraphs[i])
+    }
+  })
 })
 
-// ─── AC 5: Overlong single paragraph gets its own page ───────────────────────
+// ─── Font size ratio ──────────────────────────────────────────────────────────
 
-describe('paginateBook — overlong single paragraph (AC 5)', () => {
-  it('places one overlong paragraph on its own page without crashing', () => {
-    // Use a tiny viewport so a single paragraph is "overlong"
+describe('paginateBook — font size effect', () => {
+  it('larger font produces more pages than smaller font', () => {
+    const paragraphs = makeParagraphs(100)
+    const largeFont: PaginationOptions = { ...STANDARD_OPTIONS, fontSize: 24 }
+    const smallFont: PaginationOptions = { ...STANDARD_OPTIONS, fontSize: 12 }
+    const large = paginateBook(paragraphs, largeFont)
+    const small = paginateBook(paragraphs, smallFont)
+    expect(small.pages.length).toBeLessThan(large.pages.length)
+  })
+})
+
+// ─── Overlong single paragraph ────────────────────────────────────────────────
+
+describe('paginateBook — overlong single paragraph', () => {
+  it('places single paragraph on its own page without crashing', () => {
     const tinyOptions: PaginationOptions = {
       viewportHeight: 10,
       fontSize: 16,
       lineHeight: 1.5,
       paddingVertical: 0,
     }
-    // availableHeight = 10; paragraphHeight = 24 → paragraph exceeds page
-    const result = paginateBook(['A single overlong paragraph.'], tinyOptions)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toEqual(['A single overlong paragraph.'])
-  })
-
-  it('places multiple overlong paragraphs each on their own page', () => {
-    const tinyOptions: PaginationOptions = {
-      viewportHeight: 10,
-      fontSize: 16,
-      lineHeight: 1.5,
-      paddingVertical: 0,
-    }
-    const paragraphs = ['First overlong.', 'Second overlong.', 'Third overlong.']
-    const result = paginateBook(paragraphs, tinyOptions)
-    expect(result).toHaveLength(3)
-    expect(result[0]).toEqual(['First overlong.'])
-    expect(result[1]).toEqual(['Second overlong.'])
-    expect(result[2]).toEqual(['Third overlong.'])
+    const result = paginateBook(['A single paragraph.'], tinyOptions)
+    expect(result.pages).toHaveLength(1)
+    expect(result.pages[0]).toEqual(['A single paragraph.'])
+    expect(result.boundaries).toEqual([0])
   })
 })
 
-// ─── AC 3: Performance budget < 100ms for 500 paragraphs ─────────────────────
+// ─── Performance ──────────────────────────────────────────────────────────────
 
-describe('paginateBook — performance (AC 3)', () => {
-  it('paginates 500 paragraphs in under 100ms', () => {
+describe('paginateBook — performance', () => {
+  it('paginates 500 paragraphs in under 500ms', () => {
     const paragraphs = makeParagraphs(500)
     const start = performance.now()
     const result = paginateBook(paragraphs, STANDARD_OPTIONS)
     const elapsed = performance.now() - start
-
-    // Sanity check: result is non-empty
-    expect(result.length).toBeGreaterThan(0)
-    // Performance budget — 500ms to accommodate slower CI runners
+    expect(result.pages.length).toBeGreaterThan(0)
     expect(elapsed).toBeLessThan(500)
   })
 })
 
-// ─── Edge cases ───────────────────────────────────────────────────────────────
+// ─── Single paragraph ─────────────────────────────────────────────────────────
 
-describe('paginateBook — edge cases', () => {
+describe('paginateBook — single paragraph', () => {
   it('handles exactly one paragraph correctly', () => {
     const result = paginateBook(['Single paragraph.'], STANDARD_OPTIONS)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toEqual(['Single paragraph.'])
-  })
-
-  it('handles exact page boundary (exactly 32 paragraphs → 1 page)', () => {
-    const paragraphs = makeParagraphs(32) // exactly fills one page
-    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    expect(result).toHaveLength(1)
-    expect(result[0]).toHaveLength(32)
-  })
-
-  it('handles 33 paragraphs → 2 pages (32 + 1)', () => {
-    const paragraphs = makeParagraphs(33)
-    const result = paginateBook(paragraphs, STANDARD_OPTIONS)
-    expect(result).toHaveLength(2)
-    expect(result[0]).toHaveLength(32)
-    expect(result[1]).toHaveLength(1)
-  })
-
-  it('respects different font sizes (smaller font → more paragraphs per page)', () => {
-    const largeFont: PaginationOptions = { ...STANDARD_OPTIONS, fontSize: 24 }
-    const smallFont: PaginationOptions = { ...STANDARD_OPTIONS, fontSize: 12 }
-    const paragraphs = makeParagraphs(100)
-
-    const largeFontPages = paginateBook(paragraphs, largeFont)
-    const smallFontPages = paginateBook(paragraphs, smallFont)
-
-    expect(smallFontPages.length).toBeLessThan(largeFontPages.length)
-  })
-
-  it('splits a very long paragraph across multiple pages', () => {
-    const longParagraph = 'a'.repeat(4000)
-    const result = paginateBook([longParagraph], STANDARD_OPTIONS)
-
-    expect(result.length).toBeGreaterThan(1)
-    expect(result.flat().join('')).toBe(longParagraph)
-  })
-
-  it('uses viewport width to paginate more aggressively on narrow screens', () => {
-    const paragraph = 'Lorem ipsum '.repeat(220).trim()
-
-    const wide = paginateBook(
-      [paragraph],
-      { ...STANDARD_OPTIONS, viewportWidth: 900, contentMaxWidth: 700, horizontalPadding: 48 },
-    )
-    const narrow = paginateBook(
-      [paragraph],
-      { ...STANDARD_OPTIONS, viewportWidth: 390, contentMaxWidth: 700, horizontalPadding: 48 },
-    )
-
-    expect(narrow.length).toBeGreaterThanOrEqual(wide.length)
+    expect(result.pages).toHaveLength(1)
+    expect(result.pages[0]).toEqual(['Single paragraph.'])
+    expect(result.boundaries).toEqual([0])
   })
 })

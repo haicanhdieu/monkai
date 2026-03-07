@@ -61,7 +61,7 @@ export function ChromelessLayout({ book, children }: ChromelessLayoutProps) {
 
   return (
     <div
-      className="relative flex flex-col min-h-screen overflow-hidden"
+      className="fixed inset-0 flex flex-col overflow-hidden"
       style={{ backgroundColor: 'var(--color-background)' }}
       data-testid="chromeless-layout"
     >
@@ -96,7 +96,7 @@ export function ChromelessLayout({ book, children }: ChromelessLayoutProps) {
       </div>
 
       {/* Main reading area */}
-      <div className="flex flex-col min-h-screen">{children}</div>
+      <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
 
       {/* Bottom bar overlay — position:fixed so it doesn't reflow text (AC 4) */}
       <div
