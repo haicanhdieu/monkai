@@ -303,6 +303,7 @@ class TestConfigOnlyExtensibility:
 
         with (
             patch("crawler.RobotsCache"),
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run") as mock_run,
         ):
             mock_run.return_value = None

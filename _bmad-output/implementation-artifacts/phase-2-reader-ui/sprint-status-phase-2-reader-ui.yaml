@@ -1,0 +1,111 @@
+# generated: 2026-03-07
+# project: monkai (Phase 2 - Reader UI)
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+# epics_source: _bmad-output/planning-artifacts/phase-2-reader-ui/epics-reader-ui.md
+#
+# NOTE: Phase 1 (crawler) sprint status is in sprint-status.yaml (all done).
+#       This file tracks Phase 2 (Reader UI PWA) only.
+#
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Story file naming: {epic}-{story}-{title-kebab-case}.md (e.g., 0-1-migrate-crawler-to-apps-crawler.md)
+
+generated: 2026-03-07
+project: monkai-phase-2-reader-ui
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 0: Monorepo Restructure
+  # Migrate existing crawler to apps/crawler/ and establish apps/ layout
+  # PREREQUISITE: Must complete before any Phase 2 code is written
+  # ─────────────────────────────────────────────────────────────────
+  epic-0: in-progress
+  0-1-migrate-crawler-to-apps-crawler-and-establish-monorepo-layout: done
+  epic-0-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 1: Installable PWA Foundation
+  # React + Vite scaffold, design system, routing, SW, CI/CD
+  # ─────────────────────────────────────────────────────────────────
+  epic-1: backlog
+  1-1-monorepo-setup-and-app-scaffold: backlog
+  1-2-design-system-and-reading-themes: backlog
+  1-3-app-shell-routing-and-bottom-navigation: backlog
+  1-4-pwa-manifest-and-app-shell-service-worker: backlog
+  1-5-ci-cd-pipeline-and-testing-infrastructure: backlog
+  epic-1-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 2: Library Discovery & Search
+  # Data layer, category browse, offline MiniSearch
+  # ─────────────────────────────────────────────────────────────────
+  epic-2: backlog
+  2-1-data-layer-schemas-services-and-query-hooks: backlog
+  2-2-category-browse-library-and-category-pages: backlog
+  2-3-global-search-with-minisearch: backlog
+  epic-2-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 3: Immersive Sutra Reader
+  # Pagination engine, chromeless reader, tap/swipe, error states
+  # ─────────────────────────────────────────────────────────────────
+  epic-3: backlog
+  3-1-pagination-engine-pure-typescript: backlog
+  3-2-reader-page-and-book-data-loading: backlog
+  3-3-readerengine-paginated-reading-with-tap-and-swipe: backlog
+  3-4-chromelesslayout-immersive-reading-mode: backlog
+  3-5-reader-error-states-and-loading-polish: backlog
+  epic-3-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 4: Offline Reading & Seamless Continuity
+  # StorageService, progress resume, book-data cache, background sync, bookmarks
+  # ─────────────────────────────────────────────────────────────────
+  epic-4: backlog
+  4-1-storageservice-layer: backlog
+  4-2-reading-progress-persistence-and-resume: backlog
+  4-3-full-book-data-offline-caching: backlog
+  4-4-background-catalog-sync: backlog
+  4-5-bookmarks-view: backlog
+  epic-4-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────────
+  # Epic 5: Reading Personalization
+  # Font size, Sepia/Light/Dark themes, settings page, storage management
+  # ─────────────────────────────────────────────────────────────────
+  epic-5: backlog
+  5-1-font-size-control-and-pagination-reflow: backlog
+  5-2-reading-themes-sepia-light-and-dark: backlog
+  5-3-settings-page-and-offline-storage-management: backlog
+  epic-5-retrospective: optional

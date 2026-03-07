@@ -1,11 +1,11 @@
 # Generated artifacts - never commit
-crawler/data/raw/
-crawler/data/meta/
-crawler/data/book-data/
-crawler/data/books/
-crawler/data/crawl-state.json
-crawler/data/index.json
-crawler/logs/
+apps/crawler/data/raw/
+apps/crawler/data/meta/
+apps/crawler/data/book-data/
+apps/crawler/data/books/
+apps/crawler/data/crawl-state.json
+apps/crawler/data/index.json
+apps/crawler/logs/
 
 # Python environment
 .venv/

@@ -22,7 +22,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["crawler/tests"]
+testpaths = ["apps/crawler/tests"]
 
 [tool.ruff]
 exclude = [".devbox", ".venv"]

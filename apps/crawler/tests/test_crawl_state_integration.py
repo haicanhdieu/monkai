@@ -235,6 +235,7 @@ class TestKeyboardInterruptHandling:
 
         with (
             patch("crawler.RobotsCache"),
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run", side_effect=KeyboardInterrupt),
             patch("crawler.setup_logger") as mock_setup_logger,
         ):

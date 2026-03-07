@@ -95,6 +95,7 @@ class TestCrawlerConfigValidation:
 
         with (
             patch("crawler.RobotsCache") as mock_robots_cache,
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run") as mock_run,
         ):
             mock_robots_cache.return_value = MagicMock()
@@ -108,6 +109,7 @@ class TestCrawlerConfigValidation:
 
         with (
             patch("crawler.RobotsCache"),
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run"),
         ):
             result = runner.invoke(
@@ -126,7 +128,7 @@ class TestCrawlerRobotsTxtCompliance:
 
         blocked_url = "https://thuvienhoasen.org/private/"
 
-        async def fake_crawl_all(sources, cfg, robots_cache, logger):
+        def fake_crawl_all(sources, cfg, robots_cache, logger):
             from utils.robots import robots_allowed
 
             urls = [blocked_url]
@@ -139,7 +141,7 @@ class TestCrawlerRobotsTxtCompliance:
             patch("crawler.RobotsCache") as mock_robots_cache_cls,
             patch("crawler.robots_allowed", return_value=False),
             patch("crawler.asyncio.run"),
-            patch("crawler.crawl_all", side_effect=fake_crawl_all),
+            patch("crawler.crawl_all", new_callable=MagicMock, side_effect=fake_crawl_all),
         ):
             mock_robots_cache_cls.return_value = MagicMock()
             runner.invoke(app, ["--config", valid_config_path])
@@ -152,6 +154,7 @@ class TestCrawlerRobotsTxtCompliance:
 
         with (
             patch("crawler.RobotsCache") as mock_robots_cache_cls,
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run") as mock_run,
         ):
             mock_robots_cache_cls.return_value = MagicMock()
@@ -170,6 +173,7 @@ class TestCrawlerSourceFiltering:
 
         with (
             patch("crawler.RobotsCache") as mock_robots_cls,
+            patch("crawler.crawl_all", new_callable=MagicMock) as mock_crawl,
             patch("crawler.asyncio.run") as mock_run,
         ):
             mock_robots_cls.return_value = MagicMock()
@@ -177,7 +181,7 @@ class TestCrawlerSourceFiltering:
             result = runner.invoke(app, ["--config", valid_config_path])
             assert result.exit_code == 0
             # crawl_all was called with the list of sources
-            call_args = mock_run.call_args
+            call_args = mock_crawl.call_args
             assert call_args is not None
 
     def test_source_single_name_filters_correctly(self, runner, valid_config_path):
@@ -186,6 +190,7 @@ class TestCrawlerSourceFiltering:
 
         with (
             patch("crawler.RobotsCache") as mock_robots_cls,
+            patch("crawler.crawl_all", new_callable=MagicMock),
             patch("crawler.asyncio.run") as mock_run,
         ):
             mock_robots_cls.return_value = MagicMock()
