@@ -48,7 +48,7 @@ function useCoverDimensions(contentRef: React.RefObject<HTMLDivElement | null>) 
 function ContinueReadingCard() {
   const { bookId, bookTitle, currentPage, pages, lastReadTotalPages } = useReaderStore()
   const hasLastRead = bookId !== '' && currentPage > 0
-  const { data: bookData } = useBook(hasLastRead && bookTitle === '' ? bookId : '')
+  const { data: bookData } = useBook(hasLastRead ? bookId : '')
   const [coverError, setCoverError] = useState(false)
   const [coverLoaded, setCoverLoaded] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
