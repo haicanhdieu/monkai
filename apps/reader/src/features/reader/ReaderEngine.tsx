@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDOMPagination } from './useDOMPagination'
 import { useReaderStore } from '@/stores/reader.store'
+import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { storageService } from '@/shared/services/storage.service'
+import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { PageProgress } from './PageProgress'
 
@@ -94,18 +97,30 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     }
   }, [pages, boundaries, setCurrentPage, setPages, setPageBoundaries])
 
+  // Persist page change to storage and update bookmarks store
+  const persistPageChange = (page: number) => {
+    const { bookId: id, bookTitle: title } = useReaderStore.getState()
+    void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId: id, page })
+    useBookmarksStore.getState().upsertBookmark({ bookId: id, bookTitle: title, page, timestamp: Date.now() })
+    void storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)
+  }
+
   // Navigation helpers — read current page from store at call time, page count from ref
   const navigateNext = () => {
     const state = useReaderStore.getState()
     if (state.currentPage < pagesRef.current.length - 1) {
-      setCurrentPage(state.currentPage + 1)
+      const nextPage = state.currentPage + 1
+      setCurrentPage(nextPage)
+      persistPageChange(nextPage)
     }
   }
 
   const navigatePrev = () => {
     const state = useReaderStore.getState()
     if (state.currentPage > 0) {
-      setCurrentPage(state.currentPage - 1)
+      const prevPage = state.currentPage - 1
+      setCurrentPage(prevPage)
+      persistPageChange(prevPage)
     }
   }
 

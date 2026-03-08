@@ -12,17 +12,19 @@ import { ChromelessLayout } from './ChromelessLayout'
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
   const { data: book, isLoading, error } = useBook(bookId)
-  const { setBookId, setPages } = useReaderStore()
+  const { setBookId, setBookTitle, setPages } = useReaderStore()
 
   // Reset reader state only when the bookId changes — not on every query re-render (AC 4 of 3.2).
   // Depend on book?.id (primitive) so TanStack Query reference churn doesn't reset pages mid-read.
+  // Do NOT reset currentPage here — it may already be hydrated from storage for resume.
   useEffect(() => {
     if (book) {
       setBookId(book.id)
+      setBookTitle(book.title)
       setPages([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book?.id, setBookId, setPages])
+  }, [book?.id, setBookId, setBookTitle, setPages])
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />

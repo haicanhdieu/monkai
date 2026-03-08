@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { BroadcastUpdatePlugin } from 'workbox-broadcast-update'
 import { fileURLToPath } from 'url'
 
 export default defineConfig(({ mode }) => {
@@ -64,10 +65,20 @@ export default defineConfig(({ mode }) => {
           navigateFallback: 'offline.html',
           runtimeCaching: [
             {
+              urlPattern: /\/book-data\/index\.json/,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'catalog-cache',
+                expiration: { maxEntries: 1, maxAgeSeconds: 24 * 60 * 60 },
+                plugins: [new BroadcastUpdatePlugin({ channelName: 'catalog-updates' })],
+              },
+            },
+            {
               urlPattern: /\/book-data\/.*/,
-              handler: 'CacheFirst',
+              handler: 'NetworkFirst',
               options: {
                 cacheName: 'book-data-cache',
+                networkTimeoutSeconds: 3,
                 expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 60 * 60 },
               },
             },

@@ -1,6 +1,6 @@
 # Story 4.2: Reading Progress Persistence & Resume
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -36,42 +36,41 @@ so that every time I reopen a sutra I continue from where I left off without any
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Wire progress persistence in ReaderEngine (AC: 1)
-  - [ ] In `apps/reader/src/features/reader/ReaderEngine.tsx`, after `useReaderStore.setCurrentPage(n)` is called, also call `storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId, page: n })`
-  - [ ] Import `storageService` from `@/shared/services/storage.service` and `STORAGE_KEYS` from `@/shared/constants/storage.keys`
-  - [ ] Read `bookId` from `useReaderStore` (already stored there via `setBookId`)
-  - [ ] Do NOT add any loading state or UI feedback — this is a silent background write
+- [x] Task 1: Wire progress persistence in ReaderEngine (AC: 1)
+  - [x] In `apps/reader/src/features/reader/ReaderEngine.tsx`, after `useReaderStore.setCurrentPage(n)` is called, also call `storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId, page: n })`
+  - [x] Import `storageService` from `@/shared/services/storage.service` and `STORAGE_KEYS` from `@/shared/constants/storage.keys`
+  - [x] Read `bookId` from `useReaderStore` (already stored there via `setBookId`)
+  - [x] Do NOT add any loading state or UI feedback — this is a silent background write
 
-- [ ] Task 2: Wire bookmark upsert in ReaderEngine (AC: 6, prerequisite for 4.5)
-  - [ ] After the storage write in Task 1, also call `useBookmarksStore.getState().upsertBookmark({ bookId, bookTitle, page: n, timestamp: Date.now() })`
-  - [ ] `bookTitle` must come from the book data currently loaded in ReaderPage — pass it down to ReaderEngine as a prop or read from a shared store
-  - [ ] Also persist bookmarks to storage: `storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)`
+- [x] Task 2: Wire bookmark upsert in ReaderEngine (AC: 6, prerequisite for 4.5)
+  - [x] After the storage write in Task 1, also call `useBookmarksStore.getState().upsertBookmark({ bookId, bookTitle, page: n, timestamp: Date.now() })`
+  - [x] `bookTitle` must come from the book data currently loaded in ReaderPage — pass it down to ReaderEngine as a prop or read from a shared store
+  - [x] Also persist bookmarks to storage: `storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)`
 
-- [ ] Task 3: Update HomePage to show conditional "Continue Reading" card (AC: 3, 4, 5)
-  - [ ] Import `useReaderStore` from `@/stores/reader.store`
-  - [ ] Read `bookId` and `currentPage` from store
-  - [ ] Condition: `hasLastRead = bookId !== '' && currentPage > 0`
-  - [ ] When `hasLastRead === true`: render the "Continue Reading" hero card with real data (book title from store or a catalog lookup, page number)
-  - [ ] When `hasLastRead === false`: hide the "Continue Reading" section entirely — DO NOT show hardcoded placeholder
-  - [ ] The "Tiếp tục" button must link to `/read/${bookId}` using `toRead(bookId)` from `@/shared/constants/routes`
-  - [ ] For book title display: since reader.store doesn't hold title, use `bookId` formatted as a fallback (e.g., slug → display name) or read title from TanStack Query cache via `useBook(bookId)` in suspended/lazy mode
-  - [ ] **Simpler approach**: store `bookTitle` in `reader.store` alongside `bookId` — add `bookTitle: string` field and `setBookTitle(title: string)` action — call it when book loads in `ReaderPage`
+- [x] Task 3: Update HomePage to show conditional "Continue Reading" card (AC: 3, 4, 5)
+  - [x] Import `useReaderStore` from `@/stores/reader.store`
+  - [x] Read `bookId` and `currentPage` from store
+  - [x] Condition: `hasLastRead = bookId !== '' && currentPage > 0`
+  - [x] When `hasLastRead === true`: render the "Continue Reading" hero card with real data (book title from store or a catalog lookup, page number)
+  - [x] When `hasLastRead === false`: hide the "Continue Reading" section entirely — DO NOT show hardcoded placeholder
+  - [x] The "Tiếp tục" button must link to `/read/${bookId}` using `toRead(bookId)` from `@/shared/constants/routes`
+  - [x] **Simpler approach**: store `bookTitle` in `reader.store` alongside `bookId` — add `bookTitle: string` field and `setBookTitle(title: string)` action — call it when book loads in `ReaderPage`
 
-- [ ] Task 4: Ensure ReaderEngine resumes at saved page on open (AC: 4)
-  - [ ] In `ReaderPage.tsx`, after pagination is complete and `readerStore.setPages(pages)` is called, check if `readerStore.currentPage > 0` (from hydration)
-  - [ ] If `currentPage` is already set from hydration, do NOT reset it to 0 — the reader should open at the hydrated page
-  - [ ] Verify `ReaderEngine` uses `currentPage` from store directly (it should already — just confirm no reset-to-0 logic on mount)
+- [x] Task 4: Ensure ReaderEngine resumes at saved page on open (AC: 4)
+  - [x] In `ReaderPage.tsx`, after pagination is complete and `readerStore.setPages(pages)` is called, check if `readerStore.currentPage > 0` (from hydration)
+  - [x] If `currentPage` is already set from hydration, do NOT reset it to 0 — the reader should open at the hydrated page
+  - [x] Verify `ReaderEngine` uses `currentPage` from store directly (it should already — just confirm no reset-to-0 logic on mount)
 
-- [ ] Task 5: Update BookmarksPage with real data (AC: 6) — stub for Story 4.5
-  - [ ] Import `useBookmarksStore`
-  - [ ] Show a simple list of bookmarks with book title, page, and "Tiếp tục" link
-  - [ ] Empty state: "Chưa có đánh dấu nào" message (full polish in Story 4.5)
+- [x] Task 5: Update BookmarksPage with real data (AC: 6) — stub for Story 4.5
+  - [x] Import `useBookmarksStore`
+  - [x] Show a simple list of bookmarks with book title, page, and "Tiếp tục" link
+  - [x] Empty state: "Chưa có đánh dấu nào" message (full polish in Story 4.5)
 
-- [ ] Task 6: Write unit tests (AC: 1, 3, 5)
-  - [ ] Test `ReaderEngine`: assert `storageService.setItem` is called with correct args when `setCurrentPage` fires — mock `storageService`
-  - [ ] Test `HomePage` with `bookId = ''`: assert "Continue Reading" section is not rendered
-  - [ ] Test `HomePage` with `bookId = 'kinh-phap-hoa'` and `currentPage = 14`: assert card renders with correct link and page number
-  - [ ] Use existing `HomePage.test.tsx` — extend it, do not replace
+- [x] Task 6: Write unit tests (AC: 1, 3, 5)
+  - [x] Test `ReaderEngine`: assert `storageService.setItem` is called with correct args when `setCurrentPage` fires — mock `storageService`
+  - [x] Test `HomePage` with `bookId = ''`: assert "Continue Reading" section is not rendered
+  - [x] Test `HomePage` with `bookId = 'kinh-phap-hoa'` and `currentPage = 14`: assert card renders with correct link and page number
+  - [x] Use existing `HomePage.test.tsx` — extend it, do not replace
 
 ## Dev Notes
 
@@ -164,4 +163,15 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+All 6 tasks completed. Storage persistence wired in ReaderEngine navigate helpers via `persistPageChange`. BookmarksStore upsert called on every page turn. HomePage now conditionally renders "Continue Reading" based on store state. ReaderPage calls `setBookTitle` when book loads. All tests pass.
+
+Code review fixes applied:
+- `ReaderEngine.test.tsx`: added missing assertion for BOOKMARKS storage write (second `storageService.setItem` call in `persistPageChange`)
+
 ### File List
+
+- apps/reader/src/features/reader/ReaderEngine.tsx (modified — added storage/bookmark persistence on page turn)
+- apps/reader/src/features/reader/ReaderPage.tsx (modified — added setBookTitle call)
+- apps/reader/src/features/home/HomePage.tsx (modified — conditional ContinueReadingCard with live store data)
+- apps/reader/src/features/home/HomePage.test.tsx (modified — updated and extended tests)
+- apps/reader/src/features/bookmarks/BookmarksPage.tsx (modified — real data stub with bookmarks list)

@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReaderEngine } from '@/features/reader/ReaderEngine'
 import { useReaderStore } from '@/stores/reader.store'
 
+vi.mock('@/shared/services/storage.service', () => ({
+  storageService: { setItem: vi.fn().mockResolvedValue(undefined) },
+}))
+
+import { storageService } from '@/shared/services/storage.service'
+const mockSetItem = storageService.setItem as ReturnType<typeof vi.fn>
+
 // JSDOM innerWidth defaults to 1024; tap zones use window.innerWidth
 // Left zone:  clientX < 1024 * 0.2 = 204   (use 100)
 // Right zone: clientX > 1024 * 0.8 = 819   (use 950)
@@ -194,5 +201,34 @@ describe('ReaderEngine — page progress (AC 7 of 3.3)', () => {
     await renderEngine()
     const progress = screen.getByTestId('page-progress')
     expect(progress.textContent).toMatch(/^1 \/ \d+$/)
+  })
+})
+
+describe('ReaderEngine — storage persistence (AC 1 of 4.2)', () => {
+  it('calls storageService.setItem with LAST_READ_POSITION when navigating to next page', async () => {
+    useReaderStore.setState({ bookId: 'kinh-test', bookTitle: 'Kinh Test', currentPage: 0 })
+    mockSetItem.mockClear()
+    await renderEngine()
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith('last_read_position', expect.objectContaining({ bookId: 'kinh-test' }))
+    })
+  })
+
+  it('calls storageService.setItem with BOOKMARKS when navigating to next page', async () => {
+    useReaderStore.setState({ bookId: 'kinh-test', bookTitle: 'Kinh Test', currentPage: 0 })
+    mockSetItem.mockClear()
+    await renderEngine()
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+
+    await waitFor(() => {
+      expect(mockSetItem).toHaveBeenCalledWith(
+        'bookmarks',
+        expect.arrayContaining([expect.objectContaining({ bookId: 'kinh-test', bookTitle: 'Kinh Test' })]),
+      )
+    })
   })
 })

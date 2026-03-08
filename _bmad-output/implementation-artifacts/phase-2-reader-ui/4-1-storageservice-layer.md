@@ -1,6 +1,6 @@
 # Story 4.1: StorageService Layer
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -32,52 +32,52 @@ so that all persistence operations go through a single, swappable interface and 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Install immer and create StorageService (AC: 1)
-  - [ ] Run `pnpm add immer` in `apps/reader` (required for Zustand immer middleware in stores/*)
-  - [ ] Create `apps/reader/src/shared/services/storage.service.ts` with `StorageService` interface and `LocalforageStorageService` class
-  - [ ] Wrap all `localforage` calls in try/catch — QuotaExceededError must be caught, logged, not rethrown
-  - [ ] Export a singleton: `export const storageService = new LocalforageStorageService()`
+- [x] Task 1: Install immer and create StorageService (AC: 1)
+  - [x] Run `pnpm add immer` in `apps/reader` (required for Zustand immer middleware in stores/*)
+  - [x] Create `apps/reader/src/shared/services/storage.service.ts` with `StorageService` interface and `LocalforageStorageService` class
+  - [x] Wrap all `localforage` calls in try/catch — QuotaExceededError must be caught, logged, not rethrown
+  - [x] Export a singleton: `export const storageService = new LocalforageStorageService()`
 
-- [ ] Task 2: Create storage keys constants (AC: 2)
-  - [ ] Create `apps/reader/src/shared/constants/storage.keys.ts`
-  - [ ] Export `STORAGE_KEYS = { LAST_READ_POSITION: 'last_read_position', USER_SETTINGS: 'user_settings', BOOKMARKS: 'bookmarks' } as const`
+- [x] Task 2: Create storage keys constants (AC: 2)
+  - [x] Create `apps/reader/src/shared/constants/storage.keys.ts`
+  - [x] Export `STORAGE_KEYS = { LAST_READ_POSITION: 'last_read_position', USER_SETTINGS: 'user_settings', BOOKMARKS: 'bookmarks' } as const`
 
-- [ ] Task 3: Add `hydrate()` to reader.store (AC: 3)
-  - [ ] Add `LastReadPosition` type: `{ bookId: string; page: number }`
-  - [ ] Add `hydrate(data: LastReadPosition)` action to `useReaderStore` that sets `bookId` and `currentPage`
-  - [ ] Keep all existing actions intact (setBookId, setPages, setCurrentPage, toggleChrome, dismissHint, reset)
+- [x] Task 3: Add `hydrate()` to reader.store (AC: 3)
+  - [x] Add `LastReadPosition` type: `{ bookId: string; page: number }`
+  - [x] Add `hydrate(data: LastReadPosition)` action to `useReaderStore` that sets `bookId` and `currentPage`
+  - [x] Keep all existing actions intact (setBookId, setPages, setCurrentPage, toggleChrome, dismissHint, reset)
 
-- [ ] Task 4: Create bookmarks.store.ts (AC: 3)
-  - [ ] Create `apps/reader/src/stores/bookmarks.store.ts`
-  - [ ] Use Zustand with immer middleware (import from `zustand/middleware`)
-  - [ ] State: `bookmarks: Bookmark[]` where `Bookmark = { bookId: string; bookTitle: string; page: number; timestamp: number }`
-  - [ ] Actions: `upsertBookmark(bookmark: Bookmark)`, `hydrate(bookmarks: Bookmark[])`, `clear()`
-  - [ ] `upsertBookmark` does an upsert by `bookId` (one bookmark per book, not append)
+- [x] Task 4: Create bookmarks.store.ts (AC: 3)
+  - [x] Create `apps/reader/src/stores/bookmarks.store.ts`
+  - [x] Use Zustand with immer middleware (import from `zustand/middleware`)
+  - [x] State: `bookmarks: Bookmark[]` where `Bookmark = { bookId: string; bookTitle: string; page: number; timestamp: number }`
+  - [x] Actions: `upsertBookmark(bookmark: Bookmark)`, `hydrate(bookmarks: Bookmark[])`, `clear()`
+  - [x] `upsertBookmark` does an upsert by `bookId` (one bookmark per book, not append)
 
-- [ ] Task 5: Create settings.store.ts (AC: 3)
-  - [ ] Create `apps/reader/src/stores/settings.store.ts`
-  - [ ] Use Zustand with immer middleware
-  - [ ] State: `fontSize: number` (default 18), `theme: 'sepia' | 'light' | 'dark'` (default 'sepia')
-  - [ ] Actions: `setFontSize(value: number)`, `setTheme(theme: ...)`, `hydrate(settings: UserSettings)`, `reset()`
-  - [ ] Export `UserSettings` type: `{ fontSize: number; theme: 'sepia' | 'light' | 'dark' }`
+- [x] Task 5: Create settings.store.ts (AC: 3)
+  - [x] Create `apps/reader/src/stores/settings.store.ts`
+  - [x] Use Zustand with immer middleware
+  - [x] State: `fontSize: number` (default 18), `theme: 'sepia' | 'light' | 'dark'` (default 'sepia')
+  - [x] Actions: `setFontSize(value: number)`, `setTheme(theme: ...)`, `hydrate(settings: UserSettings)`, `reset()`
+  - [x] Export `UserSettings` type: `{ fontSize: number; theme: 'sepia' | 'light' | 'dark' }`
 
-- [ ] Task 6: Create useStorageHydration hook (AC: 3)
-  - [ ] Create `apps/reader/src/shared/hooks/useStorageHydration.ts`
-  - [ ] On mount (useEffect with empty deps), read all 3 keys from `storageService` in parallel (Promise.all or sequential)
-  - [ ] Call `useReaderStore.getState().hydrate(...)` if LAST_READ_POSITION data exists
-  - [ ] Call `useSettingsStore.getState().hydrate(...)` if USER_SETTINGS data exists
-  - [ ] Call `useBookmarksStore.getState().hydrate(...)` if BOOKMARKS data exists
-  - [ ] Null checks required — if key doesn't exist yet, skip hydration
+- [x] Task 6: Create useStorageHydration hook (AC: 3)
+  - [x] Create `apps/reader/src/shared/hooks/useStorageHydration.ts`
+  - [x] On mount (useEffect with empty deps), read all 3 keys from `storageService` in parallel (Promise.all or sequential)
+  - [x] Call `useReaderStore.getState().hydrate(...)` if LAST_READ_POSITION data exists
+  - [x] Call `useSettingsStore.getState().hydrate(...)` if USER_SETTINGS data exists
+  - [x] Call `useBookmarksStore.getState().hydrate(...)` if BOOKMARKS data exists
+  - [x] Null checks required — if key doesn't exist yet, skip hydration
 
-- [ ] Task 7: Wire useStorageHydration in App.tsx (AC: 3)
-  - [ ] Import and call `useStorageHydration()` at the top of `App.tsx`
-  - [ ] Must be called before any route rendering so hydrated state is available immediately
+- [x] Task 7: Wire useStorageHydration in App.tsx (AC: 3)
+  - [x] Import and call `useStorageHydration()` at the top of `App.tsx`
+  - [x] Must be called before any route rendering so hydrated state is available immediately
 
-- [ ] Task 8: Unit test useStorageHydration (AC: 5)
-  - [ ] Create `apps/reader/src/shared/hooks/useStorageHydration.test.ts`
-  - [ ] Mock `storageService` to return fixture data for each key
-  - [ ] Assert that each store's `hydrate()` is called with the correct fixture data
-  - [ ] Assert that null storage values → no hydrate() calls made
+- [x] Task 8: Unit test useStorageHydration (AC: 5)
+  - [x] Create `apps/reader/src/shared/hooks/useStorageHydration.test.ts`
+  - [x] Mock `storageService` to return fixture data for each key
+  - [x] Assert that each store's `hydrate()` is called with the correct fixture data
+  - [x] Assert that null storage values → no hydrate() calls made
 
 ## Dev Notes
 
@@ -331,4 +331,20 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+All 8 tasks completed. StorageService abstraction, storage keys, bookmarks/settings stores (with immer), hydration hook, and App.tsx wiring all implemented and tested. Unit tests pass (2/2).
+
+Code review fixes applied:
+- `useStorageHydration`: added `.catch()` to `Promise.all` to prevent silent hydration failures on storage errors
+- `LocalforageStorageService.removeItem`: added try/catch consistent with `setItem` error handling
+
 ### File List
+
+- apps/reader/src/shared/services/storage.service.ts (new)
+- apps/reader/src/shared/constants/storage.keys.ts (new)
+- apps/reader/src/shared/hooks/useStorageHydration.ts (new)
+- apps/reader/src/shared/hooks/useStorageHydration.test.ts (new)
+- apps/reader/src/stores/bookmarks.store.ts (new)
+- apps/reader/src/stores/settings.store.ts (new)
+- apps/reader/src/stores/reader.store.ts (modified — added bookTitle, setBookTitle, hydrate, LastReadPosition)
+- apps/reader/src/App.tsx (modified — added useStorageHydration call)
+- apps/reader/package.json (modified — added immer)

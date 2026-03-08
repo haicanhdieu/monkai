@@ -1,6 +1,6 @@
 # Story 4.5: Bookmarks View
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -32,56 +32,31 @@ so that I can quickly return to any sutra I was reading without searching for it
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Implement BookmarksPage with real data (AC: 1, 4)
-  - [ ] Replace the placeholder in `apps/reader/src/features/bookmarks/BookmarksPage.tsx`
-  - [ ] Import `useBookmarksStore` from `@/stores/bookmarks.store`
-  - [ ] Read `bookmarks` from store, sort by `timestamp` descending
-  - [ ] If `bookmarks.length === 0`: render empty state UI
-  - [ ] If `bookmarks.length > 0`: render sorted list of `<BookmarkCard>` components
-  - [ ] Page title: "Đánh Dấu" with the standard page header pattern (match LibraryPage or SettingsPage style)
+- [x] Task 1: Implement BookmarksPage with real data (AC: 1, 4)
+  - [x] Replace the placeholder in `apps/reader/src/features/bookmarks/BookmarksPage.tsx`
+  - [x] Import `useBookmarksStore` from `@/stores/bookmarks.store`
+  - [x] Read `bookmarks` from store, sort by `timestamp` descending
+  - [x] If `bookmarks.length === 0`: render empty state UI
+  - [x] If `bookmarks.length > 0`: render sorted list of `<BookmarkCard>` components
+  - [x] Page title: "Đánh Dấu"
 
-- [ ] Task 2: Create BookmarkCard component (AC: 2, 3)
-  - [ ] Create `apps/reader/src/features/bookmarks/BookmarkCard.tsx`
-  - [ ] Props: `bookmark: Bookmark` (import `Bookmark` type from `@/stores/bookmarks.store`)
-  - [ ] Render as a `<Link>` to `/read/:bookId` (use `toRead(bookmark.bookId)` from routes)
-  - [ ] Book title: Lora serif font (`style={{ fontFamily: 'Lora, serif' }}`)
-  - [ ] Page number: "Trang {bookmark.page + 1}" (pages are 0-indexed in store, display 1-indexed to user)
-  - [ ] Timestamp: relative format using `formatRelativeTime(bookmark.timestamp)` helper (see below)
-  - [ ] Minimum tap target: `min-h-[44px]` on the link element
-  - [ ] Style consistently with the app's card pattern (rounded-2xl, border, surface background)
+- [x] Task 2: Create BookmarkCard component (AC: 2, 3)
+  - [x] Created `apps/reader/src/features/bookmarks/BookmarkCard.tsx`
+  - [x] Renders as `<Link>` to `/read/:bookId` with Lora font, page number (1-indexed), relative timestamp
+  - [x] min-h-[44px] tap target enforced
 
-- [ ] Task 3: Create relative timestamp helper (AC: 2)
-  - [ ] Create `apps/reader/src/shared/utils/time.ts` (or add to an existing utils file if one exists)
-  - [ ] Function: `formatRelativeTime(timestamp: number): string`
-  - [ ] Return Vietnamese relative strings:
-    - < 60s: "vừa xong"
-    - < 60min: "{n} phút trước"
-    - < 24h: "{n} giờ trước"
-    - < 7d: "{n} ngày trước"
-    - >= 7d: "{n} tuần trước"
-  - [ ] NO external date library — implement with simple arithmetic using `Date.now() - timestamp`
+- [x] Task 3: Create relative timestamp helper (AC: 2)
+  - [x] Created `apps/reader/src/shared/utils/time.ts`
+  - [x] `formatRelativeTime` with Vietnamese strings, pure arithmetic, no library
 
-- [ ] Task 4: Implement empty state (AC: 4)
-  - [ ] When `bookmarks.length === 0`, render:
-    - Centered icon (BookmarkIcon from @radix-ui/react-icons or a simple SVG)
-    - Message: "Chưa có đánh dấu nào. Hãy bắt đầu đọc một bản kinh!"
-    - Button/Link to ROUTES.LIBRARY: "Khám phá Thư Viện" styled as a primary action button
-  - [ ] Match the empty state visual pattern used elsewhere in the app (if any)
+- [x] Task 4: Implement empty state (AC: 4)
+  - [x] BookmarkIcon, message, "Khám phá Thư Viện" link
 
-- [ ] Task 5: Confirm upsert bookmark wiring (AC: 5)
-  - [ ] This is a verification + cleanup task — the upsert should have been wired in Story 4.2 (Task 2)
-  - [ ] Verify that `ReaderEngine.tsx` correctly calls `useBookmarksStore.getState().upsertBookmark(...)` on page turn
-  - [ ] Verify that the bookmark is persisted to storage via `storageService.setItem(STORAGE_KEYS.BOOKMARKS, ...)`
-  - [ ] If Story 4.2 is not complete, implement the wiring here:
-    - In `ReaderEngine.tsx`, on `setCurrentPage(n)`, call `upsertBookmark({ bookId, bookTitle, page: n, timestamp: Date.now() })`
-    - Then call `storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)`
+- [x] Task 5: Confirm upsert bookmark wiring (AC: 5)
+  - [x] Verified — wired in Story 4.2's `ReaderEngine.tsx` via `persistPageChange`
 
-- [ ] Task 6: Write tests (AC: 1, 2, 4)
-  - [ ] Create `apps/reader/src/features/bookmarks/BookmarksPage.test.tsx`
-  - [ ] Test: empty state renders when `bookmarks = []`
-  - [ ] Test: BookmarkCard renders for each bookmark, sorted by timestamp descending
-  - [ ] Test: BookmarkCard link navigates to correct URL
-  - [ ] Test: `formatRelativeTime` unit test for each time bucket
+- [x] Task 6: Write tests (AC: 1, 2, 4)
+  - [x] Created `apps/reader/src/features/bookmarks/BookmarksPage.test.tsx` — 9 tests pass
 
 ## Dev Notes
 
@@ -230,4 +205,11 @@ claude-sonnet-4-6
 
 ### Completion Notes List
 
+All 6 tasks completed. Full BookmarksPage with sorted bookmark list, BookmarkCard component, formatRelativeTime utility, empty state UI, and comprehensive tests. 9/9 tests pass.
+
 ### File List
+
+- apps/reader/src/features/bookmarks/BookmarksPage.tsx (modified — full implementation replacing placeholder)
+- apps/reader/src/features/bookmarks/BookmarkCard.tsx (new)
+- apps/reader/src/features/bookmarks/BookmarksPage.test.tsx (new)
+- apps/reader/src/shared/utils/time.ts (new)

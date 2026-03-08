@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { ReaderIcon, BookmarkIcon, SunIcon, BellIcon } from '@radix-ui/react-icons'
 import { ROUTES, toRead } from '@/shared/constants/routes'
+import { useReaderStore } from '@/stores/reader.store'
+import { useBook } from '@/shared/hooks/useBook'
 
 const quickActions = [
   {
@@ -14,6 +16,59 @@ const quickActions = [
     icon: <BookmarkIcon className="h-5 w-5" aria-hidden="true" />,
   },
 ]
+
+function ContinueReadingCard() {
+  const { bookId, bookTitle, currentPage } = useReaderStore()
+  const hasLastRead = bookId !== '' && currentPage > 0
+  const { data: bookData } = useBook(hasLastRead && bookTitle === '' ? bookId : '')
+
+  if (!hasLastRead) return null
+
+  const displayTitle = bookTitle !== '' ? bookTitle : (bookData?.title ?? bookId)
+
+  return (
+    <section className="mb-8" aria-label="Tiếp tục đọc">
+      <h2 className="mb-4 text-lg font-semibold">Tiếp tục đọc</h2>
+      <article
+        className="overflow-hidden rounded-2xl border"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          borderColor: 'var(--color-border)',
+        }}
+      >
+        <div
+          className="h-36"
+          style={{
+            background:
+              'linear-gradient(140deg, var(--color-border) 0%, var(--color-surface) 55%, var(--color-accent) 100%)',
+          }}
+        />
+        <div className="space-y-4 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-accent)]">
+                Đang đọc
+              </p>
+              <p className="text-xl font-semibold" style={{ fontFamily: 'Lora, serif' }}>
+                {displayTitle}
+              </p>
+              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Trang {currentPage + 1}
+              </p>
+            </div>
+            <Link
+              to={toRead(bookId)}
+              className="rounded-full px-4 py-2 text-sm font-semibold text-white"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              Tiếp tục
+            </Link>
+          </div>
+        </div>
+      </article>
+    </section>
+  )
+}
 
 export default function HomePage() {
   return (
@@ -40,61 +95,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="mb-8" aria-label="Tiếp tục đọc">
-        <h2 className="mb-4 text-lg font-semibold">Tiếp tục đọc</h2>
-        <article
-          className="overflow-hidden rounded-2xl border"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            borderColor: 'var(--color-border)',
-          }}
-        >
-          <div
-            className="h-36"
-            style={{
-              background:
-                'linear-gradient(140deg, var(--color-border) 0%, var(--color-surface) 55%, var(--color-accent) 100%)',
-            }}
-          />
-          <div className="space-y-4 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-accent)]">
-                  Đang đọc
-                </p>
-                <p className="text-xl font-semibold" style={{ fontFamily: 'Lora, serif' }}>
-                  Kinh Pháp Hoa
-                </p>
-                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Chương 2: Phương Tiện
-                </p>
-              </div>
-              <Link
-                to={toRead('kinh-phap-hoa')}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-white"
-                style={{ backgroundColor: 'var(--color-accent)' }}
-              >
-                Tiếp tục
-              </Link>
-            </div>
-            <div>
-              <div
-                className="mb-1 flex items-center justify-between text-xs"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                <span>Tiến độ 16%</span>
-                <span>Trang 14 / 89</span>
-              </div>
-              <div
-                className="h-2 overflow-hidden rounded-full"
-                style={{ backgroundColor: 'var(--color-border)' }}
-              >
-                <div className="h-full w-[16%]" style={{ backgroundColor: 'var(--color-accent)' }} />
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
+      <ContinueReadingCard />
 
       <section className="mb-8" aria-label="Truy cập nhanh">
         <div className="grid grid-cols-2 gap-4">
