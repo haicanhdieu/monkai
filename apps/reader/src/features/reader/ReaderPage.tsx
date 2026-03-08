@@ -12,25 +12,23 @@ import { ChromelessLayout } from './ChromelessLayout'
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
   const { data: book, isLoading, error } = useBook(bookId)
-  const { setBookId, setBookTitle, setPages } = useReaderStore()
+  const { setBookId, setBookTitle, setPages, setPageBoundaries } = useReaderStore()
 
-  // Reset reader state only when the bookId changes — not on every query re-render (AC 4 of 3.2).
-  // Depend on book?.id (primitive) so TanStack Query reference churn doesn't reset pages mid-read.
+  // Reset reader state when book data or bookId (URL param / catalog UUID) changes.
   // Do NOT reset currentPage here — it may already be hydrated from storage for resume.
   useEffect(() => {
     if (book) {
-      setBookId(book.id)
+      setBookId(bookId)
       setBookTitle(book.title)
       setPages([])
+      setPageBoundaries([0])
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [book?.id, setBookId, setBookTitle, setPages])
+  }, [book, bookId, setBookId, setBookTitle, setPages, setPageBoundaries])
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />
   }
 
-  // Loading — skeleton while network/cache resolves (AC 2 of 3.2, AC 4 of 3.5)
   if (isLoading) {
     return (
       <div className="p-6" data-testid="reader-loading">
@@ -39,14 +37,12 @@ export default function ReaderPage() {
     )
   }
 
-  // Error — map DataError category to user-safe copy (AC 5 of 3.2, AC 1-2 of 3.5)
   if (error || !book) {
     const category: DataErrorCategory =
       error instanceof DataError ? error.category : 'unknown'
     return <ReaderErrorPage category={category} />
   }
 
-  // Success — chromeless reader with paginated engine (AC 1-4 of 3.2, all of 3.3-3.4)
   return (
     <ChromelessLayout book={book}>
       <ReaderEngine paragraphs={book.content} />

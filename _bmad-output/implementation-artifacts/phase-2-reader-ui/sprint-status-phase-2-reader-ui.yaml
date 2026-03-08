@@ -104,8 +104,8 @@ development_status:
   # Epic 5: Reading Personalization
   # Font size, Sepia/Light/Dark themes, settings page, storage management
   # ─────────────────────────────────────────────────────────────────
-  epic-5: backlog
-  5-1-font-size-control-and-pagination-reflow: backlog
-  5-2-reading-themes-sepia-light-and-dark: backlog
-  5-3-settings-page-and-offline-storage-management: backlog
+  epic-5: in-progress
+  5-1-font-size-control-and-pagination-reflow: ready-for-dev
+  5-2-reading-themes-sepia-light-and-dark: ready-for-dev
+  5-3-settings-page-and-offline-storage-management: ready-for-dev
   epic-5-retrospective: optional

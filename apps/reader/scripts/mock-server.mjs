@@ -12,7 +12,9 @@ const PORT = 3001
 const uuidToPath = new Map()
 try {
     const indexRaw = fs.readFileSync(path.join(BOOK_DATA_DIR, 'index.json'), 'utf-8')
-    for (const book of JSON.parse(indexRaw)) {
+    const catalog = JSON.parse(indexRaw)
+    const books = Array.isArray(catalog) ? catalog : (catalog.books ?? [])
+    for (const book of books) {
         if (book.id && book.artifacts?.[0]?.path) {
             uuidToPath.set(book.id, book.artifacts[0].path)
         }

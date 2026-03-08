@@ -35,6 +35,15 @@ const bookFixture: Book = {
   content: ['Đoạn 1.', 'Đoạn 2.', 'Đoạn 3.'],
 }
 
+const bookFixtureSeoSlug: Book = {
+  id: 'seo-slug-internal',
+  title: 'Kinh Test',
+  category: 'Kinh',
+  subcategory: 'test',
+  translator: 'HT. Test',
+  content: ['Đoạn 1.'],
+}
+
 function renderReaderPage(bookId = 'bat-nha') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -55,7 +64,6 @@ describe('ReaderPage', () => {
     useReaderStore.getState().reset()
   })
 
-  // AC 2 of 3.2 — loading skeleton
   it('renders skeleton while book is loading', () => {
     mockUseBook.mockReturnValue({ isLoading: true, data: undefined, error: null })
     renderReaderPage()
@@ -63,7 +71,6 @@ describe('ReaderPage', () => {
     expect(screen.getAllByTestId('skeleton-line').length).toBeGreaterThan(0)
   })
 
-  // AC 1, 3 of 3.2 — success renders engine
   it('renders ReaderEngine and ChromelessLayout on successful data load', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
     renderReaderPage()
@@ -71,15 +78,29 @@ describe('ReaderPage', () => {
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
   })
 
-  // AC 4 of 3.2 — store reset on new book (assert on store state, not brittle spies)
-  it('resets store with new bookId and empty pages when book data loads', () => {
+  it('resets store with new bookId, empty pages, and reset pageBoundaries when book data loads', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
     renderReaderPage()
     expect(useReaderStore.getState().bookId).toBe('bat-nha')
     expect(useReaderStore.getState().pages).toEqual([])
+    expect(useReaderStore.getState().pageBoundaries).toEqual([0])
   })
 
-  // AC 5 of 3.2, AC 1 of 3.5 — network error
+  it('shows not_found error when bookId param is absent from the route', () => {
+    mockUseBook.mockReturnValue({ isLoading: false, data: undefined, error: null })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/read']}>
+          <Routes>
+            <Route path="/read" element={<ReaderPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(screen.getByText('Không thể tìm thấy nội dung kinh này.')).toBeInTheDocument()
+  })
+
   it('shows network error message when book fails to fetch (offline)', () => {
     mockUseBook.mockReturnValue({
       isLoading: false,
@@ -95,7 +116,6 @@ describe('ReaderPage', () => {
     expect(screen.getByTestId('back-to-library')).toBeInTheDocument()
   })
 
-  // AC 2 of 3.5 — parse/schema error never shows raw Zod output
   it('shows schema error message when book payload fails Zod validation', () => {
     mockUseBook.mockReturnValue({
       isLoading: false,
@@ -107,7 +127,38 @@ describe('ReaderPage', () => {
     expect(screen.queryByText(/bad field/i)).not.toBeInTheDocument()
   })
 
-  // AC 3 of 3.2 — cached book renders without loading flash
+  it('shows generic error message for non-DataError exceptions', () => {
+    mockUseBook.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: new Error('unexpected failure'),
+    })
+    renderReaderPage()
+    expect(screen.getByText('Không thể tải nội dung kinh này.')).toBeInTheDocument()
+  })
+
+  // Regression: store must hold the URL param (catalog UUID), NOT book.id (SEO slug)
+  it('stores URL param bookId (catalog UUID) in store, not book.id (SEO slug)', () => {
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixtureSeoSlug, error: null })
+    renderReaderPage('catalog-uuid-123')
+    expect(mockUseBook).toHaveBeenCalledWith('catalog-uuid-123')
+    expect(useReaderStore.getState().bookId).toBe('catalog-uuid-123')
+  })
+
+  it('updates store correctly when navigating from one book to another without full reset', () => {
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    const { unmount } = renderReaderPage('bat-nha')
+    expect(useReaderStore.getState().bookId).toBe('bat-nha')
+
+    // Navigate to a different book — store should reflect the new book without an explicit reset
+    unmount()
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixtureSeoSlug, error: null })
+    renderReaderPage('catalog-uuid-123')
+    expect(useReaderStore.getState().bookId).toBe('catalog-uuid-123')
+    expect(useReaderStore.getState().pages).toEqual([])
+    expect(useReaderStore.getState().pageBoundaries).toEqual([0])
+  })
+
   it('renders engine directly without skeleton when book is cached', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
     renderReaderPage()
