@@ -9,11 +9,14 @@ const FIRST_OPEN_HINT = 'Chạm vào giữa màn hình để hiện menu'
 
 interface ChromelessLayoutProps {
   book: Book
+  /** When true, page 0 is the cover/placeholder and totalPages = 1 + content pages. Must be set explicitly by the caller (e.g. reader route passes true). */
+  hasCoverPage: boolean
   children: ReactNode
 }
 
-export function ChromelessLayout({ book, children }: ChromelessLayoutProps) {
+export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLayoutProps) {
   const { isChromeVisible, toggleChrome, hasSeenHint, dismissHint, currentPage, pages } = useReaderStore()
+  const totalPages = hasCoverPage ? 1 + pages.length : pages.length
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Auto-hide chrome after 3 seconds on first mount (AC 3)
@@ -113,7 +116,7 @@ export function ChromelessLayout({ book, children }: ChromelessLayoutProps) {
           className="text-xs"
           style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
         >
-          {pages.length > 0 ? `${currentPage + 1} / ${pages.length}` : ''}
+          {totalPages > 0 ? `${currentPage + 1} / ${totalPages}` : ''}
         </span>
       </div>
 

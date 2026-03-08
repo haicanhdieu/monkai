@@ -11,4 +11,5 @@ export interface SearchDocument {
   category: string
   subcategory: string
   translator: string
+  coverImageUrl: string | null
 }

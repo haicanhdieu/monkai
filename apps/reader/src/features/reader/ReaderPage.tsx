@@ -74,8 +74,12 @@ export default function ReaderPage() {
   }
 
   return (
-    <ChromelessLayout book={book}>
-      <ReaderEngine paragraphs={book.content} />
+    <ChromelessLayout book={book} hasCoverPage>
+      <ReaderEngine
+        paragraphs={book.content}
+        coverImageUrl={book.coverImageUrl ?? null}
+        bookTitle={book.title}
+      />
     </ChromelessLayout>
   )
 }

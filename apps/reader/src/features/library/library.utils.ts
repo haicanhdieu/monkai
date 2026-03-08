@@ -33,5 +33,6 @@ export function toSearchDocuments(books: CatalogBook[]): SearchDocument[] {
     category: book.category,
     subcategory: book.subcategory,
     translator: book.translator,
+    coverImageUrl: book.coverImageUrl,
   }))
 }

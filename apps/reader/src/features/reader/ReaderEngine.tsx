@@ -4,7 +4,9 @@ import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { storageService } from '@/shared/services/storage.service'
+import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
+import { resolveCoverUrl } from '@/shared/services/data.service'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { PageProgress } from './PageProgress'
 
@@ -23,13 +25,16 @@ function getHorizontalPaddingPerSidePx(viewportWidth: number): number {
 
 interface ReaderEngineProps {
   paragraphs: string[]
+  coverImageUrl: string | null
+  bookTitle: string
   onCenterTap?: () => void
 }
 
-export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
+export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap }: ReaderEngineProps) {
   const { bookId, currentPage, setPages, setCurrentPage, setPageBoundaries } = useReaderStore()
   const { fontSize } = useSettingsStore()
   const [fontsReady, setFontsReady] = useState(false)
+  const [coverError, setCoverError] = useState(false)
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 390,
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
@@ -81,22 +86,33 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
 
   const pages = paginationResult?.pages ?? []
   const boundaries = paginationResult?.boundaries ?? [0]
+  const totalDisplayPages = 1 + pages.length
 
-  // Keep a ref so keyboard/swipe handlers always see the latest page count
+  // Keep refs so keyboard/swipe handlers and sync effect see latest values
   const pagesRef = useRef<string[][]>([])
   pagesRef.current = pages
+  const boundariesRef = useRef<number[]>([0])
+  boundariesRef.current = boundaries
+  const totalDisplayPagesRef = useRef(totalDisplayPages)
+  totalDisplayPagesRef.current = totalDisplayPages
 
-  // Sync computed pages into store
+  // Sync computed pages into store when pagination result changes; clamp currentPage to [0, totalDisplayPages - 1]
+  // Deps use length so we don't re-run every render (pages/boundaries are new refs from useDOMPagination); read latest from refs
+  const lastSyncedPagesLengthRef = useRef(-1)
   useEffect(() => {
-    if (pages.length > 0) {
-      setPages(pages)
-      setPageBoundaries(boundaries)
-      const state = useReaderStore.getState()
-      if (state.currentPage > pages.length - 1) {
-        setCurrentPage(pages.length - 1)
-      }
+    const currentPages = pagesRef.current
+    const currentBoundaries = boundariesRef.current
+    const totalPages = totalDisplayPagesRef.current
+    if (currentPages.length !== lastSyncedPagesLengthRef.current) {
+      lastSyncedPagesLengthRef.current = currentPages.length
+      setPages(currentPages)
+      setPageBoundaries(currentBoundaries)
     }
-  }, [pages, boundaries, setCurrentPage, setPages, setPageBoundaries])
+    const state = useReaderStore.getState()
+    if (state.currentPage > totalPages - 1) {
+      setCurrentPage(totalPages - 1)
+    }
+  }, [pages.length, boundaries.length, totalDisplayPages, setCurrentPage, setPages, setPageBoundaries])
 
   // Reset to page 1 when font size changes (skip on initial mount to preserve hydrated lastReadPosition)
   const prevFontSizeRef = useRef(fontSize)
@@ -107,18 +123,19 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     }
   }, [fontSize, setCurrentPage])
 
-  // Persist page change to storage and update bookmarks store
+  // Persist page change to storage and update bookmarks store (include totalPages for home display after refresh)
   const persistPageChange = (page: number) => {
     const { bookId: id, bookTitle: title } = useReaderStore.getState()
-    void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId: id, page })
+    const totalPages = totalDisplayPagesRef.current
+    void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId: id, page, totalPages })
     useBookmarksStore.getState().upsertBookmark({ bookId: id, bookTitle: title, page, timestamp: Date.now() })
     void storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)
   }
 
-  // Navigation helpers — read current page from store at call time, page count from ref
+  // Navigation helpers — page 0 = cover, 1+ = content; totalDisplayPages = 1 + content pages
   const navigateNext = () => {
     const state = useReaderStore.getState()
-    if (state.currentPage < pagesRef.current.length - 1) {
+    if (state.currentPage < totalDisplayPagesRef.current - 1) {
       const nextPage = state.currentPage + 1
       setCurrentPage(nextPage)
       persistPageChange(nextPage)
@@ -212,9 +229,14 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
     )
   }
 
-  const currentPageParagraphs = pages[currentPage] ?? []
+  // Page 0 = cover (or placeholder); page 1+ = content
+  const isCoverPage = currentPage === 0
+  const contentPageIndex = currentPage - 1
+  const currentPageParagraphs = contentPageIndex >= 0 && contentPageIndex < pages.length ? pages[contentPageIndex] ?? [] : []
   const displayParagraphs =
     currentPageParagraphs.length === 0 ? [EMPTY_PAGE_MESSAGE] : currentPageParagraphs
+
+  const coverUrlResolved = coverImageUrl ? resolveCoverUrl(coverImageUrl) : null
 
   return (
     <>
@@ -224,45 +246,111 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         data-testid="reader-engine"
-        data-page-total={pages.length}
+        data-page-total={totalDisplayPages}
       >
-        {/* Responsive reading column — max-width ~700px, centered */}
-        <div
-          className="mx-auto w-full flex-1 overflow-hidden py-4"
-          style={{
-            maxWidth: `${readerColumnMaxWidth}px`,
-            paddingInline: `${horizontalPaddingPerSide}px`,
-          }}
-          role="region"
-          aria-live="polite"
-          aria-label="Nội dung kinh"
-          data-testid="reader-text-column"
-        >
-          {displayParagraphs.map((para, i) => (
-            <p
-              key={i}
-              className="mb-4 leading-relaxed"
+        {isCoverPage ? (
+          <CoverPage
+            coverUrl={coverUrlResolved}
+            bookTitle={bookTitle}
+            placeholderStyle={coverPlaceholderStyle}
+            coverError={coverError}
+            onCoverError={() => setCoverError(true)}
+          />
+        ) : (
+          <>
+            {/* Responsive reading column — max-width ~700px, centered */}
+            <div
+              className="mx-auto w-full flex-1 overflow-hidden py-4"
               style={{
-                fontSize: `${fontSize}px`,
-                lineHeight: READER_LINE_HEIGHT,
-                color: 'var(--color-text)',
-                fontFamily: 'Lora, serif',
-                overflowWrap: 'anywhere',
-                wordBreak: 'break-word',
+                maxWidth: `${readerColumnMaxWidth}px`,
+                paddingInline: `${horizontalPaddingPerSide}px`,
               }}
+              role="region"
+              aria-live="polite"
+              aria-label="Nội dung kinh"
+              data-testid="reader-text-column"
             >
-              {para}
-            </p>
-          ))}
-        </div>
+              {displayParagraphs.map((para, i) => (
+                <p
+                  key={i}
+                  className="mb-4 leading-relaxed"
+                  style={{
+                    fontSize: `${fontSize}px`,
+                    lineHeight: READER_LINE_HEIGHT,
+                    color: 'var(--color-text)',
+                    fontFamily: 'Lora, serif',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {para}
+                </p>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Page progress */}
         <div className="pb-4 px-6">
-          <PageProgress currentPage={currentPage} totalPages={pages.length} />
+          <PageProgress currentPage={currentPage} totalPages={totalDisplayPages} />
         </div>
       </div>
 
       {measureDiv}
     </>
+  )
+}
+
+function CoverPage({
+  coverUrl,
+  bookTitle,
+  placeholderStyle,
+  coverError,
+  onCoverError,
+}: {
+  coverUrl: string | null
+  bookTitle: string
+  placeholderStyle: React.CSSProperties
+  coverError: boolean
+  onCoverError: () => void
+}) {
+  const [coverLoaded, setCoverLoaded] = useState(false)
+
+  return (
+    <div
+      className="relative flex flex-1 flex-col items-center justify-center overflow-hidden p-6"
+      data-testid="reader-cover-page"
+    >
+      {coverUrl && !coverError ? (
+        <>
+          {!coverLoaded && (
+            <div
+              className="absolute inset-0 flex items-center justify-center p-6"
+              style={placeholderStyle}
+              aria-hidden="true"
+            />
+          )}
+          <img
+            src={coverUrl}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+            onLoad={() => setCoverLoaded(true)}
+            onError={onCoverError}
+          />
+        </>
+      ) : (
+        <div
+          className="flex flex-1 flex-col items-center justify-center rounded-xl px-8 py-12 w-full max-w-md"
+          style={placeholderStyle}
+        >
+          <p
+            className="text-center text-xl font-semibold"
+            style={{ fontFamily: 'Lora, serif', color: 'var(--color-text)' }}
+          >
+            {bookTitle}
+          </p>
+        </div>
+      )}
+    </div>
   )
 }

@@ -37,6 +37,7 @@ const bookFixture: Book = {
   category: 'Kinh',
   subcategory: 'bat-nha',
   translator: 'HT. A',
+  coverImageUrl: null,
   content: ['Đoạn 1.', 'Đoạn 2.', 'Đoạn 3.'],
 }
 
@@ -46,6 +47,7 @@ const bookFixtureSeoSlug: Book = {
   category: 'Kinh',
   subcategory: 'test',
   translator: 'HT. Test',
+  coverImageUrl: null,
   content: ['Đoạn 1.'],
 }
 

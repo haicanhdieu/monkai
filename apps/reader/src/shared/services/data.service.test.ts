@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DataError, StaticJsonDataService } from '@/shared/services/data.service'
+import { DataError, StaticJsonDataService, resolveCoverUrl, resolveBookDataBaseUrl } from '@/shared/services/data.service'
 
 const validCatalogPayload = {
   books: [
@@ -112,10 +112,39 @@ describe('StaticJsonDataService', () => {
     const book = await service.getBook('book-1')
 
     expect(book.id).toBe('book-1')
+    expect(book.coverImageUrl).toBeNull()
     expect(book.content[0]).toContain('Bát Nhã')
     expect(book.content[1]).toBe('A & B <C> "D" \'E\' &')
     expect(book.content[2]).toBe('ĐOÀN “TRUNG” CÒN')
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('resolveCoverUrl', () => {
+  it('returns null for null or empty path', () => {
+    expect(resolveCoverUrl(null)).toBeNull()
+    expect(resolveCoverUrl('')).toBeNull()
+    expect(resolveCoverUrl('   ')).toBeNull()
+  })
+
+  it('returns absolute URL unchanged when path starts with http:// or https://', () => {
+    const url = 'https://cdn.example.com/cover.jpg'
+    expect(resolveCoverUrl(url)).toBe(url)
+    expect(resolveCoverUrl('http://other.com/img.png')).toBe('http://other.com/img.png')
+  })
+
+  it('resolves relative path with base + /book-data/ and strips leading slash', () => {
+    const base = resolveBookDataBaseUrl()
+    const result1 = resolveCoverUrl('vbeta/kinh/slug/images/cover.jpg')
+    expect(result1).toBe(`${base}/book-data/vbeta/kinh/slug/images/cover.jpg`)
+    const result2 = resolveCoverUrl('/vbeta/kinh/cover.jpg')
+    expect(result2).toBe(`${base}/book-data/vbeta/kinh/cover.jpg`)
+  })
+
+  it('strips multiple leading slashes to avoid double slash in URL', () => {
+    const base = resolveBookDataBaseUrl()
+    expect(resolveCoverUrl('//path/to/cover.jpg')).toBe(`${base}/book-data/path/to/cover.jpg`)
+    expect(resolveCoverUrl('///a/b.jpg')).toBe(`${base}/book-data/a/b.jpg`)
   })
 })

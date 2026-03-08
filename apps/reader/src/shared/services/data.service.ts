@@ -42,6 +42,24 @@ export function resolveBookDataBaseUrl(): string {
   return basePath === '/' ? '' : trimTrailingSlash(basePath)
 }
 
+/**
+ * Resolves a cover image path to a full URL.
+ * - null/empty → null
+ * - Absolute URL (http/https) → return as-is
+ * - Relative path → base + /book-data/ + path (leading slash stripped)
+ */
+export function resolveCoverUrl(relativePath: string | null): string | null {
+  const trimmed = relativePath?.trim()
+  if (!trimmed) {
+    return null
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
+  const path = trimmed.replace(/^\/+/, '')
+  return toAbsolutePath(resolveBookDataBaseUrl(), `/book-data/${path}`)
+}
+
 function parseErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message

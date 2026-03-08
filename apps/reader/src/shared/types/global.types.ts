@@ -35,5 +35,6 @@ export interface Book {
   category: string
   subcategory: string
   translator: string
+  coverImageUrl: string | null
   content: BookParagraph[]
 }

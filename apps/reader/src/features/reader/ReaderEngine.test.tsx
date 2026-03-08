@@ -37,9 +37,18 @@ beforeEach(() => {
 // 50 paragraphs ensures multiple pages (capacity ~21/page with JSDOM innerHeight=768, fontSize=18, lineHeight=1.6, padding=80)
 const PARAGRAPHS = Array.from({ length: 50 }, (_, i) => `Đoạn ${i + 1}.`)
 
+const defaultCoverProps = { coverImageUrl: null as string | null, bookTitle: 'Test' }
+
 /** Render engine and wait until fonts are ready and pages are computed. */
 async function renderEngine(paragraphs = PARAGRAPHS, onCenterTap?: () => void) {
-  render(<ReaderEngine paragraphs={paragraphs} onCenterTap={onCenterTap} />)
+  render(
+    <ReaderEngine
+      paragraphs={paragraphs}
+      coverImageUrl={defaultCoverProps.coverImageUrl}
+      bookTitle={defaultCoverProps.bookTitle}
+      onCenterTap={onCenterTap}
+    />,
+  )
   // Wait until the skeleton disappears (fonts ready + pages computed)
   await waitFor(() => {
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
@@ -54,7 +63,13 @@ describe('ReaderEngine — loading state', () => {
       configurable: true,
       writable: true,
     })
-    render(<ReaderEngine paragraphs={PARAGRAPHS} />)
+    render(
+      <ReaderEngine
+        paragraphs={PARAGRAPHS}
+        coverImageUrl={null}
+        bookTitle="Test"
+      />,
+    )
     expect(screen.getByTestId('reader-skeleton')).toBeInTheDocument()
   })
 })
@@ -64,6 +79,8 @@ describe('ReaderEngine — rendering', () => {
     await renderEngine()
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
+    // Page 0 is cover; first content is page 1
+    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
   })
 
   it('shows page progress indicator', async () => {
@@ -73,6 +90,8 @@ describe('ReaderEngine — rendering', () => {
 
   it('has role="region" and aria-live="polite" on text column (AC 5 of 3.4)', async () => {
     await renderEngine()
+    // Navigate from cover (page 0) to first content page (page 1)
+    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
     const col = screen.getByTestId('reader-text-column')
     // role="region" (not "main") so only one main landmark exists per page (MED-1 code review fix)
     expect(col).toHaveAttribute('role', 'region')
@@ -81,6 +100,8 @@ describe('ReaderEngine — rendering', () => {
 
   it('applies robust word wrapping to paragraph text', async () => {
     await renderEngine(['x'.repeat(300)])
+    // Navigate from cover to first content page
+    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
     const paragraph = screen.getByText('x'.repeat(300))
     expect(paragraph).toHaveStyle({ overflowWrap: 'anywhere' })
     expect(paragraph).toHaveStyle({ wordBreak: 'break-word' })
@@ -88,10 +109,12 @@ describe('ReaderEngine — rendering', () => {
 })
 
 describe('ReaderEngine — empty content (AC 3 of 3.5)', () => {
-  it('shows empty content message for zero paragraphs without crashing', async () => {
+  it('shows cover page only for zero paragraphs without crashing', async () => {
     await renderEngine([])
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
-    expect(screen.getByText('Nội dung trống.')).toBeInTheDocument()
+    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
+    // Only one display page (cover); no content column
+    expect(screen.queryByTestId('reader-text-column')).not.toBeInTheDocument()
   })
 })
 
@@ -129,7 +152,8 @@ describe('ReaderEngine — tap zone navigation (AC 2, 3, 4 of 3.3)', () => {
       fireEvent.click(engine, { clientX: RIGHT_TAP })
     }
     const { currentPage, pages } = useReaderStore.getState()
-    expect(currentPage).toBe(pages.length - 1)
+    // With cover page: display pages 0..pages.length; last index = pages.length
+    expect(currentPage).toBe(pages.length)
   })
 
   it('calls onCenterTap when center zone is tapped', async () => {

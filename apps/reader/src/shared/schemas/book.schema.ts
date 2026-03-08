@@ -16,6 +16,8 @@ const rawBookSchema = z.object({
   category_name: z.string(),
   category_seo_name: z.string().optional(),
   author: z.string().nullable().optional(),
+  cover_image_url: z.string().nullable().optional(),
+  cover_image_local_path: z.string().nullable().optional(),
   chapters: z.array(chapterSchema).default([]),
 })
 
@@ -86,5 +88,6 @@ export const bookSchema: z.ZodType<Book> = rawBookSchema.transform((raw) => ({
   category: raw.category_name,
   subcategory: raw.category_seo_name ?? 'general',
   translator: raw.author ?? 'Unknown translator',
+  coverImageUrl: raw.cover_image_local_path ?? raw.cover_image_url ?? null,
   content: normalizeParagraphs(raw.chapters),
 }))

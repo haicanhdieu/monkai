@@ -34,7 +34,7 @@ export function LibrarySearchHub({ categories, books, contentClassName = '' }: L
   const miniSearch = useMemo(() => {
     const engine = new MiniSearch<SearchDocument>({
       fields: ['title', 'category', 'subcategory'],
-      storeFields: ['id', 'bookId', 'title', 'category', 'subcategory', 'translator'],
+      storeFields: ['id', 'bookId', 'title', 'category', 'subcategory', 'translator', 'coverImageUrl'],
       searchOptions: {
         boost: {
           title: 3,

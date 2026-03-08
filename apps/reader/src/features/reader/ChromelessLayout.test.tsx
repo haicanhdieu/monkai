@@ -11,13 +11,14 @@ const bookFixture: Book = {
   category: 'Kinh',
   subcategory: 'bat-nha',
   translator: 'HT. A',
+  coverImageUrl: null,
   content: ['Đoạn 1.'],
 }
 
 function renderLayout(book = bookFixture) {
   return render(
     <MemoryRouter>
-      <ChromelessLayout book={book}>
+      <ChromelessLayout book={book} hasCoverPage>
         <div data-testid="reader-content">content</div>
       </ChromelessLayout>
     </MemoryRouter>,

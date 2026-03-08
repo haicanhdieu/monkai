@@ -248,3 +248,42 @@ describe('bookSchema – normalizeParagraphs', () => {
     expect(book.content).toEqual([])
   })
 })
+
+describe('bookSchema – coverImageUrl', () => {
+  it('sets coverImageUrl from cover_image_local_path when present (prefer local)', () => {
+    const raw = makeRawBook([]) as Record<string, unknown>
+    raw.cover_image_url = 'https://example.com/cover.jpg'
+    raw.cover_image_local_path = 'vbeta/kinh/slug/images/cover.jpg'
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.coverImageUrl).toBe('vbeta/kinh/slug/images/cover.jpg')
+  })
+
+  it('sets coverImageUrl from cover_image_url when cover_image_local_path is absent', () => {
+    const raw = makeRawBook([]) as Record<string, unknown>
+    raw.cover_image_url = 'https://example.com/cover.jpg'
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.coverImageUrl).toBe('https://example.com/cover.jpg')
+  })
+
+  it('sets coverImageUrl to null when both cover fields are null/absent', () => {
+    const raw = makeRawBook([])
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.coverImageUrl).toBeNull()
+  })
+
+  it('sets coverImageUrl to null when both cover fields are explicitly null', () => {
+    const raw = makeRawBook([]) as Record<string, unknown>
+    raw.cover_image_url = null
+    raw.cover_image_local_path = null
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.coverImageUrl).toBeNull()
+  })
+})

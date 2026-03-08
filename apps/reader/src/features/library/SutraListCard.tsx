@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CatalogBook } from '@/shared/types/global.types'
 import { toRead } from '@/shared/constants/routes'
+import { coverPlaceholderStyle } from '@/shared/constants/cover'
+import { resolveCoverUrl } from '@/shared/services/data.service'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 
 interface SutraListCardProps {
@@ -8,17 +11,36 @@ interface SutraListCardProps {
 }
 
 export function SutraListCard({ book }: SutraListCardProps) {
+  const [coverError, setCoverError] = useState(false)
+  const [coverLoaded, setCoverLoaded] = useState(false)
+  const coverUrl = book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null
+
   return (
     <Link
       to={toRead(book.id)}
-      className="block min-h-[44px] rounded-xl border px-4 py-4 transition-colors hover:brightness-95"
+      className="flex min-h-[44px] gap-4 rounded-xl border px-4 py-4 transition-colors hover:brightness-95"
       style={{
         backgroundColor: 'var(--color-surface)',
         borderColor: 'var(--color-border)',
       }}
       aria-label={`Đọc ${book.title}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded object-cover">
+        {coverUrl && !coverError && (
+          <>
+            {!coverLoaded && <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />}
+            <img
+              src={coverUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              onLoad={() => setCoverLoaded(true)}
+              onError={() => setCoverError(true)}
+            />
+          </>
+        )}
+        {(!coverUrl || coverError) && <div className="h-full w-full" style={coverPlaceholderStyle} />}
+      </div>
+      <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xl leading-tight" style={{ fontFamily: 'Lora, serif' }}>
             {book.title}

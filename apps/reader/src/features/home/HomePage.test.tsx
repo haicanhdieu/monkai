@@ -34,17 +34,25 @@ describe('HomePage', () => {
     renderHomePage()
 
     expect(screen.queryByLabelText('Tiếp tục đọc')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Tiếp tục' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Tiếp tục đọc/ })).not.toBeInTheDocument()
   })
 
   it('shows "Continue Reading" card with correct link when last read position exists', () => {
-    useReaderStore.setState({ bookId: 'kinh-phap-hoa', bookTitle: 'Kinh Pháp Hoa', currentPage: 14 })
+    useReaderStore.setState({
+      bookId: 'kinh-phap-hoa',
+      bookTitle: 'Kinh Pháp Hoa',
+      currentPage: 14,
+      pages: Array(99).fill(['paragraph']),
+    })
     renderHomePage()
 
     expect(screen.getByLabelText('Tiếp tục đọc')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tiếp tục' })).toHaveAttribute('href', '/read/kinh-phap-hoa')
+    expect(screen.getByRole('link', { name: 'Tiếp tục đọc Kinh Pháp Hoa' })).toHaveAttribute(
+      'href',
+      '/read/kinh-phap-hoa',
+    )
     expect(screen.getByText('Kinh Pháp Hoa')).toBeInTheDocument()
-    expect(screen.getByText('Trang 15')).toBeInTheDocument()
+    expect(screen.getAllByText(/Trang 15/).length).toBeGreaterThanOrEqual(1)
   })
 
   it('does not expose dead-end notification button', () => {

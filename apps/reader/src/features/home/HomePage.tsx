@@ -1,6 +1,9 @@
+import { useState, useRef, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ReaderIcon, BookmarkIcon, SunIcon, BellIcon } from '@radix-ui/react-icons'
+import { ReaderIcon, BookmarkIcon, SunIcon, BellIcon, ChevronRightIcon } from '@radix-ui/react-icons'
 import { ROUTES, toRead } from '@/shared/constants/routes'
+import { coverPlaceholderStyle } from '@/shared/constants/cover'
+import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
 
@@ -17,55 +20,143 @@ const quickActions = [
   },
 ]
 
+const COVER_ASPECT_RATIO = 2 / 3
+
+function useCoverDimensions(contentRef: React.RefObject<HTMLDivElement | null>) {
+  const [dimensions, setDimensions] = useState<{ height: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+
+    const update = () => {
+      const height = el.getBoundingClientRect().height
+      if (height > 0) {
+        setDimensions({ height, width: height * COVER_ASPECT_RATIO })
+      }
+    }
+
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [contentRef])
+
+  return dimensions
+}
+
 function ContinueReadingCard() {
-  const { bookId, bookTitle, currentPage } = useReaderStore()
+  const { bookId, bookTitle, currentPage, pages, lastReadTotalPages } = useReaderStore()
   const hasLastRead = bookId !== '' && currentPage > 0
   const { data: bookData } = useBook(hasLastRead && bookTitle === '' ? bookId : '')
+  const [coverError, setCoverError] = useState(false)
+  const [coverLoaded, setCoverLoaded] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const coverDimensions = useCoverDimensions(contentRef)
 
   if (!hasLastRead) return null
 
   const displayTitle = bookTitle !== '' ? bookTitle : (bookData?.title ?? bookId)
+  const coverUrl = bookData?.coverImageUrl ? resolveCoverUrl(bookData.coverImageUrl) : null
+  const totalPages =
+    pages.length > 0 ? 1 + pages.length : Math.max(1, lastReadTotalPages)
+  const progressPercent = totalPages > 0 ? Math.round(((currentPage + 1) / totalPages) * 100) : 0
 
   return (
-    <section className="mb-8" aria-label="Tiếp tục đọc">
-      <h2 className="mb-4 text-lg font-semibold">Tiếp tục đọc</h2>
-      <article
-        className="overflow-hidden rounded-2xl border"
+    <section className="mb-8 mt-6" aria-label="Tiếp tục đọc">
+      <h2
+        className="mb-4 text-lg font-semibold"
+        style={{ color: 'var(--color-text)' }}
+      >
+        Tiếp tục đọc
+      </h2>
+      <Link
+        to={toRead(bookId)}
+        className="grid min-h-[44px] grid-cols-[auto_1fr] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
         style={{
           backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
         }}
+        aria-label={`Tiếp tục đọc ${displayTitle}`}
       >
-        <div
-          className="h-36"
-          style={{
-            background:
-              'linear-gradient(140deg, var(--color-border) 0%, var(--color-surface) 55%, var(--color-accent) 100%)',
-          }}
-        />
-        <div className="space-y-4 p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--color-accent)]">
-                Đang đọc
-              </p>
-              <p className="text-xl font-semibold" style={{ fontFamily: 'Lora, serif' }}>
-                {displayTitle}
-              </p>
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                Trang {currentPage + 1}
-              </p>
-            </div>
-            <Link
-              to={toRead(bookId)}
-              className="rounded-full px-4 py-2 text-sm font-semibold text-white"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+        {/* Cover: when dimensions set, lock size so image cannot extend card; when null, placeholder only (content drives row height). */}
+        <div className="flex min-h-0 items-stretch">
+          {coverDimensions ? (
+            <div
+              className="relative shrink-0 overflow-hidden rounded"
+              style={{ height: coverDimensions.height, width: coverDimensions.width }}
             >
-              Tiếp tục
-            </Link>
+              {coverUrl && !coverError && (
+                <>
+                  {!coverLoaded && (
+                    <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />
+                  )}
+                  <img
+                    src={coverUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    onLoad={() => setCoverLoaded(true)}
+                    onError={() => setCoverError(true)}
+                  />
+                </>
+              )}
+              {(!coverUrl || coverError) && (
+                <div className="absolute inset-0" style={coverPlaceholderStyle} />
+              )}
+            </div>
+          ) : (
+            <div
+              className="relative h-full min-h-0 w-full overflow-hidden rounded"
+              style={{ aspectRatio: '2/3' }}
+            >
+              <div className="h-full w-full" style={coverPlaceholderStyle} />
+            </div>
+          )}
+        </div>
+        <div ref={contentRef} className="min-h-0 min-w-0">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span
+                className="mb-1 inline-block rounded px-2 py-0.5 text-xs font-bold text-white"
+                style={{ backgroundColor: 'var(--color-accent)' }}
+              >
+                Đang đọc
+              </span>
+              <h3
+                className="text-xl font-bold"
+                style={{ fontFamily: 'Lora, serif', color: 'var(--color-text)' }}
+              >
+                {displayTitle}
+              </h3>
+            </div>
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+              aria-hidden="true"
+            >
+              <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+            </span>
+          </div>
+          <div className="mt-3">
+            <div className="mb-2 flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              <span>Tiến độ: {progressPercent}%</span>
+              <span>Trang {currentPage + 1} / {totalPages}</span>
+            </div>
+            <div
+              className="h-2 w-full overflow-hidden rounded-full"
+              style={{ backgroundColor: 'var(--color-border)' }}
+            >
+              <div
+                className="h-full rounded-full transition-[width]"
+                style={{
+                  width: `${progressPercent}%`,
+                  backgroundColor: 'var(--color-accent)',
+                }}
+              />
+            </div>
           </div>
         </div>
-      </article>
+      </Link>
     </section>
   )
 }

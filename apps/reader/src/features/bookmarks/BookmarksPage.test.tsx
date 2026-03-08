@@ -1,19 +1,32 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import BookmarksPage from '@/features/bookmarks/BookmarksPage'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { formatRelativeTime } from '@/shared/utils/time'
 import type { Bookmark } from '@/stores/bookmarks.store'
 
+vi.mock('@/shared/hooks/useCatalogIndex', () => ({
+  useCatalogIndex: () => ({
+    data: {
+      books: [],
+      categories: [],
+    },
+  }),
+}))
+
 const bookmark1: Bookmark = { bookId: 'kinh-phap-hoa', bookTitle: 'Kinh Pháp Hoa', page: 13, timestamp: 1000000 }
 const bookmark2: Bookmark = { bookId: 'kinh-bat-nha', bookTitle: 'Kinh Bát Nhã', page: 4, timestamp: 2000000 }
 
 function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
-    <MemoryRouter>
-      <BookmarksPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <BookmarksPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
