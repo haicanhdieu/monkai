@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,6 +11,11 @@ import type { Book } from '@/shared/types/global.types'
 const mockUseBook = vi.fn()
 vi.mock('@/shared/hooks/useBook', () => ({
   useBook: (id: string) => mockUseBook(id),
+}))
+
+const mockGetItem = vi.fn()
+vi.mock('@/shared/services/storage.service', () => ({
+  storageService: { getItem: (key: string) => mockGetItem(key) },
 }))
 
 // Prevent ChromelessLayout/ReaderEngine from running real font/DOM logic
@@ -44,11 +49,15 @@ const bookFixtureSeoSlug: Book = {
   content: ['Đoạn 1.'],
 }
 
-function renderReaderPage(bookId = 'bat-nha') {
+function renderReaderPage(bookId = 'bat-nha', locationState?: { page?: number }) {
+  const entry =
+    locationState != null
+      ? { pathname: `/read/${bookId}`, state: locationState }
+      : `/read/${bookId}`
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/read/${bookId}`]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/read/:bookId" element={<ReaderPage />} />
           <Route path="/library" element={<div data-testid="library-page" />} />
@@ -61,6 +70,8 @@ function renderReaderPage(bookId = 'bat-nha') {
 describe('ReaderPage', () => {
   beforeEach(() => {
     mockUseBook.mockReset()
+    mockGetItem.mockReset()
+    mockGetItem.mockResolvedValue(null)
     useReaderStore.getState().reset()
   })
 
@@ -164,5 +175,29 @@ describe('ReaderPage', () => {
     renderReaderPage()
     expect(screen.queryByTestId('reader-loading')).not.toBeInTheDocument()
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
+  })
+
+  it('sets currentPage to 0 when opening a different book than last read (avoids reusing previous book page)', async () => {
+    mockGetItem.mockResolvedValue({ bookId: 'other-book-uuid', page: 5 })
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    renderReaderPage('bat-nha')
+    await waitFor(() => {
+      expect(useReaderStore.getState().currentPage).toBe(0)
+    })
+  })
+
+  it('restores currentPage from storage when opening the same book as last read', async () => {
+    mockGetItem.mockResolvedValue({ bookId: 'bat-nha', page: 2 })
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    renderReaderPage('bat-nha')
+    await waitFor(() => {
+      expect(useReaderStore.getState().currentPage).toBe(2)
+    })
+  })
+
+  it('opens at bookmark page when navigating from bookmark link (location state has page)', () => {
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    renderReaderPage('bat-nha', { page: 10 })
+    expect(useReaderStore.getState().currentPage).toBe(10)
   })
 })

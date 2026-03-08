@@ -11,6 +11,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
   return (
     <Link
       to={toRead(bookmark.bookId)}
+      state={{ page: bookmark.page }}
       className="flex min-h-[44px] flex-col gap-1 rounded-2xl border p-4 transition-colors hover:brightness-95"
       style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
     >
