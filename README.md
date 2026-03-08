@@ -22,6 +22,7 @@ The project bridges the gap between raw digital archives and modern reading expe
 - [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Usage](#usage)
+- [MCP Setup](#mcp-setup)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -96,6 +97,23 @@ Follow the specific instructions within each application to run or deploy the se
 
 - To run the crawler and build the scripture index, navigate to `apps/crawler/` and use Devbox.
 - To serve the web application and read scriptures, navigate to `apps/reader/` and start the development server.
+
+## MCP Setup
+
+MCP (Model Context Protocol) config is centralized for use with multiple agents (Claude Code, Cursor, Gemini). Secrets are gitignored.
+
+1. Copy the example config and add your API keys:
+   ```bash
+   cp mcp.canonical.example.json mcp.canonical.json
+   # Edit mcp.canonical.json with your keys
+   ```
+2. Sync to agent-specific locations:
+   ```bash
+   node scripts/sync-mcp-config.mjs
+   ```
+   This generates: `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor), `.gemini/settings.json` (Gemini).
+
+To add or change MCP servers, edit `mcp.canonical.json` and re-run the sync script.
 
 ## Contributing
 

@@ -1,0 +1,11 @@
+{
+  "stitchProjectId": "YOUR_STITCH_PROJECT_ID",
+  "servers": {
+    "stitch": {
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "YOUR_GOOGLE_API_KEY"
+      }
+    }
+  }
+}

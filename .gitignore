@@ -26,3 +26,9 @@ node_modules/
 
 # Local scripts
 cursor.sh
+
+# MCP config (contains API keys) - use mcp.canonical.example.json as template
+mcp.canonical.json
+.mcp.json
+.cursor/mcp.json
+.gemini/settings.json
