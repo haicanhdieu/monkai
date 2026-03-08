@@ -1,6 +1,6 @@
 # Story 5.1: Font Size Control & Pagination Reflow
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -32,34 +32,34 @@ so that I can read comfortably regardless of my eyesight or device.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create `FontSizeControl` component (AC: 1)
-  - [ ] Create `apps/reader/src/features/settings/FontSizeControl.tsx`
-  - [ ] Use `@radix-ui/react-slider` — `min={14}` `max={28}` `step={2}` `defaultValue={[fontSize]}`
-  - [ ] Import `useSettingsStore` from `@/stores/settings.store`; read `fontSize`, call `setFontSize` on `onValueChange`
-  - [ ] Display current font size label: "Cỡ chữ: {fontSize}px"
-  - [ ] Apply theme CSS custom properties for colors (never hardcode)
-  - [ ] Minimum 44×44px touch target on the slider track area
+- [x] Task 1: Create `FontSizeControl` component (AC: 1)
+  - [x] Create `apps/reader/src/features/settings/FontSizeControl.tsx`
+  - [x] Use `@radix-ui/react-slider` — `min={14}` `max={28}` `step={2}` `defaultValue={[fontSize]}`
+  - [x] Import `useSettingsStore` from `@/stores/settings.store`; read `fontSize`, call `setFontSize` on `onValueChange`
+  - [x] Display current font size label: "Cỡ chữ: {fontSize}px"
+  - [x] Apply theme CSS custom properties for colors (never hardcode)
+  - [x] Minimum 44×44px touch target on the slider track area
 
-- [ ] Task 2: Wire `ReaderEngine` to read `fontSize` from settings store (AC: 2, 3)
-  - [ ] In `apps/reader/src/features/reader/ReaderEngine.tsx`, import `useSettingsStore` from `@/stores/settings.store`
-  - [ ] Replace `const READER_FONT_SIZE = 18` usage with `const { fontSize } = useSettingsStore()`
-  - [ ] Pass `fontSize` (not the constant) to `useDOMPagination` options
-  - [ ] Add a `useEffect` that resets `setCurrentPage(0)` when `fontSize` changes (skip on mount using a ref to track previous value)
+- [x] Task 2: Wire `ReaderEngine` to read `fontSize` from settings store (AC: 2, 3)
+  - [x] In `apps/reader/src/features/reader/ReaderEngine.tsx`, import `useSettingsStore` from `@/stores/settings.store`
+  - [x] Replace `const READER_FONT_SIZE = 18` usage with `const { fontSize } = useSettingsStore()`
+  - [x] Pass `fontSize` (not the constant) to `useDOMPagination` options
+  - [x] Add a `useEffect` that resets `setCurrentPage(0)` when `fontSize` changes (skip on mount using a ref to track previous value)
 
-- [ ] Task 3: Add silent persistence to `setFontSize` (AC: 4)
-  - [ ] In `apps/reader/src/stores/settings.store.ts`, import `storageService` from `@/shared/services/storage.service` and `STORAGE_KEYS` from `@/shared/constants/storage.keys`
-  - [ ] After `set((state) => { state.fontSize = value })` in `setFontSize`, call: `storageService.setItem(STORAGE_KEYS.USER_SETTINGS, { fontSize: value, theme: get().theme })` (use Zustand `get` arg)
-  - [ ] Do NOT show any UI indicator — silent persistence
+- [x] Task 3: Add silent persistence to `setFontSize` (AC: 4)
+  - [x] In `apps/reader/src/stores/settings.store.ts`, import `storageService` from `@/shared/services/storage.service` and `STORAGE_KEYS` from `@/shared/constants/storage.keys`
+  - [x] After `set((state) => { state.fontSize = value })` in `setFontSize`, call: `storageService.setItem(STORAGE_KEYS.USER_SETTINGS, { fontSize: value, theme: get().theme })` (use Zustand `get` arg)
+  - [x] Do NOT show any UI indicator — silent persistence
 
-- [ ] Task 4: Verify hydration already works (AC: 5)
-  - [ ] Confirm `useStorageHydration.ts` loads `STORAGE_KEYS.USER_SETTINGS` and calls `useSettingsStore.getState().hydrate(settings)` — it already does (no code change needed)
-  - [ ] Verify `settings.store.hydrate` sets both `fontSize` and `theme` — it already does
+- [x] Task 4: Verify hydration already works (AC: 5)
+  - [x] Confirm `useStorageHydration.ts` loads `STORAGE_KEYS.USER_SETTINGS` and calls `useSettingsStore.getState().hydrate(settings)` — it already does (no code change needed)
+  - [x] Verify `settings.store.hydrate` sets both `fontSize` and `theme` — it already does
 
-- [ ] Task 5: Write tests (AC: 1, 2, 4)
-  - [ ] Create `apps/reader/src/features/settings/FontSizeControl.test.tsx`
-  - [ ] Test: slider renders with correct min/max/step/value from store
-  - [ ] Test: changing slider value calls `setFontSize` with correct number
-  - [ ] Test: `storageService.setItem` is called with merged `{ fontSize, theme }` on font size change
+- [x] Task 5: Write tests (AC: 1, 2, 4)
+  - [x] Create `apps/reader/src/features/settings/FontSizeControl.test.tsx`
+  - [x] Test: slider renders with correct min/max/step/value from store
+  - [x] Test: changing slider value calls `setFontSize` with correct number
+  - [x] Test: `storageService.setItem` is called with merged `{ fontSize, theme }` on font size change
 
 ## Dev Notes
 
@@ -196,6 +196,26 @@ claude-sonnet-4-6
 
 ### Debug Log References
 
+No debug issues. All tasks implemented cleanly on first pass.
+
 ### Completion Notes List
 
+- Created `FontSizeControl` component using `@radix-ui/react-slider` with min=14, max=28, step=2. Uses CSS custom properties for theming. 44px+ touch target via `min-h-[44px]` on Slider.Root.
+- Updated `ReaderEngine.tsx`: removed hardcoded `READER_FONT_SIZE = 18` constant; reads `fontSize` from `useSettingsStore()` and passes it to `useDOMPagination` + measure div style + paragraph style. Added `useEffect` with `prevFontSizeRef` guard to reset to page 0 on font size change without triggering on mount.
+- Updated `settings.store.ts`: changed `immer((set) => ...)` to `immer((set, get) => ...)` to access current `theme` in `setFontSize`. Silent `storageService.setItem` call persists `{ fontSize, theme }` after each font size change.
+- Verified `useStorageHydration.ts` already loads `USER_SETTINGS` and calls `hydrate(settings)` — no code change needed for AC 5.
+- 4 new tests pass: slider renders with correct props, font size label displays, `setFontSize` called on change, `storageService.setItem` called with merged settings.
+- 2 pre-existing test failures in `ReaderEngine.test.tsx` (`page-progress` testid lookup) were present on `main` before this story — confirmed via `git stash` comparison.
+
 ### File List
+
+- `apps/reader/src/features/settings/FontSizeControl.tsx` (new)
+- `apps/reader/src/features/settings/FontSizeControl.test.tsx` (new)
+- `apps/reader/src/stores/settings.store.ts` (modified)
+- `apps/reader/src/stores/settings.store.test.ts` (new)
+- `apps/reader/src/features/reader/ReaderEngine.tsx` (modified)
+- `apps/reader/src/features/settings/SettingsPage.tsx` (modified)
+
+### Change Log
+
+- 2026-03-08: Story 5.1 implemented — FontSizeControl component, ReaderEngine wired to settings store fontSize, silent persistence added to setFontSize, hydration verified working

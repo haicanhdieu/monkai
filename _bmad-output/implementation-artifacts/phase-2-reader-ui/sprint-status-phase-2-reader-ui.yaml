@@ -105,7 +105,7 @@ development_status:
   # Font size, Sepia/Light/Dark themes, settings page, storage management
   # ─────────────────────────────────────────────────────────────────
   epic-5: in-progress
-  5-1-font-size-control-and-pagination-reflow: ready-for-dev
-  5-2-reading-themes-sepia-light-and-dark: ready-for-dev
-  5-3-settings-page-and-offline-storage-management: ready-for-dev
+  5-1-font-size-control-and-pagination-reflow: done
+  5-2-reading-themes-sepia-light-and-dark: done
+  5-3-settings-page-and-offline-storage-management: done
   epic-5-retrospective: optional

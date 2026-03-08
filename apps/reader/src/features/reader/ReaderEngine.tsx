@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useDOMPagination } from './useDOMPagination'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { useSettingsStore } from '@/stores/settings.store'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { PageProgress } from './PageProgress'
 
 // Default reader font metrics — consistent with body typography
-const READER_FONT_SIZE = 18
 const READER_LINE_HEIGHT = 1.6
 const READER_PADDING_BOTTOM = 0 // tall enough to account for PageProgress and vertical padding to avoid overlap
 
@@ -28,6 +28,7 @@ interface ReaderEngineProps {
 
 export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
   const { bookId, currentPage, setPages, setCurrentPage, setPageBoundaries } = useReaderStore()
+  const { fontSize } = useSettingsStore()
   const [fontsReady, setFontsReady] = useState(false)
   const [viewport, setViewport] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 390,
@@ -71,7 +72,7 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
       bookId,
       availableHeight,
       columnWidth: readerColumnMaxWidth,
-      fontSize: READER_FONT_SIZE,
+      fontSize,
       lineHeight: READER_LINE_HEIGHT,
       fontFamily: 'Lora, serif',
     },
@@ -96,6 +97,15 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
       }
     }
   }, [pages, boundaries, setCurrentPage, setPages, setPageBoundaries])
+
+  // Reset to page 1 when font size changes (skip on initial mount to preserve hydrated lastReadPosition)
+  const prevFontSizeRef = useRef(fontSize)
+  useEffect(() => {
+    if (prevFontSizeRef.current !== fontSize) {
+      prevFontSizeRef.current = fontSize
+      setCurrentPage(0)
+    }
+  }, [fontSize, setCurrentPage])
 
   // Persist page change to storage and update bookmarks store
   const persistPageChange = (page: number) => {
@@ -182,7 +192,7 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
         overflow: 'hidden',
         width: `${readerColumnMaxWidth}px`,
         height: `${availableHeight}px`,
-        fontSize: `${READER_FONT_SIZE}px`,
+        fontSize: `${fontSize}px`,
         lineHeight: READER_LINE_HEIGHT,
         fontFamily: 'Lora, serif',
         paddingInline: `${horizontalPaddingPerSide}px`,
@@ -233,7 +243,7 @@ export function ReaderEngine({ paragraphs, onCenterTap }: ReaderEngineProps) {
               key={i}
               className="mb-4 leading-relaxed"
               style={{
-                fontSize: `${READER_FONT_SIZE}px`,
+                fontSize: `${fontSize}px`,
                 lineHeight: READER_LINE_HEIGHT,
                 color: 'var(--color-text)',
                 fontFamily: 'Lora, serif',

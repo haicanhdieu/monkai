@@ -15,7 +15,12 @@ export class LocalforageStorageService implements StorageService {
     try {
       await localforage.setItem(key, value)
     } catch (err) {
-      console.error('[StorageService] setItem failed:', err)
+      if (err instanceof Error && err.name === 'QuotaExceededError') {
+        console.warn('[StorageService] QuotaExceededError — storage full')
+        window.dispatchEvent(new CustomEvent('storage-quota-exceeded'))
+      } else {
+        console.error('[StorageService] setItem failed:', err)
+      }
       // Do NOT rethrow — UI must continue with in-memory state
     }
   }

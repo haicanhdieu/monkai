@@ -1,7 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReaderEngine } from '@/features/reader/ReaderEngine'
 import { useReaderStore } from '@/stores/reader.store'
+import { useSettingsStore } from '@/stores/settings.store'
 
 vi.mock('@/shared/services/storage.service', () => ({
   storageService: { setItem: vi.fn().mockResolvedValue(undefined) },
@@ -30,6 +31,7 @@ beforeEach(() => {
   vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(100)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(90)
   useReaderStore.getState().reset()
+  useSettingsStore.setState({ fontSize: 18, theme: 'sepia' })
 })
 
 // 50 paragraphs ensures multiple pages (capacity ~21/page with JSDOM innerHeight=768, fontSize=18, lineHeight=1.6, padding=80)
@@ -201,6 +203,32 @@ describe('ReaderEngine — page progress (AC 7 of 3.3)', () => {
     await renderEngine()
     const progress = screen.getByTestId('page-progress')
     expect(progress.textContent).toMatch(/^1 \/ \d+$/)
+  })
+})
+
+describe('ReaderEngine — font size change resets page (AC 2 of 5.1)', () => {
+  it('resets to page 0 when fontSize changes from settings store', async () => {
+    await renderEngine()
+    // Navigate to a non-zero page
+    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
+    const afterForward = useReaderStore.getState().currentPage
+    expect(afterForward).toBeGreaterThan(0)
+
+    // Simulate user changing font size via the settings store
+    act(() => {
+      useSettingsStore.setState({ fontSize: 22 })
+    })
+
+    await waitFor(() => {
+      expect(useReaderStore.getState().currentPage).toBe(0)
+    })
+  })
+
+  it('does NOT reset page on initial mount (preserves hydrated position)', async () => {
+    // Mount engine with default fontSize — prevFontSizeRef guard should prevent a reset
+    await renderEngine()
+    // No fontSize change occurred — page should remain at 0 (initial), not reset
+    expect(useReaderStore.getState().currentPage).toBe(0)
   })
 })
 
