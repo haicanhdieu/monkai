@@ -50,7 +50,7 @@ development_status:
   # Migrate existing crawler to apps/crawler/ and establish apps/ layout
   # PREREQUISITE: Must complete before any Phase 2 code is written
   # ─────────────────────────────────────────────────────────────────
-  epic-0: in-progress
+  epic-0: done
   0-1-migrate-crawler-to-apps-crawler-and-establish-monorepo-layout: done
   epic-0-retrospective: optional
 
@@ -80,31 +80,31 @@ development_status:
   # Epic 3: Immersive Sutra Reader
   # Pagination engine, chromeless reader, tap/swipe, error states
   # ─────────────────────────────────────────────────────────────────
-  epic-3: in-progress
-  3-1-pagination-engine-pure-typescript: review
-  3-2-reader-page-and-book-data-loading: review
-  3-3-readerengine-paginated-reading-with-tap-and-swipe: review
-  3-4-chromelesslayout-immersive-reading-mode: review
-  3-5-reader-error-states-and-loading-polish: review
+  epic-3: done
+  3-1-pagination-engine-pure-typescript: done
+  3-2-reader-page-and-book-data-loading: done
+  3-3-readerengine-paginated-reading-with-tap-and-swipe: done
+  3-4-chromelesslayout-immersive-reading-mode: done
+  3-5-reader-error-states-and-loading-polish: done
   epic-3-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────
   # Epic 4: Offline Reading & Seamless Continuity
   # StorageService, progress resume, book-data cache, background sync, bookmarks
   # ─────────────────────────────────────────────────────────────────
-  epic-4: in-progress
-  4-1-storageservice-layer: ready-for-dev
-  4-2-reading-progress-persistence-and-resume: ready-for-dev
-  4-3-full-book-data-offline-caching: ready-for-dev
-  4-4-background-catalog-sync: ready-for-dev
-  4-5-bookmarks-view: ready-for-dev
+  epic-4: done
+  4-1-storageservice-layer: done
+  4-2-reading-progress-persistence-and-resume: done
+  4-3-full-book-data-offline-caching: done
+  4-4-background-catalog-sync: done
+  4-5-bookmarks-view: done
   epic-4-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────────
   # Epic 5: Reading Personalization
   # Font size, Sepia/Light/Dark themes, settings page, storage management
   # ─────────────────────────────────────────────────────────────────
-  epic-5: in-progress
+  epic-5: done
   5-1-font-size-control-and-pagination-reflow: done
   5-2-reading-themes-sepia-light-and-dark: done
   5-3-settings-page-and-offline-storage-management: done
