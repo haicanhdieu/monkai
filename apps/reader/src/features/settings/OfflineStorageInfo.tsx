@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
 import { useQueryClient } from '@tanstack/react-query'
 
 export function OfflineStorageInfo() {
@@ -57,9 +58,14 @@ export function OfflineStorageInfo() {
           Không thể đọc dung lượng bộ nhớ
         </p>
       ) : (
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          Đã dùng: {usedMB !== null ? `${usedMB} MB` : '…'}
-        </p>
+        <>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Đã dùng: {usedMB !== null ? `${usedMB} MB` : '…'}
+          </p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {OFFLINE_COPY.settingsExplanation}
+          </p>
+        </>
       )}
       {quotaError && (
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>

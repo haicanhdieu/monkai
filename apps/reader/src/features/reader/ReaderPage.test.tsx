@@ -9,8 +9,12 @@ import type { Book } from '@/shared/types/global.types'
 
 // Mock useBook to control fetch state
 const mockUseBook = vi.fn()
+const mockUseOnlineStatus = vi.fn()
 vi.mock('@/shared/hooks/useBook', () => ({
   useBook: (id: string) => mockUseBook(id),
+}))
+vi.mock('@/shared/hooks/useOnlineStatus', () => ({
+  useOnlineStatus: () => mockUseOnlineStatus(),
 }))
 
 const mockGetItem = vi.fn()
@@ -72,6 +76,7 @@ function renderReaderPage(bookId = 'bat-nha', locationState?: { page?: number })
 describe('ReaderPage', () => {
   beforeEach(() => {
     mockUseBook.mockReset()
+    mockUseOnlineStatus.mockReturnValue(true)
     mockGetItem.mockReset()
     mockGetItem.mockResolvedValue(null)
     useReaderStore.getState().reset()
@@ -114,7 +119,7 @@ describe('ReaderPage', () => {
     expect(screen.getByText('Không thể tìm thấy nội dung kinh này.')).toBeInTheDocument()
   })
 
-  it('shows network error message when book fails to fetch (offline)', () => {
+  it('shows network error message when book fails to fetch', () => {
     mockUseBook.mockReturnValue({
       isLoading: false,
       data: undefined,
@@ -124,6 +129,22 @@ describe('ReaderPage', () => {
     expect(
       screen.getByText(
         'Nội dung này chưa được tải về. Vui lòng kết nối mạng và thử lại.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('back-to-library')).toBeInTheDocument()
+  })
+
+  it('shows offline guidance when book network error and user is offline', () => {
+    mockUseBook.mockReturnValue({
+      isLoading: false,
+      data: undefined,
+      error: new DataError('network', 'Network failed'),
+    })
+    mockUseOnlineStatus.mockReturnValue(false)
+    renderReaderPage()
+    expect(
+      screen.getByText(
+        'Sách này chưa có trong bộ nhớ đệm. Hãy kết nối mạng, mở sách một lần, sau đó bạn có thể đọc offline.',
       ),
     ).toBeInTheDocument()
     expect(screen.getByTestId('back-to-library')).toBeInTheDocument()

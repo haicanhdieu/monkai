@@ -3,10 +3,14 @@ import { buildLibraryCategories } from '@/features/library/library.utils'
 import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
+import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
+import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
+import { DataError } from '@/shared/services/data.service'
 import { HamburgerMenuIcon, PersonIcon } from '@radix-ui/react-icons'
 
 export default function LibraryPage() {
   const catalogQuery = useCatalogIndex()
+  const isOnline = useOnlineStatus()
 
   if (catalogQuery.isLoading) {
     return (
@@ -50,10 +54,22 @@ export default function LibraryPage() {
   }
 
   if (catalogQuery.error || !catalogQuery.data) {
+    const isOffline = !isOnline
+    const showOfflineMessage =
+      catalogQuery.error instanceof DataError &&
+      catalogQuery.error.category === 'network' &&
+      isOffline
     return (
       <div className="px-4 pb-24 pt-4">
         <h1 className="mb-4 text-xl font-bold tracking-tight">Thư Viện</h1>
-        <ErrorPage />
+        {showOfflineMessage ? (
+          <ErrorPage
+            title={OFFLINE_COPY.catalogOfflineTitle}
+            description={OFFLINE_COPY.catalogOfflineDescription}
+          />
+        ) : (
+          <ErrorPage />
+        )}
       </div>
     )
   }

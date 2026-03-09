@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { useBook } from '@/shared/hooks/useBook'
+import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { useReaderStore } from '@/stores/reader.store'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
@@ -15,6 +16,7 @@ export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
   const { state: locationState } = useLocation() as { state?: { page?: number } }
   const { data: book, isLoading, error } = useBook(bookId)
+  const isOnline = useOnlineStatus()
   const { setBookId, setBookTitle, setPages, setPageBoundaries, setCurrentPage } = useReaderStore()
 
   const pageFromBookmark =
@@ -70,7 +72,7 @@ export default function ReaderPage() {
   if (error || !book) {
     const category: DataErrorCategory =
       error instanceof DataError ? error.category : 'unknown'
-    return <ReaderErrorPage category={category} />
+    return <ReaderErrorPage category={category} isOffline={!isOnline} />
   }
 
   return (
