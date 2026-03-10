@@ -97,9 +97,13 @@ export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap
   totalDisplayPagesRef.current = totalDisplayPages
 
   // Sync computed pages into store when pagination result changes; clamp currentPage to [0, totalDisplayPages - 1]
-  // Deps use length so we don't re-run every render (pages/boundaries are new refs from useDOMPagination); read latest from refs
+  // Only run when pagination is ready so we don't overwrite bookmark page (e.g. 15) with clamp to 0 while result is still null.
+  // paginationResult in deps re-runs when result becomes available or after re-measurement (useDOMPagination returns stable reference until then).
+  // pages.length/boundaries.length in deps avoid re-running every render (pages/boundaries are new refs from hook); we read latest from refs.
+  // When result is non-null but pages empty (e.g. no content), we still sync and clamp so store stays consistent.
   const lastSyncedPagesLengthRef = useRef(-1)
   useEffect(() => {
+    if (paginationResult === null) return
     const currentPages = pagesRef.current
     const currentBoundaries = boundariesRef.current
     const totalPages = totalDisplayPagesRef.current
@@ -112,7 +116,7 @@ export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap
     if (state.currentPage > totalPages - 1) {
       setCurrentPage(totalPages - 1)
     }
-  }, [pages.length, boundaries.length, totalDisplayPages, setCurrentPage, setPages, setPageBoundaries])
+  }, [paginationResult, pages.length, boundaries.length, totalDisplayPages, setCurrentPage, setPages, setPageBoundaries])
 
   // Reset to page 1 when font size changes (skip on initial mount to preserve hydrated lastReadPosition)
   const prevFontSizeRef = useRef(fontSize)

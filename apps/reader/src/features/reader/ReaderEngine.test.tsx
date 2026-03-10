@@ -256,6 +256,41 @@ describe('ReaderEngine — font size change resets page (AC 2 of 5.1)', () => {
   })
 })
 
+// Bookmark page index used to test out-of-range clamp; must exceed any page count from PARAGRAPHS under JSDOM.
+const BOOKMARK_PAGE_OUT_OF_RANGE = 99
+
+describe('ReaderEngine — bookmark page restore (sync effect guard)', () => {
+  it('preserves currentPage from bookmark when pagination completes (does not clamp to 0)', async () => {
+    // Simulate ReaderPage having set currentPage from location state (e.g. bookmark on page 10)
+    useReaderStore.setState({
+      bookId: 'test-book',
+      bookTitle: 'Test',
+      currentPage: 10,
+      pages: [],
+      pageBoundaries: [0],
+    })
+    await renderEngine(PARAGRAPHS)
+    // After pagination completes, store must still show bookmark page 10 (not clamped to 0)
+    expect(useReaderStore.getState().currentPage).toBe(10)
+    // UI must show content for that page, not the cover (AC 2: reader displays page N)
+    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
+    expect(screen.getByTestId('reader-text-column')).toBeInTheDocument()
+  })
+
+  it('clamps currentPage to last page when bookmark page exceeds total display pages', async () => {
+    useReaderStore.setState({
+      bookId: 'test-book',
+      bookTitle: 'Test',
+      currentPage: BOOKMARK_PAGE_OUT_OF_RANGE,
+      pages: [],
+      pageBoundaries: [0],
+    })
+    await renderEngine(PARAGRAPHS)
+    const { currentPage, pages } = useReaderStore.getState()
+    expect(currentPage).toBe(pages.length)
+  })
+})
+
 describe('ReaderEngine — storage persistence (AC 1 of 4.2)', () => {
   it('calls storageService.setItem with LAST_READ_POSITION when navigating to next page', async () => {
     useReaderStore.setState({ bookId: 'kinh-test', bookTitle: 'Kinh Test', currentPage: 0 })
