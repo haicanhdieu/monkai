@@ -1,12 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { SutraListCard } from '@/features/library/SutraListCard'
 import { getCategoryBySlug } from '@/features/library/library.utils'
+import { AppBar } from '@/shared/components/AppBar'
 import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { DataError } from '@/shared/services/data.service'
-import { ArrowLeftIcon } from '@radix-ui/react-icons'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
 import { ROUTES } from '@/shared/constants/routes'
 
@@ -69,21 +69,14 @@ export default function CategoryPage() {
 
   return (
     <div className="pb-24">
-      <header className="mb-4 border-b px-4 pb-4 pt-4" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="mb-3 flex items-center gap-2">
-          <Link
-            to={ROUTES.LIBRARY}
-            className="flex h-10 w-10 items-center justify-center rounded-full"
-            aria-label="Quay lại thư viện"
-          >
-            <ArrowLeftIcon className="h-5 w-5" aria-hidden="true" />
-          </Link>
-          <h1 className="text-xl font-bold tracking-tight">{selectedCategory.displayName}</h1>
-        </div>
+      <AppBar
+        title={selectedCategory.displayName}
+        backTo={ROUTES.LIBRARY}
+      >
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
           {selectedCategory.count} kinh sách
         </p>
-      </header>
+      </AppBar>
 
       <div className="space-y-3 px-4">
         {selectedCategory.books.map((book) => (

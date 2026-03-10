@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
@@ -15,7 +15,18 @@ interface ChromelessLayoutProps {
 }
 
 export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLayoutProps) {
+  const navigate = useNavigate()
   const { isChromeVisible, toggleChrome, hasSeenHint, dismissHint, currentPage, pages } = useReaderStore()
+
+  // history.length can be unreliable in iframes or some browser contexts; fallback to Library when uncertain.
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate(ROUTES.LIBRARY)
+    }
+  }
+  const backButtonRef = useRef<HTMLButtonElement>(null)
   const totalPages = hasCoverPage ? 1 + pages.length : pages.length
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -61,6 +72,15 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
   }, []) // stable via ref
 
   const chromeHidden = !isChromeVisible
+  const prevChromeVisibleRef = useRef(isChromeVisible)
+
+  // When chrome becomes visible (e.g. via Escape), move focus to back button for keyboard users (F8).
+  useEffect(() => {
+    if (isChromeVisible && !prevChromeVisibleRef.current) {
+      backButtonRef.current?.focus()
+    }
+    prevChromeVisibleRef.current = isChromeVisible
+  }, [isChromeVisible])
 
   return (
     <div
@@ -81,15 +101,18 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
         aria-label="Điều hướng đầu trang"
         data-testid="chrome-top-bar"
       >
-        <Link
-          to={ROUTES.LIBRARY}
-          className="text-sm"
+        <button
+          ref={backButtonRef}
+          type="button"
+          onClick={handleBack}
+          className="text-sm bg-transparent border-none cursor-pointer p-0 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
           style={{ color: 'var(--color-text-muted)' }}
           tabIndex={chromeHidden ? -1 : 0}
           aria-label="Về Thư viện"
+          data-testid="chrome-back"
         >
           ← Thư viện
-        </Link>
+        </button>
         <h1
           className="flex-1 text-center text-sm font-medium truncate px-4"
           style={{ color: 'var(--color-text)', fontFamily: 'Inter, sans-serif' }}

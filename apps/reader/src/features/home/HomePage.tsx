@@ -1,7 +1,9 @@
 import { useState, useRef, useLayoutEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ReaderIcon, BookmarkIcon, SunIcon, BellIcon, ChevronRightIcon } from '@radix-ui/react-icons'
+import { ReaderIcon, BookmarkIcon, ChevronRightIcon, PersonIcon } from '@radix-ui/react-icons'
+import { AppLogo } from '@/shared/components/AppLogo'
 import { ROUTES, toRead } from '@/shared/constants/routes'
+import { AppBar } from '@/shared/components/AppBar'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
@@ -163,70 +165,64 @@ function ContinueReadingCard() {
 
 export default function HomePage() {
   return (
-    <div className="px-6 pb-24 pt-8">
-      <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+    <div className="pb-24">
+      <AppBar
+        title="Trang Chủ"
+        leftIcon={<AppLogo />}
+        rightSlot={
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-full border"
+            style={{ borderColor: 'var(--color-border)' }}
           >
-            <SunIcon className="h-5 w-5 text-white" aria-hidden="true" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Trang Chủ</h1>
-        </div>
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-full border"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            borderColor: 'var(--color-border)',
-          }}
-          aria-hidden="true"
-        >
-          <BellIcon className="h-5 w-5" aria-hidden="true" />
-        </div>
-      </header>
+            <PersonIcon className="h-4 w-4 text-[var(--color-accent)]" aria-hidden="true" />
+          </span>
+        }
+      />
+      <div className="px-6">
+        <div className="mb-8" />
 
-      <ContinueReadingCard />
+        <ContinueReadingCard />
 
-      <section className="mb-8" aria-label="Truy cập nhanh">
-        <div className="grid grid-cols-2 gap-4">
-          {quickActions.map((action) => (
-            <Link
-              key={action.label}
-              to={action.to}
-              className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 text-center transition-colors hover:brightness-95"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                borderColor: 'var(--color-border)',
-              }}
-            >
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-xl"
-                style={{ backgroundColor: 'var(--color-background)' }}
+        <section className="mb-8" aria-label="Truy cập nhanh">
+          <div className="grid grid-cols-2 gap-4">
+            {quickActions.map((action) => (
+              <Link
+                key={action.label}
+                to={action.to}
+                className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-5 text-center transition-colors hover:brightness-95"
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  borderColor: 'var(--color-border)',
+                }}
               >
-                {action.icon}
-              </div>
-              <span className="text-sm font-semibold">{action.label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: 'var(--color-background)' }}
+                >
+                  {action.icon}
+                </div>
+                <span className="text-sm font-semibold">{action.label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
 
-      <section aria-label="Lời Phật dạy hôm nay">
-        <h2 className="mb-4 text-lg font-semibold">Lời Phật dạy hôm nay</h2>
-        <blockquote
-          className="rounded-r-xl border-l-4 px-5 py-4 text-sm leading-relaxed italic"
-          style={{
-            borderColor: 'var(--color-accent)',
-            backgroundColor: 'var(--color-surface)',
-          }}
-        >
-          Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ.
-          <footer className="mt-3 text-xs not-italic font-semibold text-[var(--color-accent)]">
-            — Trích Kinh Di Giáo
-          </footer>
-        </blockquote>
-      </section>
+        <section aria-label="Lời Phật dạy hôm nay">
+          <h2 className="mb-4 text-lg font-semibold">Lời Phật dạy hôm nay</h2>
+          <blockquote
+            className="rounded-r-xl border-l-4 px-5 py-4 text-sm leading-relaxed italic"
+            style={{
+              borderColor: 'var(--color-accent)',
+              backgroundColor: 'var(--color-surface)',
+            }}
+          >
+            Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ.
+            <footer className="mt-3 text-xs not-italic font-semibold text-[var(--color-accent)]">
+              — Trích Kinh Di Giáo
+            </footer>
+          </blockquote>
+        </section>
+      </div>
     </div>
   )
 }

@@ -4,6 +4,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChromelessLayout } from '@/features/reader/ChromelessLayout'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
+import { ROUTES } from '@/shared/constants/routes'
+
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
+
+let savedHistory: History | undefined
 
 const bookFixture: Book = {
   id: 'bat-nha',
@@ -29,10 +41,19 @@ describe('ChromelessLayout', () => {
   beforeEach(() => {
     useReaderStore.getState().reset()
     vi.useFakeTimers()
+    mockNavigate.mockClear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    if (savedHistory !== undefined) {
+      Object.defineProperty(window, 'history', {
+        value: savedHistory,
+        writable: true,
+        configurable: true,
+      })
+      savedHistory = undefined
+    }
   })
 
   // AC 1 — chrome visible: bars are visible
@@ -125,5 +146,50 @@ describe('ChromelessLayout', () => {
   it('renders children inside the layout', () => {
     renderLayout()
     expect(screen.getByTestId('reader-content')).toBeInTheDocument()
+  })
+
+  // Back control: navigate(-1) when history has more than one entry
+  it('calls navigate(-1) when back is clicked and history.length > 1', () => {
+    savedHistory = window.history
+    Object.defineProperty(window, 'history', {
+      value: { length: 2 },
+      writable: true,
+      configurable: true,
+    })
+    renderLayout()
+    const backControl = screen.getByRole('button', { name: 'Về Thư viện' })
+    act(() => {
+      backControl.click()
+    })
+    expect(mockNavigate).toHaveBeenCalledWith(-1)
+  })
+
+  // Back control: fallback to Library when history.length is 1
+  it('navigates to Library when back is clicked and history.length is 1', () => {
+    savedHistory = window.history
+    Object.defineProperty(window, 'history', {
+      value: { length: 1 },
+      writable: true,
+      configurable: true,
+    })
+    renderLayout()
+    const backControl = screen.getByRole('button', { name: 'Về Thư viện' })
+    act(() => {
+      backControl.click()
+    })
+    expect(mockNavigate).toHaveBeenCalledWith(ROUTES.LIBRARY)
+  })
+
+  // hasCoverPage=false: totalPages = pages.length (no cover offset)
+  it('displays page count without cover offset when hasCoverPage is false', () => {
+    useReaderStore.setState({ pages: [['trang 1'], ['trang 2']], currentPage: 0 })
+    render(
+      <MemoryRouter>
+        <ChromelessLayout book={bookFixture} hasCoverPage={false}>
+          <div />
+        </ChromelessLayout>
+      </MemoryRouter>,
+    )
+    expect(screen.getByTestId('chrome-bottom-bar')).toHaveTextContent('1 / 2')
   })
 })

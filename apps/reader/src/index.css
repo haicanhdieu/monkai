@@ -36,6 +36,7 @@
   --color-accent: #C8883A;
   --color-surface: #EDE0C4;
   --color-border: #D4C4A0;
+  --color-app-bar-border: #B8A9C9;
 }
 
 .theme-light {
@@ -45,6 +46,7 @@
   --color-accent: #C8883A;
   --color-surface: #F5F5F5;
   --color-border: #E0E0E0;
+  --color-app-bar-border: #B8A9C9;
 }
 
 .theme-dark {
@@ -54,6 +56,7 @@
   --color-accent: #D4944A;
   --color-surface: #2A1E0F;
   --color-border: #3D2B1F;
+  --color-app-bar-border: #5A4D6B;
 }
 
 body {
