@@ -167,6 +167,7 @@ export default function HomePage() {
   return (
     <div className="pb-24">
       <AppBar
+        sticky
         title="Trang Chủ"
         leftIcon={<AppLogo />}
         rightSlot={

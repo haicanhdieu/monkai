@@ -1,5 +1,8 @@
-import { LibrarySearchHub } from '@/features/library/LibrarySearchHub'
 import { buildLibraryCategories } from '@/features/library/library.utils'
+import { useLibrarySearch } from '@/features/library/useLibrarySearch'
+import { LibrarySearchBar } from '@/features/library/LibrarySearchBar'
+import { CategoryGrid } from '@/features/library/CategoryGrid'
+import { SearchResults } from '@/features/library/SearchResults'
 import { AppBar } from '@/shared/components/AppBar'
 import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
@@ -13,11 +16,15 @@ import { AppLogo } from '@/shared/components/AppLogo'
 export default function LibraryPage() {
   const catalogQuery = useCatalogIndex()
   const isOnline = useOnlineStatus()
+  const { query, setQuery, clearQuery, debouncedQuery, normalizedQuery, results } = useLibrarySearch(
+    catalogQuery.data?.books ?? [],
+  )
 
   if (catalogQuery.isLoading) {
     return (
       <div className="pb-24">
         <AppBar
+          sticky
           title="Thư Viện"
           leftIcon={<AppLogo />}
           rightSlot={
@@ -64,6 +71,7 @@ export default function LibraryPage() {
     return (
       <div className="pb-24">
         <AppBar
+          sticky
           title="Thư Viện"
           leftIcon={<AppLogo />}
           rightSlot={
@@ -107,18 +115,33 @@ export default function LibraryPage() {
           </span>
         }
       >
-        <LibrarySearchHub categories={categories} books={catalogQuery.data.books} contentClassName="pt-5" />
+        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} />
       </AppBar>
 
-      <section className="px-4 pt-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold tracking-tight">Danh mục</h2>
-          <span className="text-sm font-medium text-[var(--color-accent)]">{categories.length} nhóm</span>
-        </div>
-        <p className="mb-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          Khám phá theo thể loại hoặc tìm nhanh bằng từ khóa.
-        </p>
-      </section>
+      <div className="px-4 pt-5">
+        {normalizedQuery ? (
+          <>
+            <p
+              className="mb-3 px-2 text-xs font-semibold uppercase tracking-widest"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              Kết quả tìm kiếm
+            </p>
+            <SearchResults query={debouncedQuery} results={results} />
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold tracking-tight">Danh mục</h2>
+              <span className="text-sm font-medium text-[var(--color-accent)]">{categories.length} nhóm</span>
+            </div>
+            <p className="mb-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              Khám phá theo thể loại hoặc tìm nhanh bằng từ khóa.
+            </p>
+            <CategoryGrid categories={categories} />
+          </>
+        )}
+      </div>
     </div>
   )
 }

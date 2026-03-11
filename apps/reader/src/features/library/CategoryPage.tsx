@@ -70,6 +70,7 @@ export default function CategoryPage() {
   return (
     <div className="pb-24">
       <AppBar
+        sticky
         title={selectedCategory.displayName}
         backTo={ROUTES.LIBRARY}
       >

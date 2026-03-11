@@ -13,6 +13,7 @@ export default function BookmarksPage() {
   return (
     <div className="pb-24">
       <AppBar
+        sticky
         title="Đánh Dấu"
         leftIcon={<AppLogo />}
         rightSlot={

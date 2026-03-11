@@ -9,6 +9,7 @@ export default function SettingsPage() {
   return (
     <div className="pb-24">
       <AppBar
+        sticky
         title="Cài Đặt"
         leftIcon={<AppLogo />}
         rightSlot={

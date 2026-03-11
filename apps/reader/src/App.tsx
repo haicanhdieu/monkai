@@ -24,7 +24,7 @@ function AppShell() {
   const isReaderRoute = location.pathname.startsWith('/read/')
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
+    <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
       <OfflineBanner />
       <SwUpdateBanner />
       <main className="flex-1 overflow-auto pb-16">
