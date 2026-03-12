@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDOMPagination } from './useDOMPagination'
 import { useReaderStore } from '@/stores/reader.store'
-import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { storageService } from '@/shared/services/storage.service'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
-import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { PageProgress } from './PageProgress'
+
+// TODO: epub.js rewrite in Story 2.2
+// ReaderEngine is being replaced with an epub.js-based reader. The DOM pagination
+// engine (useDOMPagination), page/store sync, and storage persistence logic here
+// are stubs kept to maintain a compiling, renderable state after the reader.store
+// CFI migration (Story 3.1). Full rewrite in Story 2.2.
 
 // Default reader font metrics — consistent with body typography
 const READER_LINE_HEIGHT = 1.6
@@ -31,7 +34,8 @@ interface ReaderEngineProps {
 }
 
 export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap }: ReaderEngineProps) {
-  const { bookId, currentPage, setPages, setCurrentPage, setPageBoundaries } = useReaderStore()
+  // TODO: epub.js rewrite in Story 2.2 — currentPage is local state (not in reader.store after CFI migration)
+  const [currentPage, setCurrentPage] = useState(0)
   const { fontSize } = useSettingsStore()
   const [fontsReady, setFontsReady] = useState(false)
   const [coverError, setCoverError] = useState(false)
@@ -70,11 +74,12 @@ export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap
   const availableHeight = viewport.height - Math.max(0, READER_PADDING_BOTTOM)
 
   // null = not yet computed; show skeleton until first measurement completes
+  // TODO: epub.js rewrite in Story 2.2 — bookId stub ('' until epub.js provides it)
   const paginationResult = useDOMPagination(
     paragraphs,
     measureRef,
     {
-      bookId,
+      bookId: '', // TODO: epub.js rewrite in Story 2.2
       availableHeight,
       columnWidth: readerColumnMaxWidth,
       fontSize,
@@ -96,27 +101,17 @@ export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap
   const totalDisplayPagesRef = useRef(totalDisplayPages)
   totalDisplayPagesRef.current = totalDisplayPages
 
-  // Sync computed pages into store when pagination result changes; clamp currentPage to [0, totalDisplayPages - 1]
-  // Only run when pagination is ready so we don't overwrite bookmark page (e.g. 15) with clamp to 0 while result is still null.
-  // paginationResult in deps re-runs when result becomes available or after re-measurement (useDOMPagination returns stable reference until then).
-  // pages.length/boundaries.length in deps avoid re-running every render (pages/boundaries are new refs from hook); we read latest from refs.
-  // When result is non-null but pages empty (e.g. no content), we still sync and clamp so store stays consistent.
+  // Clamp currentPage to valid range when pagination result changes
+  // TODO: epub.js rewrite in Story 2.2 — store sync (setPages, setPageBoundaries) removed
   const lastSyncedPagesLengthRef = useRef(-1)
   useEffect(() => {
     if (paginationResult === null) return
-    const currentPages = pagesRef.current
-    const currentBoundaries = boundariesRef.current
+    lastSyncedPagesLengthRef.current = pagesRef.current.length
     const totalPages = totalDisplayPagesRef.current
-    if (currentPages.length !== lastSyncedPagesLengthRef.current) {
-      lastSyncedPagesLengthRef.current = currentPages.length
-      setPages(currentPages)
-      setPageBoundaries(currentBoundaries)
-    }
-    const state = useReaderStore.getState()
-    if (state.currentPage > totalPages - 1) {
+    if (currentPage > totalPages - 1) {
       setCurrentPage(totalPages - 1)
     }
-  }, [paginationResult, pages.length, boundaries.length, totalDisplayPages, setCurrentPage, setPages, setPageBoundaries])
+  }, [paginationResult, pages.length, boundaries.length, totalDisplayPages, currentPage])
 
   // Reset to page 1 when font size changes (skip on initial mount to preserve hydrated lastReadPosition)
   const prevFontSizeRef = useRef(fontSize)
@@ -125,31 +120,27 @@ export function ReaderEngine({ paragraphs, coverImageUrl, bookTitle, onCenterTap
       prevFontSizeRef.current = fontSize
       setCurrentPage(0)
     }
-  }, [fontSize, setCurrentPage])
+  }, [fontSize])
 
-  // Persist page change to storage and update bookmarks store (include totalPages for home display after refresh)
-  const persistPageChange = (page: number) => {
-    const { bookId: id, bookTitle: title } = useReaderStore.getState()
-    const totalPages = totalDisplayPagesRef.current
-    void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId: id, page, totalPages })
-    useBookmarksStore.getState().upsertBookmark({ bookId: id, bookTitle: title, page, timestamp: Date.now() })
-    void storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)
+  // TODO: epub.js rewrite in Story 2.2 — persistPageChange will use CFI-based storage.
+  // No-op stub: writing empty CFI/bookId would corrupt any valid LAST_READ_POSITION
+  // saved from a previous session. Full implementation in Story 2.2.
+  const persistPageChange = (_page: number) => {
+    // intentional no-op until epub.js CFI navigation is wired in Story 2.2
   }
 
   // Navigation helpers — page 0 = cover, 1+ = content; totalDisplayPages = 1 + content pages
   const navigateNext = () => {
-    const state = useReaderStore.getState()
-    if (state.currentPage < totalDisplayPagesRef.current - 1) {
-      const nextPage = state.currentPage + 1
+    if (currentPage < totalDisplayPagesRef.current - 1) {
+      const nextPage = currentPage + 1
       setCurrentPage(nextPage)
       persistPageChange(nextPage)
     }
   }
 
   const navigatePrev = () => {
-    const state = useReaderStore.getState()
-    if (state.currentPage > 0) {
-      const prevPage = state.currentPage - 1
+    if (currentPage > 0) {
+      const prevPage = currentPage - 1
       setCurrentPage(prevPage)
       persistPageChange(prevPage)
     }

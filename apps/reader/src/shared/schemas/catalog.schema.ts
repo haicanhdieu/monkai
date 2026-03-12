@@ -17,6 +17,7 @@ const rawCatalogBookSchema = z.object({
   category_seo_name: z.string().optional(),
   cover_image_url: z.string().nullable().optional(),
   artifacts: z.array(catalogArtifactSchema).optional(),
+  epubUrl: z.string().optional(),
 })
 
 const rawCatalogSchema = z.object({
@@ -46,6 +47,7 @@ function toCatalogBook(raw: z.infer<typeof rawCatalogBookSchema>): CatalogBook {
       format: a.format,
       path: a.path,
     })),
+    epubUrl: raw.epubUrl,
   }
 }
 

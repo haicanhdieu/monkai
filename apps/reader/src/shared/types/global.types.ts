@@ -22,6 +22,7 @@ export interface CatalogBook {
   translator: string
   coverImageUrl: string | null
   artifacts: CatalogArtifact[]
+  epubUrl?: string
 }
 
 export interface CatalogIndex {

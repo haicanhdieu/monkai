@@ -52,10 +52,10 @@ describe('paginateBook — return shape', () => {
     expect(result.boundaries[0]).toBe(0)
   })
 
-  it('boundaries are monotonically increasing', () => {
+  it('boundaries are monotonically non-decreasing', () => {
     const result = paginateBook(makeParagraphs(200), STANDARD_OPTIONS)
     for (let i = 1; i < result.boundaries.length; i++) {
-      expect(result.boundaries[i]).toBeGreaterThan(result.boundaries[i - 1])
+      expect(result.boundaries[i]).toBeGreaterThanOrEqual(result.boundaries[i - 1])
     }
   })
 })
@@ -107,17 +107,83 @@ describe('paginateBook — font size effect', () => {
 // ─── Overlong single paragraph ────────────────────────────────────────────────
 
 describe('paginateBook — overlong single paragraph', () => {
-  it('places single paragraph on its own page without crashing', () => {
+  it('splits overlong paragraph without crashing', () => {
     const tinyOptions: PaginationOptions = {
       viewportHeight: 10,
       fontSize: 16,
       lineHeight: 1.5,
       paddingVertical: 0,
+      viewportWidth: 320,
     }
     const result = paginateBook(['A single paragraph.'], tinyOptions)
-    expect(result.pages).toHaveLength(1)
-    expect(result.pages[0]).toEqual(['A single paragraph.'])
-    expect(result.boundaries).toEqual([0])
+    expect(result.pages.length).toBeGreaterThanOrEqual(1)
+    // Content preserved
+    const allText = result.pages.flat().join(' ')
+    expect(allText).toContain('A single paragraph.')
+    expect(result.boundaries[0]).toBe(0)
+  })
+})
+
+// ─── Overlong paragraph splitting ────────────────────────────────────────────
+
+describe('paginateBook — overlong paragraph splitting', () => {
+  const smallViewport: PaginationOptions = {
+    viewportHeight: 200,
+    fontSize: 16,
+    lineHeight: 1.5,
+    paddingVertical: 16,
+    viewportWidth: 375,
+  }
+
+  it('splits a paragraph that exceeds page height into multiple pages', () => {
+    const longPara = 'Namo Amitabha Buddha. '.repeat(200).trim()
+    const result = paginateBook([longPara], smallViewport)
+    expect(result.pages.length).toBeGreaterThan(1)
+    const allText = result.pages.flat().join(' ')
+    // Every word from original should appear
+    for (const word of ['Namo', 'Amitabha', 'Buddha.']) {
+      expect(allText).toContain(word)
+    }
+  })
+
+  it('preserves all text content when splitting (zero loss)', () => {
+    const longPara = Array.from({ length: 300 }, (_, i) => `word${i}`).join(' ')
+    const result = paginateBook([longPara], smallViewport)
+    const allText = result.pages.flat().join(' ')
+    for (let i = 0; i < 300; i++) {
+      expect(allText).toContain(`word${i}`)
+    }
+  })
+
+  it('split sub-pages share the same boundary index', () => {
+    const longPara = 'Test word for splitting. '.repeat(200).trim()
+    const result = paginateBook([longPara], smallViewport)
+    expect(result.pages.length).toBeGreaterThan(1)
+    // All boundary entries should be 0 (index of the single paragraph)
+    for (const b of result.boundaries) {
+      expect(b).toBe(0)
+    }
+  })
+
+  it('handles paragraph spanning 3+ pages', () => {
+    const veryLong = 'Buddha dharma sangha. '.repeat(500).trim()
+    const result = paginateBook([veryLong], smallViewport)
+    expect(result.pages.length).toBeGreaterThanOrEqual(3)
+    const allText = result.pages.flat().join(' ')
+    expect(allText).toContain('Buddha')
+    expect(allText).toContain('sangha.')
+  })
+
+  it('mixed normal and overlong paragraphs preserves all content', () => {
+    const short1 = 'Short paragraph one.'
+    const longPara = 'Namo Amitabha. '.repeat(200).trim()
+    const short2 = 'Short paragraph two.'
+    const result = paginateBook([short1, longPara, short2], smallViewport)
+    const allText = result.pages.flat().join(' ')
+    expect(allText).toContain(short1)
+    expect(allText).toContain('Namo Amitabha.')
+    expect(allText).toContain(short2)
+    expect(result.pages.length).toBeGreaterThan(3)
   })
 })
 

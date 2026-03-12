@@ -16,7 +16,7 @@ import { storageService } from '@/shared/services/storage.service'
 const mockStorageService = storageService as { getItem: ReturnType<typeof vi.fn> }
 
 beforeEach(() => {
-  useReaderStore.setState({ bookId: '', bookTitle: '', currentPage: 0 })
+  useReaderStore.setState({ currentCfi: null })
   useSettingsStore.setState({ fontSize: 18, theme: 'sepia' })
   useBookmarksStore.setState({ bookmarks: [] })
   vi.clearAllMocks()
@@ -24,10 +24,11 @@ beforeEach(() => {
 
 const UUID_BOOK_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const SEO_SLUG_BOOK_ID = 'vbeta__bo-trung-quan'
+const SAMPLE_CFI = 'epubcfi(/6/4[chap01]!/4/2/1:0)'
 
 describe('useStorageHydration', () => {
-  it('hydrates each store when persisted values use catalog UUIDs', async () => {
-    const lastRead = { bookId: UUID_BOOK_ID, page: 14 }
+  it('hydrates reader store with CFI when persisted value uses new shape', async () => {
+    const lastRead = { bookId: UUID_BOOK_ID, cfi: SAMPLE_CFI }
     const settings = { fontSize: 20, theme: 'dark' as const }
     const bookmarks = [{ bookId: UUID_BOOK_ID, bookTitle: 'Kinh Pháp Hoa', page: 14, timestamp: 1000 }]
 
@@ -38,8 +39,7 @@ describe('useStorageHydration', () => {
 
     const { unmount } = renderHook(() => useStorageHydration())
     await vi.waitFor(() => {
-      expect(useReaderStore.getState().bookId).toBe(UUID_BOOK_ID)
-      expect(useReaderStore.getState().currentPage).toBe(14)
+      expect(useReaderStore.getState().currentCfi).toBe(SAMPLE_CFI)
       expect(useSettingsStore.getState().fontSize).toBe(20)
       expect(useSettingsStore.getState().theme).toBe('dark')
       expect(useBookmarksStore.getState().bookmarks).toHaveLength(1)
@@ -47,13 +47,13 @@ describe('useStorageHydration', () => {
     unmount()
   })
 
-  it('does not hydrate reader or bookmarks stores when storage returns null', async () => {
+  it('does not hydrate reader store when storage returns null', async () => {
     mockStorageService.getItem
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
 
-    const hydrateSpy = vi.spyOn(useReaderStore.getState(), 'hydrate')
+    const setCurrentCfiSpy = vi.spyOn(useReaderStore.getState(), 'setCurrentCfi')
     const hydrateSettingsSpy = vi.spyOn(useSettingsStore.getState(), 'hydrate')
     const hydrateBookmarksSpy = vi.spyOn(useBookmarksStore.getState(), 'hydrate')
 
@@ -62,14 +62,15 @@ describe('useStorageHydration', () => {
       expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
     })
 
-    expect(hydrateSpy).not.toHaveBeenCalled()
+    expect(setCurrentCfiSpy).not.toHaveBeenCalled()
     expect(hydrateSettingsSpy).not.toHaveBeenCalled()
     expect(hydrateBookmarksSpy).not.toHaveBeenCalled()
     unmount()
   })
 
-  it('discards LAST_READ_POSITION with a legacy SEO-slug bookId', async () => {
-    const lastRead = { bookId: SEO_SLUG_BOOK_ID, page: 3 }
+  it('ignores LAST_READ_POSITION with old page-based shape (no cfi field)', async () => {
+    // Old shape: { bookId, page } — no cfi field
+    const lastRead = { bookId: UUID_BOOK_ID, page: 14 }
     mockStorageService.getItem
       .mockResolvedValueOnce(lastRead)
       .mockResolvedValueOnce(null)
@@ -79,8 +80,22 @@ describe('useStorageHydration', () => {
     await vi.waitFor(() => {
       expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
     })
-    // Store must not be hydrated with the stale SEO slug
-    expect(useReaderStore.getState().bookId).toBe('')
+    expect(useReaderStore.getState().currentCfi).toBeNull()
+    unmount()
+  })
+
+  it('discards LAST_READ_POSITION with a legacy SEO-slug bookId', async () => {
+    const lastRead = { bookId: SEO_SLUG_BOOK_ID, cfi: SAMPLE_CFI }
+    mockStorageService.getItem
+      .mockResolvedValueOnce(lastRead)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
+    })
+    expect(useReaderStore.getState().currentCfi).toBeNull()
     unmount()
   })
 

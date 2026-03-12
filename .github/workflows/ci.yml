@@ -47,6 +47,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Build EPUBs
+        run: pnpm run build:epubs
+
       - name: Build
         run: pnpm build
         env:

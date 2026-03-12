@@ -31,6 +31,59 @@ function writeCache(key: string, result: PageBoundaries): void {
 }
 
 /**
+ * Split an overlong paragraph (taller than one page) into word-based chunks
+ * that each fit within the measurement container's clientHeight.
+ */
+function splitOverlongParagraph(measureEl: HTMLDivElement, text: string): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return [text]
+
+  const chunks: string[] = []
+  let startIdx = 0
+
+  while (startIdx < words.length) {
+    measureEl.innerHTML = ''
+    const p = document.createElement('p')
+    p.style.marginBottom = '1rem'
+    p.style.overflowWrap = 'anywhere'
+    p.style.wordBreak = 'break-word'
+    measureEl.appendChild(p)
+
+    // Accumulate words incrementally (O(n) instead of O(n²) slice+join)
+    let accumulated = ''
+    let endIdx = startIdx
+    for (let j = startIdx; j < words.length; j++) {
+      const next = accumulated ? accumulated + ' ' + words[j] : words[j]
+      p.textContent = next
+      if (measureEl.scrollHeight > measureEl.clientHeight) {
+        // If even a single word overflows, take it alone to avoid infinite loop
+        if (j === startIdx) {
+          endIdx = j + 1
+          accumulated = next
+        } else {
+          endIdx = j
+        }
+        break
+      }
+      accumulated = next
+      endIdx = j + 1
+    }
+
+    // If we consumed all remaining words without overflow
+    if (endIdx === startIdx) endIdx = startIdx + 1
+
+    // In the single-word-overflow case, accumulated already has the word.
+    // In multi-word case, accumulated has text before the overflow word.
+    // In no-overflow case, accumulated has all remaining words.
+    chunks.push(accumulated || words[startIdx])
+    startIdx = endIdx
+  }
+
+  measureEl.innerHTML = ''
+  return chunks
+}
+
+/**
  * Measure paragraphs into pages by appending DOM nodes to a hidden measurement
  * div and checking scrollHeight vs clientHeight after each append.
  *
@@ -64,23 +117,40 @@ function measurePages(measureEl: HTMLDivElement, paragraphs: string[]): PageBoun
 
     if (measureEl.scrollHeight > measureEl.clientHeight) {
       if (currentPage.length === 0) {
-        // Paragraph taller than a full page — place alone on its own page
-        boundaries.push(i)
-        pages.push([para])
+        // Paragraph taller than a full page — split into chunks
+        const chunks = splitOverlongParagraph(measureEl, para)
+        for (const chunk of chunks) {
+          boundaries.push(i)
+          pages.push([chunk])
+        }
         measureEl.innerHTML = ''
         currentBoundaryIdx = i + 1
       } else {
         // Current page is full — save it, start a new page with this paragraph
         flushPage(currentBoundaryIdx)
         currentBoundaryIdx = i
-        currentPage = [para]
 
+        // Re-measure the paragraph alone on fresh page
         const el2 = document.createElement('p')
         el2.textContent = para
         el2.style.marginBottom = '1rem'
         el2.style.overflowWrap = 'anywhere'
         el2.style.wordBreak = 'break-word'
         measureEl.appendChild(el2)
+
+        if (measureEl.scrollHeight > measureEl.clientHeight) {
+          // Still overflows alone — split it
+          const chunks = splitOverlongParagraph(measureEl, para)
+          for (const chunk of chunks) {
+            boundaries.push(i)
+            pages.push([chunk])
+          }
+          measureEl.innerHTML = ''
+          currentPage = []
+          currentBoundaryIdx = i + 1
+        } else {
+          currentPage = [para]
+        }
       }
     } else {
       currentPage.push(para)

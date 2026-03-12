@@ -87,6 +87,17 @@ export default defineConfig(async ({ mode }) => {
               },
             },
             {
+              urlPattern: /\/book-data\/.*\.epub$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'epub-cache',
+                expiration: {
+                  maxEntries: 20,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                },
+              },
+            },
+            {
               urlPattern: /\/book-data\/.*/,
               handler: 'NetworkFirst',
               options: {

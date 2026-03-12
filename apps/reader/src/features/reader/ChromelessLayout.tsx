@@ -1,8 +1,15 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
+
+// TODO: epub.js rewrite in Story 2.2
+// ChromelessLayout previously read currentPage, pages, hasSeenHint, and dismissHint
+// from reader.store. After the CFI migration (Story 3.1), these fields are removed.
+// - hasSeenHint/dismissHint are now local state (chromeless-layout only concern)
+// - currentPage and pages are stubbed; page progress will use CFI in Story 2.2
+// - isChromeVisible and toggleChrome remain in reader.store
 
 const CHROME_AUTOHIDE_MS = 3000
 const FIRST_OPEN_HINT = 'Chạm vào giữa màn hình để hiện menu'
@@ -16,7 +23,15 @@ interface ChromelessLayoutProps {
 
 export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLayoutProps) {
   const navigate = useNavigate()
-  const { isChromeVisible, toggleChrome, hasSeenHint, dismissHint, currentPage, pages } = useReaderStore()
+  const { isChromeVisible, toggleChrome } = useReaderStore()
+
+  // TODO: epub.js rewrite in Story 2.2 — page progress will use CFI-based location
+  const currentPage = 0 // stub: always show page 1 until epub.js rewrite
+  const pages: string[][] = [] // stub: empty until epub.js rewrite
+
+  // Hint state is a local concern; not persisted in store after CFI migration
+  const [hasSeenHint, setHasSeenHint] = useState(false)
+  const dismissHint = () => setHasSeenHint(true)
 
   // history.length can be unreliable in iframes or some browser contexts; fallback to Library when uncertain.
   const handleBack = () => {
@@ -153,7 +168,7 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
         data-testid="center-tap-zone"
       />
 
-      {/* First-open hint (AC 3) — shown until first center-tap; persisted in store across route changes */}
+      {/* First-open hint (AC 3) — shown until first center-tap */}
       {!hasSeenHint && (
         <div
           className="fixed inset-0 z-10 flex items-end justify-center pb-24 pointer-events-none"
