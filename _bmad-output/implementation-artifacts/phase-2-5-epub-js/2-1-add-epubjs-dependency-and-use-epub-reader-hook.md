@@ -1,6 +1,6 @@
 # Story 2.1: Add epub.js Dependency and useEpubReader Hook
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -30,20 +30,20 @@ so that no other component needs to import or manage `Book`/`Rendition` objects 
 
 ## Tasks / Subtasks
 
-- [ ] Add `epubjs` runtime dependency to `apps/reader` (AC: 1)
-  - [ ] `cd apps/reader && pnpm add epubjs`
-  - [ ] Verify version: `npm info epubjs version` — pin the installed version in `package.json`
-- [ ] Create `src/features/reader/useEpubReader.ts` (AC: 2, 3)
-  - [ ] Import: `import ePub from 'epubjs'` and types `Book`, `Rendition` from `epubjs`
-  - [ ] Accept `epubUrl: string | null` parameter
-  - [ ] Create `containerRef: React.RefObject<HTMLDivElement>` via `useRef`
-  - [ ] State: `isReady: boolean` (initial `false`), `error: Error | null` (initial `null`), `rendition: Rendition | null`, `book: Book | null`
-  - [ ] `useEffect([epubUrl])`: create Book, call `book.renderTo()`, listen for ready/error events, return cleanup `book.destroy()`
-  - [ ] Return `{ containerRef, rendition, book, isReady, error }`
-- [ ] Add `epubjs` to `no-restricted-imports` in `apps/reader/eslint.config.js` (AC: 4)
-  - [ ] Add to the existing `patterns` array in `no-restricted-imports`
-  - [ ] Message: `"Import epub.js only via useEpubReader hook"`
-  - [ ] Add exception for `src/features/reader/useEpubReader.ts` itself using `allowImportNames` or a separate overrides block
+- [x] Add `epubjs` runtime dependency to `apps/reader` (AC: 1)
+  - [x] `cd apps/reader && pnpm add epubjs`
+  - [x] Verify version: `npm info epubjs version` — pin the installed version in `package.json`
+- [x] Create `src/features/reader/useEpubReader.ts` (AC: 2, 3)
+  - [x] Import: `import ePub from 'epubjs'` and types `Book`, `Rendition` from `epubjs`
+  - [x] Accept `epubUrl: string | null` parameter
+  - [x] Create `containerRef: React.RefObject<HTMLDivElement>` via `useRef`
+  - [x] State: `isReady: boolean` (initial `false`), `error: Error | null` (initial `null`), `rendition: Rendition | null`, `book: Book | null`
+  - [x] `useEffect([epubUrl])`: create Book, call `book.renderTo()`, listen for ready/error events, return cleanup `book.destroy()`
+  - [x] Return `{ containerRef, rendition, book, isReady, error }`
+- [x] Add `epubjs` to `no-restricted-imports` in `apps/reader/eslint.config.js` (AC: 4)
+  - [x] Add to the existing `patterns` array in `no-restricted-imports`
+  - [x] Message: `"Import epub.js only via useEpubReader hook"`
+  - [x] Add exception for `src/features/reader/useEpubReader.ts` itself using `allowImportNames` or a separate overrides block
 
 ## Dev Notes
 
@@ -190,10 +190,28 @@ As of early 2026, epub.js is at v0.3.x. Pin the exact version. Key behaviors of 
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
+- epubjs 0.3.93 installed; types are bundled in `node_modules/epubjs/types/` — no `@types/epubjs` needed
+- Used `renditionInstance.display().then(() => setIsReady(true))` instead of `renditionInstance.on('ready')` per dev notes (reliable across v0.3.x)
+- ESLint rule verified: scratch file importing `epubjs` directly correctly triggered `no-restricted-imports` error; scratch file deleted
+
 ### Completion Notes List
 
+- Installed `epubjs@0.3.93` as a runtime dependency in `apps/reader`
+- Created `useEpubReader` hook at `src/features/reader/useEpubReader.ts` with full epub.js lifecycle management: Book creation, renderTo, display, error handling, and destroy cleanup
+- Added `no-restricted-imports` ESLint rule for `epubjs` with override exception for `useEpubReader.ts` itself
+- All 180 tests pass; no regressions introduced
+
 ### File List
+
+- `apps/reader/package.json` (modified — added `epubjs@0.3.93` dependency)
+- `apps/reader/pnpm-lock.yaml` (modified — lockfile updated)
+- `apps/reader/src/features/reader/useEpubReader.ts` (created)
+- `apps/reader/eslint.config.js` (modified — added epubjs no-restricted-imports rule)
+
+## Change Log
+
+- 2026-03-12: Implemented Story 2.1 — added epubjs@0.3.93 dependency, created useEpubReader hook, added ESLint enforcement rule

@@ -1,6 +1,6 @@
 # Story 2.2: ReaderEngine Rewrite and Page Navigation
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -41,32 +41,32 @@ so that reading feels natural and fluid on both mobile and desktop.
 
 ## Tasks / Subtasks
 
-- [ ] Delete `src/lib/pagination/paginateBook.ts` (AC: 1)
-- [ ] Delete `src/lib/pagination/paginateBook.test.ts` (AC: 1)
-- [ ] Delete `src/lib/pagination/pagination.types.ts` (AC: 1)
-- [ ] Delete `src/lib/pagination/index.ts` (AC: 1)
-- [ ] Delete `src/features/reader/useDOMPagination.ts` (AC: 1)
-- [ ] Rewrite `src/features/reader/ReaderEngine.tsx` (AC: 1, 2, 3, 4, 5)
-  - [ ] Accept `epubUrl: string` as the only required prop
-  - [ ] Render `<div ref={containerRef} style={{ width: '100%', height: '100%' }} />`
-  - [ ] Call `useEpubReader(epubUrl)` → destructure `{ containerRef, rendition, isReady, error }`
-  - [ ] Wire `rendition.on('click')` for tap zone navigation + chrome toggle (when `rendition` is non-null)
-  - [ ] Wire `rendition.on('keyup')` for keyboard navigation
-  - [ ] Show `<SkeletonText>` while `!isReady && !error`
-  - [ ] Show `<ReaderErrorPage>` when `error !== null`
-  - [ ] For now, `rendition.on('relocated')` can be a no-op placeholder (`// TODO: Story 3.2 — progress save`)
-- [ ] Rewrite `src/features/reader/ReaderEngine.test.tsx` (AC: 1, 2, 3, 4, 5)
-  - [ ] Mock `useEpubReader` hook
-  - [ ] Test skeleton shown when `isReady: false`
-  - [ ] Test error page shown when `error` set
-  - [ ] Test that container div is rendered with ref
-- [ ] Update `src/features/reader/ReaderPage.tsx` (AC: 6)
-  - [ ] Read catalog via `useCatalogIndex()` and find the book entry by `bookId` to get `epubUrl`
-  - [ ] Pass `epubUrl` to `<ReaderEngine epubUrl={epubUrl ?? ''} />`
-  - [ ] Remove references to `book.content` (paragraphs no longer needed by ReaderEngine)
-  - [ ] Handle `epubUrl` being undefined (show error state)
-- [ ] Run `pnpm typecheck` — zero errors (AC: 1)
-- [ ] Run `pnpm test` (AC: 1)
+- [x] Delete `src/lib/pagination/paginateBook.ts` (AC: 1)
+- [x] Delete `src/lib/pagination/paginateBook.test.ts` (AC: 1)
+- [x] Delete `src/lib/pagination/pagination.types.ts` (AC: 1)
+- [x] Delete `src/lib/pagination/index.ts` (AC: 1)
+- [x] Delete `src/features/reader/useDOMPagination.ts` (AC: 1)
+- [x] Rewrite `src/features/reader/ReaderEngine.tsx` (AC: 1, 2, 3, 4, 5)
+  - [x] Accept `epubUrl: string` as the only required prop
+  - [x] Render `<div ref={containerRef} style={{ width: '100%', height: '100%' }} />`
+  - [x] Call `useEpubReader(epubUrl)` → destructure `{ containerRef, rendition, isReady, error }`
+  - [x] Wire `rendition.on('click')` for tap zone navigation + chrome toggle (when `rendition` is non-null)
+  - [x] Wire `rendition.on('keyup')` for keyboard navigation
+  - [x] Show `<SkeletonText>` while `!isReady && !error`
+  - [x] Show `<ReaderErrorPage>` when `error !== null`
+  - [x] For now, `rendition.on('relocated')` can be a no-op placeholder (`// TODO: Story 3.2 — progress save`)
+- [x] Rewrite `src/features/reader/ReaderEngine.test.tsx` (AC: 1, 2, 3, 4, 5)
+  - [x] Mock `useEpubReader` hook
+  - [x] Test skeleton shown when `isReady: false`
+  - [x] Test error page shown when `error` set
+  - [x] Test that container div is rendered with ref
+- [x] Update `src/features/reader/ReaderPage.tsx` (AC: 6)
+  - [x] Read catalog via `useCatalogIndex()` and find the book entry by `bookId` to get `epubUrl`
+  - [x] Pass `epubUrl` to `<ReaderEngine epubUrl={epubUrl ?? ''} />`
+  - [x] Remove references to `book.content` (paragraphs no longer needed by ReaderEngine)
+  - [x] Handle `epubUrl` being undefined (show error state)
+- [x] Run `pnpm typecheck` — zero errors (AC: 1)
+- [x] Run `pnpm test` (AC: 1)
 
 ## Dev Notes
 
@@ -249,3 +249,13 @@ After deletion, remove any remaining `import ... from '@/lib/pagination'` or `im
 ### Completion Notes List
 
 ### File List
+
+- apps/reader/src/features/reader/ReaderEngine.tsx (rewritten)
+- apps/reader/src/features/reader/ReaderEngine.test.tsx (rewritten)
+- apps/reader/src/features/reader/ReaderPage.tsx (updated)
+- apps/reader/src/features/reader/ReaderPage.test.tsx (updated — mock useCatalogIndex, ReaderEngine props)
+- apps/reader/src/lib/pagination/paginateBook.ts (deleted)
+- apps/reader/src/lib/pagination/paginateBook.test.ts (deleted)
+- apps/reader/src/lib/pagination/pagination.types.ts (deleted)
+- apps/reader/src/lib/pagination/index.ts (deleted)
+- apps/reader/src/features/reader/useDOMPagination.ts (deleted)

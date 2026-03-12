@@ -29,7 +29,9 @@ export function useStorageHydration() {
         }
         if (settings) useSettingsStore.getState().hydrate(settings)
         if (bookmarks) {
-          const validBookmarks = bookmarks.filter((b) => isValidBookId(b.bookId))
+          const validBookmarks = bookmarks.filter(
+            (b) => isValidBookId(b.bookId) && typeof (b as { cfi?: string }).cfi === 'string'
+          ) as Bookmark[]
           if (validBookmarks.length > 0) {
             useBookmarksStore.getState().hydrate(validBookmarks)
           }

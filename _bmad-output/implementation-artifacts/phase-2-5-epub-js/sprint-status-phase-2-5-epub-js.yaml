@@ -41,25 +41,25 @@ development_status:
   # Epic 1: EPUB Content Pipeline
   # Build-time JSON→EPUB conversion, catalog schema, SW caching
   # ─────────────────────────────────────────────────────────────────
-  epic-1: ready-for-dev
-  1-1-epub-build-script-and-catalog-patching: review
-  1-2-catalog-zod-schema-update: review
-  1-3-service-worker-epub-caching: review
+  epic-1: done
+  1-1-epub-build-script-and-catalog-patching: done
+  1-2-catalog-zod-schema-update: done
+  1-3-service-worker-epub-caching: done
 
   # ─────────────────────────────────────────────────────────────────
   # Epic 2: epub.js Reader Experience
   # useEpubReader hook, ReaderEngine rewrite, loading/error states
   # ─────────────────────────────────────────────────────────────────
-  epic-2: ready-for-dev
-  2-1-add-epubjs-dependency-and-use-epub-reader-hook: ready-for-dev
-  2-2-reader-engine-rewrite-and-page-navigation: ready-for-dev
-  2-3-reader-loading-and-error-states: ready-for-dev
+  epic-2: in-progress
+  2-1-add-epubjs-dependency-and-use-epub-reader-hook: review
+  2-2-reader-engine-rewrite-and-page-navigation: review
+  2-3-reader-loading-and-error-states: review
 
   # ─────────────────────────────────────────────────────────────────
   # Epic 3: Reading Preferences & Progress
   # CFI-based progress, resume, themes, font size in epub.js iframe
   # ─────────────────────────────────────────────────────────────────
   epic-3: ready-for-dev
-  3-1-reader-store-migration-to-cfi-based-progress: review
-  3-2-progress-persistence-and-resume-from-last-position: ready-for-dev
-  3-3-themes-and-font-size-inside-epubjs: ready-for-dev
+  3-1-reader-store-migration-to-cfi-based-progress: done
+  3-2-progress-persistence-and-resume-from-last-position: review
+  3-3-themes-and-font-size-inside-epubjs: review

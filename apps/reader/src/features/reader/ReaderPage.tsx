@@ -1,5 +1,6 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useBook } from '@/shared/hooks/useBook'
+import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { DataError } from '@/shared/services/data.service'
@@ -8,17 +9,16 @@ import ReaderErrorPage from './ReaderErrorPage'
 import { ReaderEngine } from './ReaderEngine'
 import { ChromelessLayout } from './ChromelessLayout'
 
-// TODO: epub.js rewrite in Story 2.2
-// ReaderPage previously used useReaderStore to set bookId, bookTitle, pages,
-// pageBoundaries, and currentPage (including bookmark page restore from storage).
-// These are removed as part of the reader.store CFI migration (Story 3.1).
-// The full ReaderPage rewrite with epub.js loading and CFI-based navigation
-// is implemented in Story 2.2.
-
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
+  const location = useLocation()
   const { data: book, isLoading, error } = useBook(bookId)
+  const { data: catalog } = useCatalogIndex()
   const isOnline = useOnlineStatus()
+
+  const catalogBook = catalog?.books.find((b) => b.id === bookId)
+  const epubUrl = catalogBook?.epubUrl ?? null
+  const initialCfi = (location.state as { cfi?: string } | null)?.cfi ?? null
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />
@@ -38,12 +38,17 @@ export default function ReaderPage() {
     return <ReaderErrorPage category={category} isOffline={!isOnline} />
   }
 
+  if (!epubUrl) {
+    return <ReaderErrorPage category="parse" />
+  }
+
   return (
-    <ChromelessLayout book={book} hasCoverPage>
+    <ChromelessLayout book={book} hasCoverPage={false}>
       <ReaderEngine
-        paragraphs={book.content}
-        coverImageUrl={book.coverImageUrl ?? null}
+        epubUrl={epubUrl}
+        bookId={bookId}
         bookTitle={book.title}
+        initialCfi={initialCfi}
       />
     </ChromelessLayout>
   )

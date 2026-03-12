@@ -1,303 +1,269 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReaderEngine } from '@/features/reader/ReaderEngine'
-import { useReaderStore } from '@/stores/reader.store'
-import { useSettingsStore } from '@/stores/settings.store'
-
-vi.mock('@/shared/services/storage.service', () => ({
-  storageService: { setItem: vi.fn().mockResolvedValue(undefined) },
-}))
-
+import { useEpubReader } from './useEpubReader'
 import { storageService } from '@/shared/services/storage.service'
-const mockSetItem = storageService.setItem as ReturnType<typeof vi.fn>
+import { useReaderStore } from '@/stores/reader.store'
+import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 
-// JSDOM innerWidth defaults to 1024; tap zones use window.innerWidth
-// Left zone:  clientX < 1024 * 0.2 = 204   (use 100)
-// Right zone: clientX > 1024 * 0.8 = 819   (use 950)
-// Center:     204 <= clientX <= 819          (use 512)
-const LEFT_TAP = 100
-const RIGHT_TAP = 950
-const CENTER_TAP = 512
-
-// Resolve document.fonts.ready immediately in all tests.
-// Mock scrollHeight/clientHeight so DOM measurement produces predictable pages:
-// scrollHeight (100) > clientHeight (90) means each paragraph triggers a new page.
-beforeEach(() => {
-  Object.defineProperty(document, 'fonts', {
-    value: { ready: Promise.resolve() },
-    configurable: true,
-    writable: true,
-  })
-  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(100)
-  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(90)
-  useReaderStore.getState().reset()
-  useSettingsStore.setState({ fontSize: 18, theme: 'sepia' })
-})
-
-// 50 paragraphs ensures multiple pages (capacity ~21/page with JSDOM innerHeight=768, fontSize=18, lineHeight=1.6, padding=80)
-const PARAGRAPHS = Array.from({ length: 50 }, (_, i) => `Đoạn ${i + 1}.`)
-
-const defaultCoverProps = { coverImageUrl: null as string | null, bookTitle: 'Test' }
-
-/** Render engine and wait until fonts are ready and pages are computed. */
-async function renderEngine(paragraphs = PARAGRAPHS, onCenterTap?: () => void) {
-  render(
-    <ReaderEngine
-      paragraphs={paragraphs}
-      coverImageUrl={defaultCoverProps.coverImageUrl}
-      bookTitle={defaultCoverProps.bookTitle}
-      onCenterTap={onCenterTap}
-    />,
-  )
-  // Wait until the skeleton disappears (fonts ready + pages computed)
-  await waitFor(() => {
-    expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
-  })
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
+vi.mock('./useEpubReader', () => ({
+  useEpubReader: vi.fn(() => ({
+    containerRef: { current: null },
+    rendition: null,
+    book: null,
+    isReady: false,
+    error: null,
+  })),
+}))
+
+vi.mock('@/shared/services/storage.service', () => ({
+  storageService: {
+    setItem: vi.fn().mockResolvedValue(undefined),
+    getItem: vi.fn().mockResolvedValue(null),
+  },
+}))
+
+const mockUseEpubReader = vi.mocked(useEpubReader)
+const mockSetItem = vi.mocked(storageService.setItem)
+const mockGetItem = vi.mocked(storageService.getItem)
+
 describe('ReaderEngine — loading state', () => {
-  it('shows skeleton before fonts are ready', () => {
-    const neverResolve = new Promise<void>(() => {})
-    Object.defineProperty(document, 'fonts', {
-      value: { ready: neverResolve },
-      configurable: true,
-      writable: true,
+  it('shows skeleton when isReady is false and no error', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: null,
     })
-    render(
-      <ReaderEngine
-        paragraphs={PARAGRAPHS}
-        coverImageUrl={null}
-        bookTitle="Test"
-      />,
-    )
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
     expect(screen.getByTestId('reader-skeleton')).toBeInTheDocument()
+    expect(screen.queryByTestId('epub-container')).toBeInTheDocument()
+  })
+
+  it('keeps epub container mounted during loading', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    const container = screen.getByTestId('epub-container')
+    expect(container).toBeInTheDocument()
+  })
+
+  it('hides epub container visually during loading', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    const container = screen.getByTestId('epub-container')
+    expect(container).toHaveStyle({ visibility: 'hidden' })
   })
 })
 
-describe('ReaderEngine — rendering', () => {
-  it('renders page content after fonts are ready', async () => {
-    await renderEngine()
-    expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
+describe('ReaderEngine — error state', () => {
+  it('shows ReaderErrorPage when error is set', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: new Error('failed'),
+    })
+    renderWithRouter(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    expect(screen.getByTestId('back-to-library')).toBeInTheDocument()
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
-    // Page 0 is cover; first content is page 1
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
   })
 
-  it('shows page progress indicator', async () => {
-    await renderEngine()
-    expect(screen.getByTestId('page-progress')).toBeInTheDocument()
-  })
-
-  it('has role="region" and aria-live="polite" on text column (AC 5 of 3.4)', async () => {
-    await renderEngine()
-    // Navigate from cover (page 0) to first content page (page 1)
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
-    const col = screen.getByTestId('reader-text-column')
-    // role="region" (not "main") so only one main landmark exists per page (MED-1 code review fix)
-    expect(col).toHaveAttribute('role', 'region')
-    expect(col).toHaveAttribute('aria-live', 'polite')
-  })
-
-  it('applies robust word wrapping to paragraph text', async () => {
-    await renderEngine(['x'.repeat(300)])
-    // Navigate from cover to first content page
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
-    const paragraph = screen.getByText('x'.repeat(300))
-    expect(paragraph).toHaveStyle({ overflowWrap: 'anywhere' })
-    expect(paragraph).toHaveStyle({ wordBreak: 'break-word' })
+  it('does not show skeleton when error is set', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: new Error('load failed'),
+    })
+    renderWithRouter(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
   })
 })
 
-describe('ReaderEngine — empty content (AC 3 of 3.5)', () => {
-  it('shows cover page only for zero paragraphs without crashing', async () => {
-    await renderEngine([])
-    expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-    // Only one display page (cover); no content column
-    expect(screen.queryByTestId('reader-text-column')).not.toBeInTheDocument()
+describe('ReaderEngine — ready state', () => {
+  it('shows epub container and hides skeleton when isReady is true', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: true,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    expect(screen.getByTestId('epub-container')).toBeInTheDocument()
+    expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
+    const container = screen.getByTestId('epub-container')
+    expect(container).toHaveStyle({ visibility: 'visible' })
   })
 })
 
-describe('ReaderEngine — tap zone navigation (AC 2, 3, 4 of 3.3)', () => {
-  it('navigates to next page on right-zone tap', async () => {
-    await renderEngine()
-    // currentPage is now local state — verify via DOM: cover page disappears after navigating right
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-    expect(screen.getByTestId('reader-text-column')).toBeInTheDocument()
+describe('ReaderEngine — accessibility', () => {
+  it('has role=region with correct aria-label', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: true,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    const region = screen.getByRole('region', { name: 'Nội dung kinh' })
+    expect(region).toBeInTheDocument()
   })
 
-  it('navigates to prev page on left-zone tap after advancing', async () => {
-    await renderEngine()
-    const engine = screen.getByTestId('reader-engine')
-
-    fireEvent.click(engine, { clientX: RIGHT_TAP })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-
-    fireEvent.click(engine, { clientX: LEFT_TAP })
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
+  it('has aria-live region for location announcements', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: true,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    const liveRegion = document.querySelector('[aria-live="polite"][aria-atomic="true"]')
+    expect(liveRegion).toBeInTheDocument()
   })
 
-  it('stays on cover page when tapping left on first page (AC 3)', async () => {
-    await renderEngine()
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: LEFT_TAP })
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
+  it('has region and aria-label in loading state', () => {
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: false,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    expect(screen.getByRole('region', { name: 'Nội dung kinh' })).toBeInTheDocument()
+  })
+})
+
+describe('ReaderEngine — themes and font size (Story 3.3)', () => {
+  it('applies theme and fontSize to rendition when rendition is set', () => {
+    const themes = { select: vi.fn(), fontSize: vi.fn() }
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: {
+        on: vi.fn(),
+        off: vi.fn(),
+        themes,
+        display: vi.fn().mockResolvedValue(undefined),
+      },
+      book: null,
+      isReady: true,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="b1" bookTitle="Book" />)
+    expect(themes.select).toHaveBeenCalledWith('theme-sepia')
+    expect(themes.fontSize).toHaveBeenCalledWith('18px')
+  })
+})
+
+describe('ReaderEngine — progress persistence (Story 3.2)', () => {
+  beforeEach(() => {
+    useReaderStore.getState().reset()
+    useBookmarksStore.getState().clear()
+    mockSetItem.mockClear()
+    mockGetItem.mockClear()
+    mockGetItem.mockResolvedValue(null)
   })
 
-  it('stays on last page when tapping right on last page (AC 4)', async () => {
-    await renderEngine()
-    const engine = screen.getByTestId('reader-engine')
-
-    // Tap enough times to guarantee reaching the last page regardless of page count
-    for (let i = 0; i < 100; i++) {
-      fireEvent.click(engine, { clientX: RIGHT_TAP })
+  it('calls setCurrentCfi and storageService.setItem on relocated with CFI', async () => {
+    const cfi = 'epubcfi(/6/2!/4/2/1:0)'
+    let relocatedHandler: ((loc: { start: { cfi: string } }) => void) | null = null
+    const mockRendition = {
+      on: vi.fn((event: string, fn: (loc: { start: { cfi: string } }) => void) => {
+        if (event === 'relocated') relocatedHandler = fn
+      }),
+      off: vi.fn(),
+      display: vi.fn().mockResolvedValue(undefined),
+      themes: { select: vi.fn(), fontSize: vi.fn() },
     }
-    // Verify we're still rendering content (not crashing or showing cover)
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-    expect(screen.getByTestId('reader-text-column')).toBeInTheDocument()
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: mockRendition,
+      book: null,
+      isReady: true,
+      error: null,
+    })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+    expect(relocatedHandler).not.toBeNull()
+    await act(() => {
+      relocatedHandler!({ start: { cfi } })
+    })
+    expect(useReaderStore.getState().currentCfi).toBe(cfi)
+    expect(mockSetItem).toHaveBeenCalledWith(STORAGE_KEYS.LAST_READ_POSITION, { bookId: 'book-123', cfi })
   })
 
-  it('calls onCenterTap when center zone is tapped', async () => {
-    const onCenterTap = vi.fn()
-    await renderEngine(PARAGRAPHS, onCenterTap)
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: CENTER_TAP })
-    expect(onCenterTap).toHaveBeenCalledOnce()
-  })
-})
+  it('calls rendition.display(savedCfi) when storage has saved position for this bookId', async () => {
+    const savedCfi = 'epubcfi(/6/2!/4/2/1:0)'
+    mockGetItem.mockResolvedValue({ bookId: 'book-123', cfi: savedCfi })
 
-describe('ReaderEngine — keyboard navigation (AC 6 of 3.3)', () => {
-  it('navigates to next page on ArrowRight key', async () => {
-    await renderEngine()
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-  })
-
-  it('navigates to next page on PageDown key', async () => {
-    await renderEngine()
-    fireEvent.keyDown(window, { key: 'PageDown' })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-  })
-
-  it('navigates to prev page on ArrowLeft after advancing', async () => {
-    await renderEngine()
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-    fireEvent.keyDown(window, { key: 'ArrowLeft' })
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-  })
-
-  it('navigates to prev page on PageUp after advancing', async () => {
-    await renderEngine()
-    fireEvent.keyDown(window, { key: 'PageDown' })
-    fireEvent.keyDown(window, { key: 'PageUp' })
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-  })
-})
-
-describe('ReaderEngine — swipe navigation', () => {
-  it('navigates next on swipe left', async () => {
-    await renderEngine()
-    const engine = screen.getByTestId('reader-engine')
-
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-    fireEvent.touchStart(engine, { touches: [{ clientX: 300 }] })
-    fireEvent.touchEnd(engine, { changedTouches: [{ clientX: 200 }] }) // delta -100 → next
-
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-  })
-
-  it('navigates prev on swipe right', async () => {
-    await renderEngine()
-    const engine = screen.getByTestId('reader-engine')
-
-    // Advance first
-    fireEvent.touchStart(engine, { touches: [{ clientX: 300 }] })
-    fireEvent.touchEnd(engine, { changedTouches: [{ clientX: 200 }] })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-
-    // Swipe right to go back
-    fireEvent.touchStart(engine, { touches: [{ clientX: 200 }] })
-    fireEvent.touchEnd(engine, { changedTouches: [{ clientX: 300 }] }) // delta +100 → prev
-
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-  })
-})
-
-describe('ReaderEngine — page progress (AC 7 of 3.3)', () => {
-  it('shows 1 / N on first page', async () => {
-    await renderEngine()
-    const progress = screen.getByTestId('page-progress')
-    expect(progress.textContent).toMatch(/^1 \/ \d+$/)
-  })
-})
-
-describe('ReaderEngine — font size change resets page (AC 2 of 5.1)', () => {
-  it('resets to cover page when fontSize changes from settings store', async () => {
-    await renderEngine()
-    // Navigate to a non-cover page
-    fireEvent.click(screen.getByTestId('reader-engine'), { clientX: RIGHT_TAP })
-    expect(screen.queryByTestId('reader-cover-page')).not.toBeInTheDocument()
-
-    // Simulate user changing font size via the settings store
-    act(() => {
-      useSettingsStore.setState({ fontSize: 22 })
+    const mockDisplay = vi.fn().mockResolvedValue(undefined)
+    const mockRendition = {
+      on: vi.fn(),
+      off: vi.fn(),
+      display: mockDisplay,
+      themes: { select: vi.fn(), fontSize: vi.fn() },
+    }
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: mockRendition,
+      book: null,
+      isReady: true,
+      error: null,
     })
 
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+
     await waitFor(() => {
-      expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
+      expect(mockGetItem).toHaveBeenCalledWith(STORAGE_KEYS.LAST_READ_POSITION)
+      expect(mockDisplay).toHaveBeenCalledWith(savedCfi)
     })
   })
 
-  it('does NOT reset page on initial mount (preserves initial position)', async () => {
-    // Mount engine with default fontSize — prevFontSizeRef guard should prevent a reset
-    await renderEngine()
-    // No fontSize change occurred — should still be on cover page (initial = 0)
-    expect(screen.getByTestId('reader-cover-page')).toBeInTheDocument()
-  })
-})
+  it('calls rendition.display() with no args when no saved position', async () => {
+    mockGetItem.mockResolvedValue(null)
 
-// TODO: epub.js rewrite in Story 2.2 — bookmark page restore tests are skipped because:
-// - useReaderStore no longer has currentPage, bookId, bookTitle, pages, pageBoundaries
-// - After epub.js rewrite, restore will use CFI-based position (reader.store.currentCfi)
-describe.skip('ReaderEngine — bookmark page restore (TODO: rewrite in Story 2.2)', () => {
-  it('preserves currentPage from bookmark when pagination completes (does not clamp to 0)', async () => {
-    await renderEngine(PARAGRAPHS)
-  })
-
-  it('clamps currentPage to last page when bookmark page exceeds total display pages', async () => {
-    await renderEngine(PARAGRAPHS)
-  })
-})
-
-// TODO: epub.js rewrite in Story 2.2 — overlong paragraph splitting tests are skipped because:
-// - ReaderEngine no longer syncs pages to useReaderStore
-describe.skip('ReaderEngine — overlong paragraph splitting (TODO: rewrite in Story 2.2)', () => {
-  it('splits a paragraph taller than the viewport into multiple pages', async () => {
-    await renderEngine()
-  })
-})
-
-// TODO: epub.js rewrite in Story 2.2 — storage persistence tests are skipped because:
-// - persistPageChange now stubs with empty CFI (full impl in Story 2.2)
-// - useReaderStore no longer has bookId or bookTitle
-describe.skip('ReaderEngine — storage persistence (TODO: rewrite in Story 2.2)', () => {
-  it('calls storageService.setItem with LAST_READ_POSITION when navigating to next page', async () => {
-    mockSetItem.mockClear()
-    await renderEngine()
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('last_read_position', expect.objectContaining({ bookId: '' }))
+    const mockDisplay = vi.fn().mockResolvedValue(undefined)
+    const mockRendition = {
+      on: vi.fn(),
+      off: vi.fn(),
+      display: mockDisplay,
+      themes: { select: vi.fn(), fontSize: vi.fn() },
+    }
+    mockUseEpubReader.mockReturnValue({
+      containerRef: { current: null },
+      rendition: mockRendition,
+      book: null,
+      isReady: true,
+      error: null,
     })
-  })
 
-  it('calls storageService.setItem with BOOKMARKS when navigating to next page', async () => {
-    mockSetItem.mockClear()
-    await renderEngine()
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+
     await waitFor(() => {
-      expect(mockSetItem).toHaveBeenCalledWith('bookmarks', expect.any(Array))
+      expect(mockDisplay).toHaveBeenCalledWith()
     })
   })
 })

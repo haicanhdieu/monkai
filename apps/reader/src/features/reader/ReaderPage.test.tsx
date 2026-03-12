@@ -7,11 +7,15 @@ import { useReaderStore } from '@/stores/reader.store'
 import { DataError } from '@/shared/services/data.service'
 import type { Book } from '@/shared/types/global.types'
 
-// Mock useBook to control fetch state
+// Mock useBook and useCatalogIndex to control fetch state and epub URL
 const mockUseBook = vi.fn()
+const mockUseCatalogIndex = vi.fn()
 const mockUseOnlineStatus = vi.fn()
 vi.mock('@/shared/hooks/useBook', () => ({
   useBook: (id: string) => mockUseBook(id),
+}))
+vi.mock('@/shared/hooks/useCatalogIndex', () => ({
+  useCatalogIndex: () => mockUseCatalogIndex(),
 }))
 vi.mock('@/shared/hooks/useOnlineStatus', () => ({
   useOnlineStatus: () => mockUseOnlineStatus(),
@@ -30,8 +34,26 @@ vi.mock('@/features/reader/ChromelessLayout', () => ({
 }))
 
 vi.mock('@/features/reader/ReaderEngine', () => ({
-  ReaderEngine: ({ paragraphs }: { paragraphs: string[] }) => (
-    <div data-testid="reader-engine">{paragraphs.length} paragraphs</div>
+  ReaderEngine: ({
+    epubUrl,
+    bookId,
+    bookTitle,
+    initialCfi,
+  }: {
+    epubUrl: string
+    bookId: string
+    bookTitle: string
+    initialCfi?: string | null
+  }) => (
+    <div
+      data-testid="reader-engine"
+      data-epub-url={epubUrl || ''}
+      data-book-id={bookId}
+      data-book-title={bookTitle || ''}
+      data-initial-cfi={initialCfi ?? ''}
+    >
+      {epubUrl ? 'epub' : 'no-url'} {bookId}
+    </div>
   ),
 }))
 
@@ -55,7 +77,10 @@ const bookFixtureSeoSlug: Book = {
   content: ['Đoạn 1.'],
 }
 
-function renderReaderPage(bookId = 'bat-nha', locationState?: { page?: number }) {
+function renderReaderPage(
+  bookId = 'bat-nha',
+  locationState?: { page?: number; cfi?: string },
+) {
   const entry =
     locationState != null
       ? { pathname: `/read/${bookId}`, state: locationState }
@@ -73,9 +98,17 @@ function renderReaderPage(bookId = 'bat-nha', locationState?: { page?: number })
   )
 }
 
+const catalogWithEpub = (bookId: string, epubUrl = '/book.epub') => ({
+  data: {
+    books: [{ id: bookId, title: 'Test', epubUrl }],
+  },
+})
+
 describe('ReaderPage', () => {
   beforeEach(() => {
     mockUseBook.mockReset()
+    mockUseCatalogIndex.mockReset()
+    mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha'))
     mockUseOnlineStatus.mockReturnValue(true)
     mockGetItem.mockReset()
     mockGetItem.mockResolvedValue(null)
@@ -165,49 +198,38 @@ describe('ReaderPage', () => {
 
   it('renders engine directly without skeleton when book is cached', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha'))
     renderReaderPage()
     expect(screen.queryByTestId('reader-loading')).not.toBeInTheDocument()
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
   })
 
-  // TODO: epub.js rewrite in Story 2.2 — store-interaction tests are skipped because:
-  // - useReaderStore no longer has bookId, currentPage, pages, pageBoundaries after CFI migration (Story 3.1)
-  // - ReaderPage no longer sets these fields; full epub.js-based ReaderPage is in Story 2.2
-  it.skip('resets store with new bookId, empty pages, and reset pageBoundaries when book data loads (TODO: Story 2.2)', () => {
+  it('passes epubUrl, bookId, and bookTitle from catalog and book to ReaderEngine', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
-    renderReaderPage()
-    expect(useReaderStore.getState()).toBeDefined()
-  })
-
-  it.skip('stores URL param bookId (catalog UUID) in store (TODO: Story 2.2)', () => {
-    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixtureSeoSlug, error: null })
-    renderReaderPage('catalog-uuid-123')
-    expect(mockUseBook).toHaveBeenCalledWith('catalog-uuid-123')
-  })
-
-  it.skip('updates store correctly when navigating from one book to another (TODO: Story 2.2)', () => {
-    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha', '/path/to/book.epub'))
     renderReaderPage('bat-nha')
-    expect(useReaderStore.getState()).toBeDefined()
+    const engine = screen.getByTestId('reader-engine')
+    expect(engine).toHaveAttribute('data-epub-url', '/path/to/book.epub')
+    expect(engine).toHaveAttribute('data-book-id', 'bat-nha')
+    expect(engine).toHaveAttribute('data-book-title', 'Kinh Bát Nhã')
   })
 
-  it.skip('sets currentPage to 0 when opening a different book than last read (TODO: Story 2.2)', async () => {
-    mockGetItem.mockResolvedValue({ bookId: 'other-book-uuid', page: 5 })
+  it('passes initialCfi from location.state when navigating from bookmark link', () => {
+    const savedCfi = 'epubcfi(/6/2!/4/2/1:0)'
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha'))
+    renderReaderPage('bat-nha', { cfi: savedCfi })
+    const engine = screen.getByTestId('reader-engine')
+    expect(engine).toHaveAttribute('data-initial-cfi', savedCfi)
+  })
+
+  it('passes empty initialCfi when no location.state and renders ReaderEngine for resume flow', () => {
+    mockGetItem.mockResolvedValue({ bookId: 'bat-nha', cfi: 'epubcfi(/6/2!/4/2/1:0)' })
+    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
+    mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha'))
     renderReaderPage('bat-nha')
-    expect(useReaderStore.getState()).toBeDefined()
-  })
-
-  it.skip('restores currentPage from storage when opening the same book as last read (TODO: Story 2.2)', async () => {
-    mockGetItem.mockResolvedValue({ bookId: 'bat-nha', page: 2 })
-    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
-    renderReaderPage('bat-nha')
-    expect(useReaderStore.getState()).toBeDefined()
-  })
-
-  it.skip('opens at bookmark page when navigating from bookmark link (TODO: Story 2.2)', () => {
-    mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
-    renderReaderPage('bat-nha', { page: 10 })
-    expect(useReaderStore.getState()).toBeDefined()
+    const engine = screen.getByTestId('reader-engine')
+    expect(engine).toHaveAttribute('data-initial-cfi', '')
+    expect(engine).toBeInTheDocument()
   })
 })

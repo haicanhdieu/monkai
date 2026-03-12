@@ -1,6 +1,6 @@
 # Story 3.3: Themes and Font Size Inside epub.js
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -40,23 +40,23 @@ so that my reading preferences take effect in the epub.js content, not just the 
 
 ## Tasks / Subtasks
 
-- [ ] Create `src/features/reader/epubThemes.ts` with `EPUB_THEMES` constants (AC: 1)
-  - [ ] Define `theme-light`, `theme-sepia`, `theme-dark` CSS objects
-  - [ ] Verify contrast ratios: light (bg #ffffff / text #1a1a1a ≥ 4.5:1 ✓), sepia (bg #f4ecd8 / text #3b2f2f ≥ 4.5:1), dark (bg #1a1a1a / text #e0d9cc ≥ 4.5:1)
-- [ ] Register themes and apply initial theme in `useEpubReader.ts` (AC: 2, 6)
-  - [ ] Import `EPUB_THEMES` from `epubThemes.ts`
-  - [ ] Accept optional `theme` and `fontSize` parameters (or read from settings store inside the hook)
-  - [ ] After rendition is created, register all themes: `Object.entries(EPUB_THEMES).forEach(([name, styles]) => rendition.themes.register(name, styles))`
-  - [ ] After `isReady` (in the `ready` event handler), call `rendition.themes.select(currentTheme)` and `rendition.themes.fontSize(${fontSize}px)`
-- [ ] Wire theme and font size changes in `ReaderEngine.tsx` (AC: 3, 4, 5)
-  - [ ] Add `useEffect` watching `theme` from `settings.store`: call `rendition?.themes.select(theme)` when it changes
-  - [ ] Add `useEffect` watching `fontSize` from `settings.store`: call `rendition?.themes.fontSize(${fontSize}px)` when it changes
-  - [ ] These effects should only run when `rendition` is non-null
-- [ ] Verify `settings.store` interface for theme and fontSize (AC: 3, 4)
-  - [ ] Check `src/stores/settings.store.ts` for theme values (`'theme-light'`, `'theme-sepia'`, `'theme-dark'`)
-  - [ ] Ensure the theme key names match `EPUB_THEMES` keys exactly
-- [ ] Update `useEpubReader.ts` signature if needed to accept theme/fontSize or read from store (AC: 2, 6)
-- [ ] Add basic test: themes registered when rendition ready, theme change triggers `themes.select` (AC: 2, 3)
+- [x] Create `src/features/reader/epubThemes.ts` with `EPUB_THEMES` constants (AC: 1)
+  - [x] Define `theme-light`, `theme-sepia`, `theme-dark` CSS objects
+  - [x] Verify contrast ratios: light (bg #ffffff / text #1a1a1a ≥ 4.5:1 ✓), sepia (bg #f4ecd8 / text #3b2f2f ≥ 4.5:1), dark (bg #1a1a1a / text #e0d9cc ≥ 4.5:1)
+- [x] Register themes and apply initial theme in `useEpubReader.ts` (AC: 2, 6)
+  - [x] Import `EPUB_THEMES` from `epubThemes.ts`
+  - [x] Accept optional `theme` and `fontSize` parameters (or read from settings store inside the hook)
+  - [x] After rendition is created, register all themes: `Object.entries(EPUB_THEMES).forEach(([name, styles]) => rendition.themes.register(name, styles))`
+  - [x] After `isReady` (in the `ready` event handler), call `rendition.themes.select(currentTheme)` and `rendition.themes.fontSize(${fontSize}px)`
+- [x] Wire theme and font size changes in `ReaderEngine.tsx` (AC: 3, 4, 5)
+  - [x] Add `useEffect` watching `theme` from `settings.store`: call `rendition?.themes.select(theme)` when it changes
+  - [x] Add `useEffect` watching `fontSize` from `settings.store`: call `rendition?.themes.fontSize(${fontSize}px)` when it changes
+  - [x] These effects should only run when `rendition` is non-null
+- [x] Verify `settings.store` interface for theme and fontSize (AC: 3, 4)
+  - [x] Check `src/stores/settings.store.ts` for theme values (`'theme-light'`, `'theme-sepia'`, `'theme-dark'`)
+  - [x] Ensure the theme key names match `EPUB_THEMES` keys exactly
+- [x] Update `useEpubReader.ts` signature if needed to accept theme/fontSize or read from store (AC: 2, 6)
+- [x] Add basic test: themes registered when rendition ready, theme change triggers `themes.select` (AC: 2, 3)
 
 ## Dev Notes
 
@@ -197,3 +197,8 @@ const { theme, fontSize } = useSettingsStore()
 ### Completion Notes List
 
 ### File List
+
+- apps/reader/src/features/reader/epubThemes.ts (new)
+- apps/reader/src/features/reader/useEpubReader.ts (register EPUB_THEMES on rendition)
+- apps/reader/src/features/reader/ReaderEngine.tsx (theme/fontSize useEffects)
+- apps/reader/src/features/reader/ReaderEngine.test.tsx (theme/fontSize test, mock themes on progress test)

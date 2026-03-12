@@ -16,8 +16,18 @@ vi.mock('@/shared/hooks/useCatalogIndex', () => ({
   }),
 }))
 
-const bookmark1: Bookmark = { bookId: 'kinh-phap-hoa', bookTitle: 'Kinh Pháp Hoa', page: 13, timestamp: 1000000 }
-const bookmark2: Bookmark = { bookId: 'kinh-bat-nha', bookTitle: 'Kinh Bát Nhã', page: 4, timestamp: 2000000 }
+const bookmark1: Bookmark = {
+  bookId: 'kinh-phap-hoa',
+  bookTitle: 'Kinh Pháp Hoa',
+  cfi: 'epubcfi(/6/2!/4/2/1:0)',
+  timestamp: 1000000,
+}
+const bookmark2: Bookmark = {
+  bookId: 'kinh-bat-nha',
+  bookTitle: 'Kinh Bát Nhã',
+  cfi: 'epubcfi(/6/4!/4/2/1:0)',
+  timestamp: 2000000,
+}
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -48,8 +58,7 @@ describe('BookmarksPage', () => {
 
     expect(screen.getByText('Kinh Pháp Hoa')).toBeInTheDocument()
     expect(screen.getByText('Kinh Bát Nhã')).toBeInTheDocument()
-    expect(screen.getByText('Trang 14')).toBeInTheDocument()
-    expect(screen.getByText('Trang 5')).toBeInTheDocument()
+    expect(screen.getAllByText('Vị trí đã lưu')).toHaveLength(2)
   })
 
   it('sorts bookmarks by timestamp descending (most recent first)', () => {

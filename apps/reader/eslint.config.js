@@ -31,9 +31,18 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          patterns: [{ group: ['localforage'], message: 'Import StorageService from @/shared/services/storage.service instead.' }]
+          patterns: [
+            { group: ['localforage'], message: 'Import StorageService from @/shared/services/storage.service instead.' },
+            { group: ['epubjs'], message: 'Import epub.js only via useEpubReader hook (features/reader/useEpubReader.ts).' },
+          ]
         }
       ]
+    },
+  },
+  {
+    files: ['src/features/reader/useEpubReader.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
 )

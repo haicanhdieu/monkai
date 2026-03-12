@@ -21,7 +21,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
   return (
     <Link
       to={toRead(bookmark.bookId)}
-      state={{ page: bookmark.page }}
+      state={{ cfi: bookmark.cfi }}
       className="flex min-h-[44px] gap-4 rounded-2xl border p-4 transition-colors hover:brightness-95"
       style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
     >
@@ -45,7 +45,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
           {bookmark.bookTitle}
         </span>
         <div className="flex items-center justify-between text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <span>Trang {bookmark.page + 1}</span>
+          <span>Vị trí đã lưu</span>
           <span>{formatRelativeTime(bookmark.timestamp)}</span>
         </div>
       </div>

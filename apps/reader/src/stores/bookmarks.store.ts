@@ -4,7 +4,8 @@ import { immer } from 'zustand/middleware/immer'
 export interface Bookmark {
   bookId: string
   bookTitle: string
-  page: number
+  /** CFI-based position (epub.js); replaces legacy page number. */
+  cfi: string
   timestamp: number
 }
 

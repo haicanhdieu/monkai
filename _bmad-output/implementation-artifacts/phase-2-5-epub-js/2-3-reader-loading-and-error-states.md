@@ -1,6 +1,6 @@
 # Story 2.3: Reader Loading and Error States
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -32,24 +32,24 @@ so that I always know what the reader is doing.
 
 ## Tasks / Subtasks
 
-- [ ] Verify `ReaderEngine.tsx` from Story 2.2 already has skeleton + error states (Stories 2.2 and 2.3 are closely related) (AC: 1, 2, 3)
-  - [ ] Confirm `<SkeletonText lines={14} />` renders when `!isReady && !error`
-  - [ ] Confirm `<ReaderErrorPage category="parse" />` (or `category="unknown"`) renders when `error !== null`
-  - [ ] Confirm no try/catch around `ePub()` in `useEpubReader.ts`
-- [ ] Verify epub container div is mounted-but-hidden during load, not unmounted (AC: 1)
-  - [ ] Use `visibility: hidden` (not `display: none`) to keep the epub.js DOM target in the document
-- [ ] Add ARIA live region to `ReaderEngine.tsx` for location change announcements (AC: 4)
-  - [ ] Add `aria-live="polite"` region that announces page changes when `rendition.on('relocated')` fires
-  - [ ] Update `aria-label` on the container region
-- [ ] Verify `ReaderErrorPage` is used correctly (AC: 2)
-  - [ ] Check `ReaderErrorPage.tsx` prop signature — it accepts `category: DataErrorCategory`
-  - [ ] Use `category="parse"` for EPUB load/parse failures from epub.js
-  - [ ] Check `ReaderErrorPage.tsx` for `isOffline` prop — pass if relevant
-- [ ] Update `ReaderEngine.test.tsx` to cover loading and error states (AC: 1, 2, 3, 4)
-  - [ ] Test: skeleton shown when `isReady: false, error: null`
-  - [ ] Test: error page shown when `error` is an Error instance
-  - [ ] Test: skeleton hidden and content visible when `isReady: true`
-  - [ ] Test: ARIA region present in all states
+- [x] Verify `ReaderEngine.tsx` from Story 2.2 already has skeleton + error states (Stories 2.2 and 2.3 are closely related) (AC: 1, 2, 3)
+  - [x] Confirm `<SkeletonText lines={14} />` renders when `!isReady && !error`
+  - [x] Confirm `<ReaderErrorPage category="parse" />` (or `category="unknown"`) renders when `error !== null`
+  - [x] Confirm no try/catch around `ePub()` in `useEpubReader.ts`
+- [x] Verify epub container div is mounted-but-hidden during load, not unmounted (AC: 1)
+  - [x] Use `visibility: hidden` (not `display: none`) to keep the epub.js DOM target in the document
+- [x] Add ARIA live region to `ReaderEngine.tsx` for location change announcements (AC: 4)
+  - [x] Add `aria-live="polite"` region that announces page changes when `rendition.on('relocated')` fires
+  - [x] Update `aria-label` on the container region
+- [x] Verify `ReaderErrorPage` is used correctly (AC: 2)
+  - [x] Check `ReaderErrorPage.tsx` prop signature — it accepts `category: DataErrorCategory`
+  - [x] Use `category="parse"` for EPUB load/parse failures from epub.js
+  - [x] Check `ReaderErrorPage.tsx` for `isOffline` prop — pass if relevant
+- [x] Update `ReaderEngine.test.tsx` to cover loading and error states (AC: 1, 2, 3, 4)
+  - [x] Test: skeleton shown when `isReady: false, error: null`
+  - [x] Test: error page shown when `error` is an Error instance
+  - [x] Test: skeleton hidden and content visible when `isReady: true`
+  - [x] Test: ARIA region present in all states
 
 ## Dev Notes
 
@@ -167,3 +167,6 @@ describe('accessibility', () => {
 ### Completion Notes List
 
 ### File List
+
+- apps/reader/src/features/reader/ReaderEngine.tsx (ARIA live region, relocated handler)
+- apps/reader/src/features/reader/ReaderEngine.test.tsx (loading/error/ready/accessibility tests)

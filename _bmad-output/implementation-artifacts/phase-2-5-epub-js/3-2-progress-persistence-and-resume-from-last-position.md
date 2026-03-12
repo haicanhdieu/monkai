@@ -1,6 +1,6 @@
 # Story 3.2: Progress Persistence and Resume from Last Position
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -31,20 +31,20 @@ so that when I reopen a sutra I resume exactly where I left off.
 
 ## Tasks / Subtasks
 
-- [ ] Wire `rendition.on('relocated')` in `ReaderEngine.tsx` for progress save (AC: 1)
-  - [ ] Import `storageService` and `STORAGE_KEYS` in `ReaderEngine.tsx`
-  - [ ] In the `useEffect` that wires rendition events, add `relocated` handler
-  - [ ] Handler: call `readerStore.setCurrentCfi(location.start.cfi)` and `storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId, cfi: location.start.cfi })`
-  - [ ] `bookId` is the current bookId from URL params — pass it as a prop or read from `useParams()` in `ReaderPage` and pass down
-  - [ ] Ensure `location.start.cfi` is a string (not null) before setting
-- [ ] Implement resume logic in `ReaderPage.tsx` (AC: 2, 3)
-  - [ ] After `isReady` becomes true (watch via effect or render conditional), read `LAST_READ_POSITION` from storage
-  - [ ] If saved `cfi` matches current `bookId`, call `rendition.display(savedCfi)`
-  - [ ] If no saved position, call `rendition.display()` (epub.js default)
-  - [ ] Pass `rendition` from `useEpubReader` up to `ReaderPage` OR handle resume inside `ReaderEngine`
-- [ ] Verify offline behavior — `storageService` uses `localforage` which persists to IndexedDB, available offline (AC: 4)
-- [ ] Update `ReaderEngine.test.tsx` with tests for relocated event handler (AC: 1)
-- [ ] Update `ReaderPage.test.tsx` with tests for resume logic (AC: 2, 3)
+- [x] Wire `rendition.on('relocated')` in `ReaderEngine.tsx` for progress save (AC: 1)
+  - [x] Import `storageService` and `STORAGE_KEYS` in `ReaderEngine.tsx`
+  - [x] In the `useEffect` that wires rendition events, add `relocated` handler
+  - [x] Handler: call `readerStore.setCurrentCfi(location.start.cfi)` and `storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId, cfi: location.start.cfi })`
+  - [x] `bookId` is the current bookId from URL params — pass it as a prop or read from `useParams()` in `ReaderPage` and pass down
+  - [x] Ensure `location.start.cfi` is a string (not null) before setting
+- [x] Implement resume logic in `ReaderPage.tsx` (AC: 2, 3)
+  - [x] After `isReady` becomes true (watch via effect or render conditional), read `LAST_READ_POSITION` from storage
+  - [x] If saved `cfi` matches current `bookId`, call `rendition.display(savedCfi)`
+  - [x] If no saved position, call `rendition.display()` (epub.js default)
+  - [x] Pass `rendition` from `useEpubReader` up to `ReaderPage` OR handle resume inside `ReaderEngine`
+- [x] Verify offline behavior — `storageService` uses `localforage` which persists to IndexedDB, available offline (AC: 4)
+- [x] Update `ReaderEngine.test.tsx` with tests for relocated event handler (AC: 1)
+- [x] Update `ReaderPage.test.tsx` with tests for resume logic (AC: 2, 3)
 
 ## Dev Notes
 
@@ -178,3 +178,12 @@ Check `bookmarks.store.ts` to see if `upsertBookmark` signature has changed or i
 ### Completion Notes List
 
 ### File List
+
+- apps/reader/src/features/reader/ReaderEngine.tsx (bookId/bookTitle/initialCfi props, relocated save, resume effect)
+- apps/reader/src/features/reader/ReaderPage.tsx (pass bookId, bookTitle, initialCfi from location.state)
+- apps/reader/src/stores/bookmarks.store.ts (Bookmark.cfi replaces page)
+- apps/reader/src/features/bookmarks/BookmarkCard.tsx (state.cfi, display "Vị trí đã lưu")
+- apps/reader/src/shared/hooks/useStorageHydration.ts (hydrate only bookmarks with cfi)
+- apps/reader/src/features/reader/ReaderEngine.test.tsx (progress persistence test)
+- apps/reader/src/features/bookmarks/BookmarksPage.test.tsx (cfi fixtures)
+- apps/reader/src/shared/hooks/useStorageHydration.test.ts (cfi bookmark fixtures)

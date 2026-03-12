@@ -30,7 +30,9 @@ describe('useStorageHydration', () => {
   it('hydrates reader store with CFI when persisted value uses new shape', async () => {
     const lastRead = { bookId: UUID_BOOK_ID, cfi: SAMPLE_CFI }
     const settings = { fontSize: 20, theme: 'dark' as const }
-    const bookmarks = [{ bookId: UUID_BOOK_ID, bookTitle: 'Kinh Pháp Hoa', page: 14, timestamp: 1000 }]
+    const bookmarks = [
+      { bookId: UUID_BOOK_ID, bookTitle: 'Kinh Pháp Hoa', cfi: SAMPLE_CFI, timestamp: 1000 },
+    ]
 
     mockStorageService.getItem
       .mockResolvedValueOnce(lastRead)
@@ -101,8 +103,8 @@ describe('useStorageHydration', () => {
 
   it('filters out legacy SEO-slug bookmarks and keeps valid UUID bookmarks', async () => {
     const bookmarks = [
-      { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', page: 1, timestamp: 1000 },
-      { bookId: UUID_BOOK_ID, bookTitle: 'Valid', page: 5, timestamp: 2000 },
+      { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', cfi: 'epubcfi(/6/2!/4/2/1:0)', timestamp: 1000 },
+      { bookId: UUID_BOOK_ID, bookTitle: 'Valid', cfi: SAMPLE_CFI, timestamp: 2000 },
     ]
     mockStorageService.getItem
       .mockResolvedValueOnce(null)
@@ -119,7 +121,7 @@ describe('useStorageHydration', () => {
 
   it('does not hydrate bookmarks store when all persisted bookmarks are legacy SEO slugs', async () => {
     const bookmarks = [
-      { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', page: 1, timestamp: 1000 },
+      { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', cfi: 'epubcfi(/6/2!/4/2/1:0)', timestamp: 1000 },
     ]
     mockStorageService.getItem
       .mockResolvedValueOnce(null)
