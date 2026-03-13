@@ -7,6 +7,10 @@ export interface Bookmark {
   /** CFI-based position (epub.js); replaces legacy page number. */
   cfi: string
   timestamp: number
+  /** Current page from epub.js relocated (location.start.displayed.page). */
+  page?: number
+  /** Total pages from epub.js (location.start.displayed.total). */
+  total?: number
 }
 
 interface BookmarksState {

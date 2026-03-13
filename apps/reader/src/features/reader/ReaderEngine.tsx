@@ -9,13 +9,22 @@ import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import ReaderErrorPage from './ReaderErrorPage'
 
-/** Shape passed by epub.js rendition.on('relocated') — avoid importing from 'epubjs' here. */
+/** Shape passed by epub.js rendition.on('relocated') — matches epub.js Location.start. */
 interface RelocatedLocation {
   start?: {
     cfi?: string
     percentage?: number
     displayed?: { page: number; total: number }
   }
+}
+
+/** Persisted last-read position (bookTitle and page/total for home card and display). */
+interface LastReadPosition {
+  bookId: string
+  cfi: string
+  bookTitle?: string
+  page?: number
+  total?: number
 }
 
 export interface ReaderEngineProps {
@@ -28,7 +37,7 @@ export interface ReaderEngineProps {
 
 export function ReaderEngine({ epubUrl, bookId, bookTitle, initialCfi }: ReaderEngineProps) {
   const { containerRef, rendition, isReady, error } = useEpubReader(epubUrl)
-  const { toggleChrome, setCurrentCfi } = useReaderStore()
+  const { toggleChrome, setCurrentCfi, setProgress, setLastRead } = useReaderStore()
   const { theme, fontSize } = useSettingsStore()
   const [locationAnnouncement, setLocationAnnouncement] = useState('')
   const [resumeAttempted, setResumeAttempted] = useState(false)
@@ -65,20 +74,38 @@ export function ReaderEngine({ epubUrl, bookId, bookTitle, initialCfi }: ReaderE
     }
 
     const handleRelocated = (location: RelocatedLocation) => {
+      const displayed = location?.start?.displayed
       const pct = location?.start?.percentage
       const text =
-        pct != null && !Number.isNaN(pct)
-          ? `${Math.round(pct * 100)}%`
-          : location?.start?.displayed
-            ? `Trang ${location.start.displayed.page} / ${location.start.displayed.total}`
+        displayed && displayed.total > 0
+          ? `Trang ${displayed.page} / ${displayed.total}`
+          : pct != null && !Number.isNaN(pct)
+            ? `${Math.round(pct * 100)}%`
             : ''
       setLocationAnnouncement(text)
+
+      if (displayed && displayed.total > 0) {
+        setProgress(displayed.page, displayed.total)
+        setLastRead(bookId, bookTitle, displayed.page, displayed.total)
+      }
 
       const cfi = location?.start?.cfi
       if (typeof cfi === 'string' && cfi) {
         setCurrentCfi(cfi)
-        void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, { bookId, cfi })
-        useBookmarksStore.getState().upsertBookmark({ bookId, bookTitle, cfi, timestamp: Date.now() })
+        const payload: LastReadPosition = {
+          bookId,
+          cfi,
+          bookTitle,
+          ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
+        }
+        void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, payload)
+        useBookmarksStore.getState().upsertBookmark({
+          bookId,
+          bookTitle,
+          cfi,
+          timestamp: Date.now(),
+          ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
+        })
         if (bookmarkSaveTimeoutRef.current) clearTimeout(bookmarkSaveTimeoutRef.current)
         bookmarkSaveTimeoutRef.current = setTimeout(() => {
           void storageService.setItem(
@@ -103,7 +130,7 @@ export function ReaderEngine({ epubUrl, bookId, bookTitle, initialCfi }: ReaderE
       rendition.off('keyup', handleKeyup)
       rendition.off('relocated', handleRelocated)
     }
-  }, [rendition, toggleChrome, setCurrentCfi, bookId, bookTitle])
+  }, [rendition, toggleChrome, setCurrentCfi, setProgress, setLastRead, bookId, bookTitle])
 
   // Resume from saved position or initialCfi (e.g. from bookmark link)
   useEffect(() => {

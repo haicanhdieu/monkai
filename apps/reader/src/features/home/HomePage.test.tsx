@@ -17,7 +17,12 @@ function renderHomePage() {
 }
 
 beforeEach(() => {
-  useReaderStore.setState({ bookId: '', bookTitle: '', currentPage: 0 })
+  useReaderStore.setState({
+    lastReadBookId: '',
+    lastReadBookTitle: '',
+    lastReadPage: 0,
+    lastReadTotalPages: 0,
+  })
 })
 
 describe('HomePage', () => {
@@ -30,7 +35,7 @@ describe('HomePage', () => {
   })
 
   it('does not show "Continue Reading" section when no last read position', () => {
-    useReaderStore.setState({ bookId: '', currentPage: 0 })
+    useReaderStore.setState({ lastReadBookId: '', lastReadPage: 0 })
     renderHomePage()
 
     expect(screen.queryByLabelText('Tiếp tục đọc')).not.toBeInTheDocument()
@@ -39,18 +44,17 @@ describe('HomePage', () => {
 
   it('shows "Continue Reading" card with correct link when last read position exists', () => {
     useReaderStore.setState({
-      bookId: 'kinh-phap-hoa',
-      bookTitle: 'Kinh Pháp Hoa',
-      currentPage: 14,
-      pages: Array(99).fill(['paragraph']),
+      lastReadBookId: 'kinh-phap-hoa',
+      lastReadBookTitle: 'Kinh Pháp Hoa',
+      lastReadPage: 15,
+      lastReadTotalPages: 99,
     })
     renderHomePage()
 
     expect(screen.getByLabelText('Tiếp tục đọc')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Tiếp tục đọc Kinh Pháp Hoa' })).toHaveAttribute(
-      'href',
-      '/read/kinh-phap-hoa',
-    )
+    expect(
+      screen.getByRole('link', { name: /Tiếp tục đọc Kinh Pháp Hoa/ }),
+    ).toHaveAttribute('href', '/read/kinh-phap-hoa')
     expect(screen.getByText('Kinh Pháp Hoa')).toBeInTheDocument()
     expect(screen.getAllByText(/Trang 15/).length).toBeGreaterThanOrEqual(1)
   })

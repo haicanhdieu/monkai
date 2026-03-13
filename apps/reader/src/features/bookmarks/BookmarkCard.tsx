@@ -45,7 +45,11 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
           {bookmark.bookTitle}
         </span>
         <div className="flex items-center justify-between text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          <span>Vị trí đã lưu</span>
+          <span>
+            {bookmark.page != null && bookmark.total != null && bookmark.total > 0
+              ? `Trang ${bookmark.page} / ${bookmark.total}`
+              : 'Vị trí đã lưu'}
+          </span>
           <span>{formatRelativeTime(bookmark.timestamp)}</span>
         </div>
       </div>

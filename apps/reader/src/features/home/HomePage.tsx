@@ -48,9 +48,14 @@ function useCoverDimensions(contentRef: React.RefObject<HTMLDivElement | null>) 
 }
 
 function ContinueReadingCard() {
-  const { bookId, bookTitle, currentPage, pages, lastReadTotalPages } = useReaderStore()
-  const hasLastRead = bookId !== '' && currentPage > 0
-  const { data: bookData } = useBook(hasLastRead ? bookId : '')
+  const {
+    lastReadBookId,
+    lastReadBookTitle,
+    lastReadPage,
+    lastReadTotalPages,
+  } = useReaderStore()
+  const hasLastRead = lastReadBookId !== ''
+  const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '')
   const [coverError, setCoverError] = useState(false)
   const [coverLoaded, setCoverLoaded] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -58,11 +63,12 @@ function ContinueReadingCard() {
 
   if (!hasLastRead) return null
 
-  const displayTitle = bookTitle !== '' ? bookTitle : (bookData?.title ?? bookId)
+  const displayTitle =
+    lastReadBookTitle !== '' ? lastReadBookTitle : (bookData?.title ?? lastReadBookId)
   const coverUrl = bookData?.coverImageUrl ? resolveCoverUrl(bookData.coverImageUrl) : null
-  const totalPages =
-    pages.length > 0 ? 1 + pages.length : Math.max(1, lastReadTotalPages)
-  const progressPercent = totalPages > 0 ? Math.round(((currentPage + 1) / totalPages) * 100) : 0
+  const totalPages = lastReadTotalPages > 0 ? lastReadTotalPages : 1
+  const currentPage = lastReadPage > 0 ? lastReadPage : 1
+  const progressPercent = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0
 
   return (
     <section className="mb-8 mt-6" aria-label="Tiếp tục đọc">
@@ -73,13 +79,13 @@ function ContinueReadingCard() {
         Tiếp tục đọc
       </h2>
       <Link
-        to={toRead(bookId)}
+        to={toRead(lastReadBookId)}
         className="grid min-h-[44px] grid-cols-[auto_1fr] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
         style={{
           backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
         }}
-        aria-label={`Tiếp tục đọc ${displayTitle}`}
+        aria-label={`Tiếp tục đọc ${displayTitle}, trang ${currentPage}/${totalPages}`}
       >
         {/* Cover: when dimensions set, lock size so image cannot extend card; when null, placeholder only (content drives row height). */}
         <div className="flex min-h-0 items-stretch">
@@ -142,7 +148,7 @@ function ContinueReadingCard() {
           <div className="mt-3">
             <div className="mb-2 flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
               <span>Tiến độ: {progressPercent}%</span>
-              <span>Trang {currentPage + 1} / {totalPages}</span>
+              <span>Trang {currentPage} / {totalPages}</span>
             </div>
             <div
               className="h-2 w-full overflow-hidden rounded-full"

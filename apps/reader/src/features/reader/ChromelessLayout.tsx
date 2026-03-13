@@ -23,11 +23,7 @@ interface ChromelessLayoutProps {
 
 export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLayoutProps) {
   const navigate = useNavigate()
-  const { isChromeVisible, toggleChrome } = useReaderStore()
-
-  // TODO: epub.js rewrite in Story 2.2 — page progress will use CFI-based location
-  const currentPage = 0 // stub: always show page 1 until epub.js rewrite
-  const pages: string[][] = [] // stub: empty until epub.js rewrite
+  const { isChromeVisible, toggleChrome, currentPage, totalPages } = useReaderStore()
 
   // Hint state is a local concern; not persisted in store after CFI migration
   const [hasSeenHint, setHasSeenHint] = useState(false)
@@ -42,7 +38,7 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
     }
   }
   const backButtonRef = useRef<HTMLButtonElement>(null)
-  const totalPages = hasCoverPage ? 1 + pages.length : pages.length
+  const totalPagesDisplay = hasCoverPage ? Math.max(1, totalPages + 1) : totalPages
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Auto-hide chrome after 3 seconds on first mount (AC 3)
@@ -154,7 +150,7 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
           className="text-xs"
           style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
         >
-          {totalPages > 0 ? `${currentPage + 1} / ${totalPages}` : ''}
+          {totalPagesDisplay > 0 ? `${currentPage} / ${totalPagesDisplay}` : ''}
         </span>
       </div>
 

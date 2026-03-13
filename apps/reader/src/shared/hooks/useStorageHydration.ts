@@ -17,7 +17,13 @@ function isValidBookId(id: string): boolean {
 export function useStorageHydration() {
   useEffect(() => {
     Promise.all([
-      storageService.getItem<{ bookId?: string; cfi?: string }>(STORAGE_KEYS.LAST_READ_POSITION),
+      storageService.getItem<{
+        bookId?: string
+        cfi?: string
+        bookTitle?: string
+        page?: number
+        total?: number
+      }>(STORAGE_KEYS.LAST_READ_POSITION),
       storageService.getItem<UserSettings>(STORAGE_KEYS.USER_SETTINGS),
       storageService.getItem<Bookmark[]>(STORAGE_KEYS.BOOKMARKS),
     ])
@@ -26,6 +32,12 @@ export function useStorageHydration() {
         // Items with the old page-based shape (no cfi field) are gracefully ignored.
         if (lastRead && lastRead.cfi && lastRead.bookId && isValidBookId(lastRead.bookId)) {
           useReaderStore.getState().setCurrentCfi(lastRead.cfi)
+          useReaderStore.getState().hydrateLastRead(
+            lastRead.bookId,
+            lastRead.bookTitle ?? '',
+            lastRead.page ?? 0,
+            lastRead.total ?? 0,
+          )
         }
         if (settings) useSettingsStore.getState().hydrate(settings)
         if (bookmarks) {

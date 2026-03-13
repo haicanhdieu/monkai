@@ -212,7 +212,10 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       relocatedHandler!({ start: { cfi } })
     })
     expect(useReaderStore.getState().currentCfi).toBe(cfi)
-    expect(mockSetItem).toHaveBeenCalledWith(STORAGE_KEYS.LAST_READ_POSITION, { bookId: 'book-123', cfi })
+    expect(mockSetItem).toHaveBeenCalledWith(
+      STORAGE_KEYS.LAST_READ_POSITION,
+      expect.objectContaining({ bookId: 'book-123', cfi, bookTitle: 'My Book' }),
+    )
   })
 
   it('calls rendition.display(savedCfi) when storage has saved position for this bookId', async () => {
