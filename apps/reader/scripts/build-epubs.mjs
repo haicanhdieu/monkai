@@ -86,14 +86,6 @@ function collectJsonFiles(dir) {
 async function buildEpub(book) {
   const title = xmlEscape(book.book_name ?? 'Untitled')
 
-  // Collect all paragraphs across all chapters
-  const paragraphs = []
-  for (const chapter of book.chapters ?? []) {
-    for (const page of chapter.pages ?? []) {
-      paragraphs.push(...extractParagraphs(page.html_content ?? ''))
-    }
-  }
-
   const uid = book.id ?? `book-${Date.now()}`
 
   // --- mimetype (MUST be STORE, no compression) ---
@@ -107,6 +99,39 @@ async function buildEpub(book) {
   </rootfiles>
 </container>`
 
+  // Collect paragraphs per chapter so we can create one content file (and TOC entry) per chapter.
+  const rawChapters = Array.isArray(book.chapters) ? book.chapters : []
+  const chapterParagraphs = rawChapters.map((chapter) => {
+    const paras = []
+    for (const page of chapter.pages ?? []) {
+      paras.push(...extractParagraphs(page.html_content ?? ''))
+    }
+    return paras
+  })
+
+  // Filter out chapters that end up with no paragraphs
+  const nonEmptyChapters = chapterParagraphs
+    .map((paras, idx) => ({ index: idx, paragraphs: paras }))
+    .filter((c) => c.paragraphs.length > 0)
+
+  // Fallback: if everything is empty, create a single synthetic chapter so EPUB stays valid.
+  const effectiveChapters =
+    nonEmptyChapters.length > 0
+      ? nonEmptyChapters
+      : [{ index: 0, paragraphs: [`${title}`] }]
+
+  // Build manifest & spine items for each chapter file (content-1.xhtml, content-2.xhtml, ...)
+  const manifestItems = effectiveChapters
+    .map(
+      (c, i) =>
+        `    <item id="content-${i + 1}" href="content-${i + 1}.xhtml" media-type="application/xhtml+xml"/>`,
+    )
+    .join('\n')
+
+  const spineItems = effectiveChapters
+    .map((_, i) => `    <itemref idref="content-${i + 1}"/>`)
+    .join('\n')
+
   // --- OEBPS/content.opf ---
   const contentOpf = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookId">
@@ -116,33 +141,53 @@ async function buildEpub(book) {
     <dc:language>vi</dc:language>
   </metadata>
   <manifest>
-    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+${manifestItems}
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
   </manifest>
   <spine toc="ncx">
-    <itemref idref="content"/>
+${spineItems}
   </spine>
 </package>`
 
-  // --- OEBPS/content.xhtml ---
-  const bodyContent = paragraphs.length > 0
-    ? paragraphs.map((p) => `    <p>${xmlEscape(p)}</p>`).join('\n')
-    : `    <p></p>`
+  // --- OEBPS/content-*.xhtml ---
+  const contentFiles = effectiveChapters.map((chapter, i) => {
+    const chapterBody =
+      chapter.paragraphs.length > 0
+        ? chapter.paragraphs.map((p) => `    <p>${xmlEscape(p)}</p>`).join('\n')
+        : `    <p></p>`
 
-  const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
+    const chapterTitle =
+      effectiveChapters.length === 1 ? title : `${title} – Chương ${chapter.index + 1}`
+
+    const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="vi">
   <head>
     <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
-    <title>${title}</title>
+    <title>${chapterTitle}</title>
   </head>
   <body>
-    <h1>${title}</h1>
-${bodyContent}
+    <h1>${chapterTitle}</h1>
+${chapterBody}
   </body>
 </html>`
+    return { filename: `OEBPS/content-${i + 1}.xhtml`, xhtml }
+  })
 
   // --- OEBPS/toc.ncx ---
+  const navPoints = effectiveChapters
+    .map((chapter, i) => {
+      const playOrder = i + 1
+      const labelText =
+        effectiveChapters.length === 1 ? title : `Chương ${chapter.index + 1}`
+      const src = `content-${i + 1}.xhtml`
+      return `    <navPoint id="navpoint-${playOrder}" playOrder="${playOrder}">
+      <navLabel><text>${labelText}</text></navLabel>
+      <content src="${src}"/>
+    </navPoint>`
+    })
+    .join('\n')
+
   const tocNcx = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
@@ -154,10 +199,7 @@ ${bodyContent}
   </head>
   <docTitle><text>${title}</text></docTitle>
   <navMap>
-    <navPoint id="navpoint-1" playOrder="1">
-      <navLabel><text>${title}</text></navLabel>
-      <content src="content.xhtml"/>
-    </navPoint>
+${navPoints}
   </navMap>
 </ncx>`
 
@@ -166,7 +208,9 @@ ${bodyContent}
   zip.file('mimetype', mimetypeContent, { compression: 'STORE' })
   zip.file('META-INF/container.xml', containerXml)
   zip.file('OEBPS/content.opf', contentOpf)
-  zip.file('OEBPS/content.xhtml', contentXhtml)
+  for (const file of contentFiles) {
+    zip.file(file.filename, file.xhtml)
+  }
   zip.file('OEBPS/toc.ncx', tocNcx)
 
   return zip.generateAsync({ type: 'nodebuffer' })

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Book, BookParagraph } from '@/shared/types/global.types'
+import type { Book, BookParagraph, EpubChapter } from '@/shared/types/global.types'
 
 const pageSchema = z.object({
   html_content: z.string().nullable().optional(),
@@ -82,12 +82,62 @@ function normalizeParagraphs(chapters: z.infer<typeof chapterSchema>[]): BookPar
   return paragraphs
 }
 
-export const bookSchema: z.ZodType<Book> = rawBookSchema.transform((raw) => ({
-  id: raw.id,
-  title: raw.book_name,
-  category: raw.category_name,
-  subcategory: raw.category_seo_name ?? 'general',
-  translator: raw.author ?? 'Unknown translator',
-  coverImageUrl: raw.cover_image_local_path ?? raw.cover_image_url ?? null,
-  content: normalizeParagraphs(raw.chapters),
-}))
+function buildChaptersForEpub(chapters: z.infer<typeof chapterSchema>[]): EpubChapter[] {
+  const result: EpubChapter[] = []
+
+  chapters.forEach((chapter, chapterIndex) => {
+    const pageTexts: string[] = []
+
+    for (const page of chapter.pages) {
+      const html = page.html_content ?? page.original_html_content ?? ''
+      if (!html) {
+        continue
+      }
+
+      pageTexts.push(
+        decodeHtmlEntities(
+          html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(div|p|li)>/gi, '\n')
+            .replace(/<[^>]*>/g, ' ')
+        )
+      )
+    }
+
+    const paragraphs: BookParagraph[] = []
+    for (const line of pageTexts.flatMap((t) => t.split('\n'))) {
+      const paragraph = line.replace(/[ \t\r]+/g, ' ').trim()
+      if (paragraph.length > 0) {
+        paragraphs.push(paragraph)
+      }
+    }
+
+    if (paragraphs.length === 0) {
+      return
+    }
+
+    result.push({
+      title: `Chương ${chapterIndex + 1}`,
+      paragraphs,
+    })
+  })
+
+  return result
+}
+
+export const bookSchema: z.ZodType<Book> = rawBookSchema.transform((raw) => {
+  const chapters = raw.chapters
+  const content = normalizeParagraphs(chapters)
+  const chaptersForEpub = buildChaptersForEpub(chapters)
+
+  return {
+    id: raw.id,
+    title: raw.book_name,
+    category: raw.category_name,
+    subcategory: raw.category_seo_name ?? 'general',
+    translator: raw.author ?? 'Unknown translator',
+    coverImageUrl: raw.cover_image_local_path ?? raw.cover_image_url ?? null,
+    content,
+    chaptersForEpub,
+  }
+})

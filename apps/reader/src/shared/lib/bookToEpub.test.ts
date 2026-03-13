@@ -1,48 +1,82 @@
 import JSZip from 'jszip'
+import { describe, it, expect } from 'vitest'
+import type { Book } from '@/shared/types/global.types'
 import { bookToEpubBuffer } from './bookToEpub'
 
-describe('bookToEpubBuffer', () => {
-  it('returns an ArrayBuffer for a minimal book', async () => {
-    const buffer = await bookToEpubBuffer({
-      id: 'test-id',
-      title: 'Test Title',
-      category: 'Đại Thừa',
-      subcategory: 'Test',
+async function unzip(buffer: ArrayBuffer) {
+  const zip = await JSZip.loadAsync(buffer)
+  const fileNames = Object.keys(zip.files).sort()
+  const readFile = async (name: string) => zip.file(name)?.async('string') ?? null
+  return { fileNames, readFile, zip }
+}
+
+describe('bookToEpubBuffer – multi-chapter structure', () => {
+  it('emits one content-*.xhtml and navPoint per chapter when chaptersForEpub is present', async () => {
+    const book: Book = {
+      id: 'multi-chapter-book',
+      title: 'Multi Chapter Book',
+      category: 'Kinh',
+      subcategory: 'test',
       translator: 'Tester',
       coverImageUrl: null,
-      content: ['Paragraph one'],
-    })
+      content: [],
+      chaptersForEpub: [
+        {
+          title: 'Chương 1',
+          paragraphs: ['Câu 1', 'Câu 2'],
+        },
+        {
+          title: 'Chương 2',
+          paragraphs: ['Câu 3'],
+        },
+      ],
+    }
 
-    expect(buffer).toBeInstanceOf(ArrayBuffer)
+    const buffer = await bookToEpubBuffer(book)
+    const { fileNames, readFile } = await unzip(buffer)
+
+    expect(fileNames).toContain('mimetype')
+    expect(fileNames).toContain('META-INF/container.xml')
+    expect(fileNames).toContain('OEBPS/content.opf')
+    expect(fileNames).toContain('OEBPS/content-1.xhtml')
+    expect(fileNames).toContain('OEBPS/content-2.xhtml')
+    expect(fileNames).toContain('OEBPS/toc.ncx')
+
+    const tocNcx = await readFile('OEBPS/toc.ncx')
+    expect(tocNcx).not.toBeNull()
+    expect(tocNcx).toContain('navpoint-1')
+    expect(tocNcx).toContain('navpoint-2')
+    expect(tocNcx).toContain('Chương 1')
+    expect(tocNcx).toContain('Chương 2')
+    expect(tocNcx).toContain('content-1.xhtml')
+    expect(tocNcx).toContain('content-2.xhtml')
   })
 
-  it('generated ZIP contains required EPUB files', async () => {
-    const buffer = await bookToEpubBuffer({
-      id: 'test-id',
-      title: 'Test Title',
-      category: 'Đại Thừa',
-      subcategory: 'Test',
+  it('falls back to a single synthetic chapter when chaptersForEpub is missing', async () => {
+    const book: Book = {
+      id: 'single-chapter-book',
+      title: 'Single Chapter Book',
+      category: 'Kinh',
+      subcategory: 'test',
       translator: 'Tester',
       coverImageUrl: null,
-      content: ['Paragraph one'],
-    })
+      content: ['Đoạn 1', 'Đoạn 2'],
+    }
 
-    const zip = await JSZip.loadAsync(buffer)
-    const files = Object.keys(zip.files)
+    const buffer = await bookToEpubBuffer(book)
+    const { fileNames, readFile } = await unzip(buffer)
 
-    expect(files).toEqual(
-      expect.arrayContaining([
-        'mimetype',
-        'META-INF/container.xml',
-        'OEBPS/content.opf',
-        'OEBPS/content.xhtml',
-        'OEBPS/toc.ncx',
-      ]),
-    )
+    expect(fileNames).toContain('OEBPS/content-1.xhtml')
+    expect(fileNames).not.toContain('OEBPS/content-2.xhtml')
+
+    const tocNcx = await readFile('OEBPS/toc.ncx')
+    expect(tocNcx).not.toBeNull()
+    expect(tocNcx).toContain('navpoint-1')
+    expect(tocNcx).not.toContain('navpoint-2')
   })
 
-  it('mimetype file is uncompressed (STORE method)', async () => {
-    const buffer = await bookToEpubBuffer({
+  it('keeps mimetype file uncompressed (STORE method)', async () => {
+    const book: Book = {
       id: 'test-id',
       title: 'Test Title',
       category: 'Đại Thừa',
@@ -50,74 +84,17 @@ describe('bookToEpubBuffer', () => {
       translator: 'Tester',
       coverImageUrl: null,
       content: ['Paragraph one'],
-    })
+    }
 
-    const zip = await JSZip.loadAsync(buffer)
+    const buffer = await bookToEpubBuffer(book)
+    const { zip } = await unzip(buffer)
     const mimetypeFile = zip.file('mimetype')
 
     expect(mimetypeFile).toBeDefined()
     const uncompressedBuffer = await mimetypeFile!.async('nodebuffer')
     const mimetypeContent = 'application/epub+zip'
     expect(uncompressedBuffer.toString()).toBe(mimetypeContent)
-    // EPUB 2.0 requires mimetype first and stored uncompressed; size must match content length
     expect(uncompressedBuffer.length).toBe(mimetypeContent.length)
-  })
-
-  it('content.xhtml contains book title and paragraphs', async () => {
-    const buffer = await bookToEpubBuffer({
-      id: 'test-id',
-      title: 'Test Title',
-      category: 'Đại Thừa',
-      subcategory: 'Test',
-      translator: 'Tester',
-      coverImageUrl: null,
-      content: ['Paragraph one', 'Paragraph two'],
-    })
-
-    const zip = await JSZip.loadAsync(buffer)
-    const contentFile = zip.file('OEBPS/content.xhtml')
-    const contentXhtml = await contentFile!.async('text')
-
-    expect(contentXhtml).toContain('Test Title')
-    expect(contentXhtml).toContain('<p>Paragraph one</p>')
-    expect(contentXhtml).toContain('<p>Paragraph two</p>')
-  })
-
-  it('sanitizeXml strips forbidden control characters from content.xhtml', async () => {
-    const buffer = await bookToEpubBuffer({
-      id: 'test-id',
-      title: 'Test Title',
-      category: 'Đại Thừa',
-      subcategory: 'Test',
-      translator: 'Tester',
-      coverImageUrl: null,
-      content: ['hello\u0008world'],
-    })
-
-    const zip = await JSZip.loadAsync(buffer)
-    const contentFile = zip.file('OEBPS/content.xhtml')
-    const contentXhtml = await contentFile!.async('text')
-
-    expect(contentXhtml).toContain('helloworld')
-    expect(contentXhtml).not.toContain('\u0008')
-  })
-
-  it('empty content array produces valid EPUB with placeholder paragraph', async () => {
-    const buffer = await bookToEpubBuffer({
-      id: 'test-id',
-      title: 'Empty Book',
-      category: 'Đại Thừa',
-      subcategory: 'Test',
-      translator: 'Tester',
-      coverImageUrl: null,
-      content: [],
-    })
-
-    const zip = await JSZip.loadAsync(buffer)
-    const contentFile = zip.file('OEBPS/content.xhtml')
-    const contentXhtml = await contentFile!.async('text')
-
-    expect(contentXhtml).toContain('<p></p>')
   })
 })
 

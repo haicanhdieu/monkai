@@ -2,6 +2,11 @@ export type DataErrorCategory = 'network' | 'parse' | 'not_found' | 'unknown'
 
 export type BookParagraph = string
 
+export interface EpubChapter {
+  title: string
+  paragraphs: BookParagraph[]
+}
+
 export interface CatalogCategory {
   slug: string
   displayName: string
@@ -38,4 +43,9 @@ export interface Book {
   translator: string
   coverImageUrl: string | null
   content: BookParagraph[]
+  /**
+   * Optional chapter structure used by EPUB builders to generate multi-entry TOCs.
+   * Reader UI continues to consume the flattened `content` array.
+   */
+  chaptersForEpub?: EpubChapter[]
 }

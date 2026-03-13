@@ -249,6 +249,45 @@ describe('bookSchema – normalizeParagraphs', () => {
   })
 })
 
+describe('bookSchema – chaptersForEpub', () => {
+  it('creates one EpubChapter per non-empty chapter in order', () => {
+    const raw = makeRawBook([
+      {
+        pages: [{ html_content: '<p>Chap1 Page1</p>' }],
+      },
+      {
+        pages: [{ html_content: '<p>Chap2 Page1</p>' }],
+      },
+    ])
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.chaptersForEpub).toBeDefined()
+    expect(book.chaptersForEpub).toHaveLength(2)
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương 1')
+    expect(book.chaptersForEpub?.[1].title).toBe('Chương 2')
+    expect(book.chaptersForEpub?.[0].paragraphs).toContain('Chap1 Page1')
+    expect(book.chaptersForEpub?.[1].paragraphs).toContain('Chap2 Page1')
+  })
+
+  it('skips completely empty chapters', () => {
+    const raw = makeRawBook([
+      {
+        pages: [],
+      },
+      {
+        pages: [{ html_content: '<p>Non-empty</p>' }],
+      },
+    ])
+
+    const book = bookSchema.parse(raw)
+
+    expect(book.chaptersForEpub).toBeDefined()
+    expect(book.chaptersForEpub).toHaveLength(1)
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương 2')
+  })
+})
+
 describe('bookSchema – coverImageUrl', () => {
   it('sets coverImageUrl from cover_image_local_path when present (prefer local)', () => {
     const raw = makeRawBook([]) as Record<string, unknown>
