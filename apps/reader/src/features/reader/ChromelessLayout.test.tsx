@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChromelessLayout } from '@/features/reader/ChromelessLayout'
@@ -27,10 +27,16 @@ const bookFixture: Book = {
   content: ['Đoạn 1.'],
 }
 
-function renderLayout(book = bookFixture) {
+function renderLayout(
+  book = bookFixture,
+  opts: {
+    getToc?: () => Promise<{ label: string; href: string }[]>
+    navigateToTocEntry?: (entry: { label: string; href: string }) => Promise<void>
+  } = {},
+) {
   return render(
     <MemoryRouter>
-      <ChromelessLayout book={book} hasCoverPage>
+      <ChromelessLayout book={book} hasCoverPage getToc={opts.getToc} navigateToTocEntry={opts.navigateToTocEntry}>
         <div data-testid="reader-content">content</div>
       </ChromelessLayout>
     </MemoryRouter>,
@@ -191,5 +197,37 @@ describe('ChromelessLayout', () => {
       </MemoryRouter>,
     )
     expect(screen.getByTestId('chrome-bottom-bar')).toHaveTextContent('1 / 2')
+  })
+
+  it('shows TOC trigger when getToc and navigateToTocEntry are provided', () => {
+    renderLayout(bookFixture, {
+      getToc: async () => [],
+      navigateToTocEntry: async () => {},
+    })
+    expect(screen.getByTestId('toc-trigger')).toBeInTheDocument()
+  })
+
+  it('does not show TOC trigger when getToc or navigateToTocEntry is missing', () => {
+    renderLayout(bookFixture)
+    expect(screen.queryByTestId('toc-trigger')).not.toBeInTheDocument()
+  })
+
+  it('opens drawer and shows "Không có mục lục" when getToc returns empty array', async () => {
+    vi.useRealTimers()
+    renderLayout(bookFixture, {
+      getToc: async () => [],
+      navigateToTocEntry: async () => {},
+    })
+    const trigger = screen.getByTestId('toc-trigger')
+    await act(async () => {
+      trigger.click()
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('toc-drawer')).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Không có mục lục')).toBeInTheDocument()
+    })
+    vi.useFakeTimers()
   })
 })

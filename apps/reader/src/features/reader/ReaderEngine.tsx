@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useEpubReader } from './useEpubReader'
+// Types for props only; epub.js runtime is used only in useEpubReader
+import type { Book, Rendition } from 'epubjs' // eslint-disable-line no-restricted-imports
 import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -28,15 +29,27 @@ interface LastReadPosition {
 }
 
 export interface ReaderEngineProps {
-  epubUrl: string
+  containerRef: React.RefObject<HTMLDivElement>
+  rendition: Rendition | null
+  book: Book | null
+  isReady: boolean
+  error: Error | null
   bookId: string
   bookTitle: string
   /** When opening from a bookmark link, pass the saved CFI to open at that position. */
   initialCfi?: string | null
 }
 
-export function ReaderEngine({ epubUrl, bookId, bookTitle, initialCfi }: ReaderEngineProps) {
-  const { containerRef, rendition, isReady, error } = useEpubReader(epubUrl)
+export function ReaderEngine({
+  containerRef,
+  rendition,
+  book: _book,
+  isReady,
+  error,
+  bookId,
+  bookTitle,
+  initialCfi,
+}: ReaderEngineProps) {
   const { toggleChrome, setCurrentCfi, setProgress, setLastRead } = useReaderStore()
   const { theme, fontSize } = useSettingsStore()
   const [locationAnnouncement, setLocationAnnouncement] = useState('')

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
+import type { TocEntry } from './useEpubReader'
+import { TocDrawer } from './TocDrawer'
 
 // TODO: epub.js rewrite in Story 2.2
 // ChromelessLayout previously read currentPage, pages, hasSeenHint, and dismissHint
@@ -19,9 +21,17 @@ interface ChromelessLayoutProps {
   /** When true, page 0 is the cover/placeholder and totalPages = 1 + content pages. Must be set explicitly by the caller (e.g. reader route passes true). */
   hasCoverPage: boolean
   children: ReactNode
+  getToc?: () => Promise<TocEntry[]>
+  navigateToTocEntry?: (entry: TocEntry) => Promise<void>
 }
 
-export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLayoutProps) {
+export function ChromelessLayout({
+  book,
+  hasCoverPage,
+  children,
+  getToc,
+  navigateToTocEntry,
+}: ChromelessLayoutProps) {
   const navigate = useNavigate()
   const { isChromeVisible, toggleChrome, currentPage, totalPages } = useReaderStore()
 
@@ -40,6 +50,12 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
   const backButtonRef = useRef<HTMLButtonElement>(null)
   const totalPagesDisplay = hasCoverPage ? Math.max(1, totalPages + 1) : totalPages
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tocTriggerRef = useRef<HTMLButtonElement>(null)
+  const [isTocOpen, setIsTocOpen] = useState(false)
+  const [tocEntries, setTocEntries] = useState<TocEntry[]>([])
+  const [tocLoading, setTocLoading] = useState(false)
+  const [tocError, setTocError] = useState<Error | null>(null)
+  const [tocNavigateError, setTocNavigateError] = useState<string | null>(null)
 
   // Auto-hide chrome after 3 seconds on first mount (AC 3)
   useEffect(() => {
@@ -93,6 +109,49 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
     prevChromeVisibleRef.current = isChromeVisible
   }, [isChromeVisible])
 
+  const handleOpenToc = () => {
+    if (!getToc || !navigateToTocEntry) return
+    setIsTocOpen(true)
+    setTocLoading(true)
+    setTocError(null)
+    setTocNavigateError(null)
+    void getToc()
+      .then((entries) => {
+        setTocEntries(entries)
+      })
+      .catch((err) => {
+        setTocError(err instanceof Error ? err : new Error('Không tải được mục lục'))
+      })
+      .finally(() => {
+        setTocLoading(false)
+      })
+  }
+
+  const handleCloseToc = () => {
+    setIsTocOpen(false)
+    tocTriggerRef.current?.focus()
+  }
+
+  // Clear navigation error after a short delay so user can read it
+  useEffect(() => {
+    if (!tocNavigateError) return
+    const t = setTimeout(() => setTocNavigateError(null), 4000)
+    return () => clearTimeout(t)
+  }, [tocNavigateError])
+
+  const handleSelectTocEntry = (entry: TocEntry) => {
+    if (!navigateToTocEntry) return
+    setTocNavigateError(null)
+    void navigateToTocEntry(entry)
+      .then(() => {
+        handleCloseToc()
+      })
+      .catch(() => {
+        setTocNavigateError('Không chuyển được đến mục đã chọn.')
+        handleCloseToc()
+      })
+  }
+
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden"
@@ -130,7 +189,38 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
         >
           {book.title}
         </h1>
+        {getToc && navigateToTocEntry && (
+          <button
+            ref={tocTriggerRef}
+            type="button"
+            onClick={handleOpenToc}
+            className="text-sm bg-transparent border-none cursor-pointer p-0 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+            style={{ color: 'var(--color-text-muted)' }}
+            tabIndex={chromeHidden ? -1 : 0}
+            aria-label="Mở mục lục"
+            data-testid="toc-trigger"
+          >
+            Mục lục
+          </button>
+        )}
       </div>
+
+      {/* Brief message when TOC navigation failed (drawer already closed) */}
+      {tocNavigateError && (
+        <div
+          className="fixed left-0 right-0 z-25 px-4 py-2 text-center text-xs"
+          style={{
+            top: '52px',
+            backgroundColor: 'var(--color-surface)',
+            color: 'var(--color-text-muted)',
+            borderBottom: '1px solid var(--color-border)',
+          }}
+          role="alert"
+          data-testid="toc-navigate-error"
+        >
+          {tocNavigateError}
+        </div>
+      )}
 
       {/* Main reading area */}
       <div className="flex-1 flex flex-col overflow-hidden">{children}</div>
@@ -183,6 +273,14 @@ export function ChromelessLayout({ book, hasCoverPage, children }: ChromelessLay
           </span>
         </div>
       )}
+      <TocDrawer
+        isOpen={isTocOpen}
+        entries={tocEntries}
+        isLoading={tocLoading}
+        error={tocError}
+        onSelect={handleSelectTocEntry}
+        onClose={handleCloseToc}
+      />
     </div>
   )
 }

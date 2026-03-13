@@ -12,6 +12,7 @@ const mockUseBook = vi.fn()
 const mockUseCatalogIndex = vi.fn()
 const mockUseOnlineStatus = vi.fn()
 const mockUseEpubFromBook = vi.fn()
+const mockUseEpubReader = vi.fn()
 vi.mock('@/shared/hooks/useBook', () => ({
   useBook: (id: string) => mockUseBook(id),
 }))
@@ -23,6 +24,19 @@ vi.mock('@/shared/hooks/useOnlineStatus', () => ({
 }))
 vi.mock('@/features/reader/useEpubFromBook', () => ({
   useEpubFromBook: (book: Book | null) => mockUseEpubFromBook(book),
+}))
+
+vi.mock('@/features/reader/useEpubReader', () => ({
+  useEpubReader: (epubUrl: string | null) =>
+    mockUseEpubReader(epubUrl) || {
+      containerRef: { current: null },
+      rendition: null,
+      book: null,
+      isReady: true,
+      error: null,
+      getToc: vi.fn(),
+      navigateToTocEntry: vi.fn(),
+    },
 }))
 
 const mockGetItem = vi.fn()
@@ -39,24 +53,21 @@ vi.mock('@/features/reader/ChromelessLayout', () => ({
 
 vi.mock('@/features/reader/ReaderEngine', () => ({
   ReaderEngine: ({
-    epubUrl,
     bookId,
     bookTitle,
     initialCfi,
   }: {
-    epubUrl: string
     bookId: string
     bookTitle: string
     initialCfi?: string | null
   }) => (
     <div
       data-testid="reader-engine"
-      data-epub-url={epubUrl || ''}
       data-book-id={bookId}
       data-book-title={bookTitle || ''}
       data-initial-cfi={initialCfi ?? ''}
     >
-      {epubUrl ? 'epub' : 'no-url'} {bookId}
+      {bookId}
     </div>
   ),
 }))
@@ -116,6 +127,7 @@ describe('ReaderPage', () => {
     mockUseOnlineStatus.mockReturnValue(true)
     mockUseEpubFromBook.mockReset()
     mockUseEpubFromBook.mockReturnValue({ epubUrl: null, isLoading: false, error: null })
+    mockUseEpubReader.mockReset()
     mockGetItem.mockReset()
     mockGetItem.mockResolvedValue(null)
     useReaderStore.getState().reset()
@@ -210,14 +222,14 @@ describe('ReaderPage', () => {
     expect(screen.getByTestId('reader-engine')).toBeInTheDocument()
   })
 
-  it('passes epubUrl, bookId, and bookTitle from catalog and book to ReaderEngine', () => {
+  it('passes bookId and bookTitle from catalog and book to ReaderEngine and calls useEpubReader with catalog epubUrl', () => {
     mockUseBook.mockReturnValue({ isLoading: false, data: bookFixture, error: null })
     mockUseCatalogIndex.mockReturnValue(catalogWithEpub('bat-nha', '/path/to/book.epub'))
     renderReaderPage('bat-nha')
     const engine = screen.getByTestId('reader-engine')
-    expect(engine).toHaveAttribute('data-epub-url', '/path/to/book.epub')
     expect(engine).toHaveAttribute('data-book-id', 'bat-nha')
     expect(engine).toHaveAttribute('data-book-title', 'Kinh Bát Nhã')
+    expect(mockUseEpubReader).toHaveBeenCalledWith('/path/to/book.epub')
   })
 
   it('passes initialCfi from location.state when navigating from bookmark link', () => {
@@ -250,8 +262,7 @@ describe('ReaderPage', () => {
       error: null,
     })
     renderReaderPage('bat-nha')
-    const engine = screen.getByTestId('reader-engine')
-    expect(engine).toHaveAttribute('data-epub-url', 'blob:https://example.com/mock-epub')
+    expect(mockUseEpubReader).toHaveBeenCalledWith('blob:https://example.com/mock-epub')
   })
 
   it('shows format error when catalog has no epubUrl and useEpubFromBook returns error', () => {

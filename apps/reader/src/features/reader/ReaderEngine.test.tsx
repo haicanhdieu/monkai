@@ -2,7 +2,6 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReaderEngine } from '@/features/reader/ReaderEngine'
-import { useEpubReader } from './useEpubReader'
 import { storageService } from '@/shared/services/storage.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
@@ -12,16 +11,6 @@ function renderWithRouter(ui: React.ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
-vi.mock('./useEpubReader', () => ({
-  useEpubReader: vi.fn(() => ({
-    containerRef: { current: null },
-    rendition: null,
-    book: null,
-    isReady: false,
-    error: null,
-  })),
-}))
-
 vi.mock('@/shared/services/storage.service', () => ({
   storageService: {
     setItem: vi.fn().mockResolvedValue(undefined),
@@ -29,46 +18,54 @@ vi.mock('@/shared/services/storage.service', () => ({
   },
 }))
 
-const mockUseEpubReader = vi.mocked(useEpubReader)
 const mockSetItem = vi.mocked(storageService.setItem)
 const mockGetItem = vi.mocked(storageService.getItem)
 
 describe('ReaderEngine — loading state', () => {
   it('shows skeleton when isReady is false and no error', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     expect(screen.getByTestId('reader-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('epub-container')).toBeInTheDocument()
   })
 
   it('keeps epub container mounted during loading', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     const container = screen.getByTestId('epub-container')
     expect(container).toBeInTheDocument()
   })
 
   it('hides epub container visually during loading', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     const container = screen.getByTestId('epub-container')
     expect(container).toHaveStyle({ visibility: 'hidden' })
   })
@@ -76,41 +73,50 @@ describe('ReaderEngine — loading state', () => {
 
 describe('ReaderEngine — error state', () => {
   it('shows ReaderErrorPage when error is set', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: new Error('failed'),
-    })
-    renderWithRouter(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    renderWithRouter(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={new Error('failed')}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     expect(screen.getByTestId('back-to-library')).toBeInTheDocument()
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
   })
 
   it('does not show skeleton when error is set', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: new Error('load failed'),
-    })
-    renderWithRouter(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    renderWithRouter(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={new Error('load failed')}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
   })
 })
 
 describe('ReaderEngine — ready state', () => {
   it('shows epub container and hides skeleton when isReady is true', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={true}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     expect(screen.getByTestId('epub-container')).toBeInTheDocument()
     expect(screen.queryByTestId('reader-skeleton')).not.toBeInTheDocument()
     const container = screen.getByTestId('epub-container')
@@ -120,40 +126,49 @@ describe('ReaderEngine — ready state', () => {
 
 describe('ReaderEngine — accessibility', () => {
   it('has role=region with correct aria-label', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={true}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     const region = screen.getByRole('region', { name: 'Nội dung kinh' })
     expect(region).toBeInTheDocument()
   })
 
   it('has aria-live region for location announcements', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={true}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     const liveRegion = document.querySelector('[aria-live="polite"][aria-atomic="true"]')
     expect(liveRegion).toBeInTheDocument()
   })
 
   it('has region and aria-label in loading state', () => {
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: null,
-      book: null,
-      isReady: false,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-1" bookTitle="Book One" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={null}
+        bookId="book-1"
+        bookTitle="Book One"
+      />,
+    )
     expect(screen.getByRole('region', { name: 'Nội dung kinh' })).toBeInTheDocument()
   })
 })
@@ -161,19 +176,22 @@ describe('ReaderEngine — accessibility', () => {
 describe('ReaderEngine — themes and font size (Story 3.3)', () => {
   it('applies theme and fontSize to rendition when rendition is set', () => {
     const themes = { select: vi.fn(), fontSize: vi.fn() }
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: {
-        on: vi.fn(),
-        off: vi.fn(),
-        themes,
-        display: vi.fn().mockResolvedValue(undefined),
-      },
-      book: null,
-      isReady: true,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="b1" bookTitle="Book" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={{
+          on: vi.fn(),
+          off: vi.fn(),
+          themes,
+          display: vi.fn().mockResolvedValue(undefined),
+        } as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="b1"
+        bookTitle="Book"
+      />,
+    )
     expect(themes.select).toHaveBeenCalledWith('theme-sepia')
     expect(themes.fontSize).toHaveBeenCalledWith('18px')
   })
@@ -199,14 +217,17 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       display: vi.fn().mockResolvedValue(undefined),
       themes: { select: vi.fn(), fontSize: vi.fn() },
     }
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: mockRendition,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="book-123"
+        bookTitle="My Book"
+      />,
+    )
     expect(relocatedHandler).not.toBeNull()
     await act(() => {
       relocatedHandler!({ start: { cfi } })
@@ -229,15 +250,17 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       display: mockDisplay,
       themes: { select: vi.fn(), fontSize: vi.fn() },
     }
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: mockRendition,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="book-123"
+        bookTitle="My Book"
+      />,
+    )
 
     await waitFor(() => {
       expect(mockGetItem).toHaveBeenCalledWith(STORAGE_KEYS.LAST_READ_POSITION)
@@ -255,15 +278,17 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       display: mockDisplay,
       themes: { select: vi.fn(), fontSize: vi.fn() },
     }
-    mockUseEpubReader.mockReturnValue({
-      containerRef: { current: null },
-      rendition: mockRendition,
-      book: null,
-      isReady: true,
-      error: null,
-    })
-
-    render(<ReaderEngine epubUrl="/book.epub" bookId="book-123" bookTitle="My Book" />)
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="book-123"
+        bookTitle="My Book"
+      />,
+    )
 
     await waitFor(() => {
       expect(mockDisplay).toHaveBeenCalledWith()

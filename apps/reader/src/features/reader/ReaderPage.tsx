@@ -9,6 +9,7 @@ import ReaderErrorPage from './ReaderErrorPage'
 import { ReaderEngine } from './ReaderEngine'
 import { ChromelessLayout } from './ChromelessLayout'
 import { useEpubFromBook } from './useEpubFromBook'
+import { useEpubReader } from './useEpubReader'
 
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
@@ -26,6 +27,8 @@ export default function ReaderPage() {
     useEpubFromBook(epubUrlFromCatalog ? null : book ?? null)
 
   const epubUrl = epubUrlFromCatalog ?? epubUrlFromBook
+  const { containerRef, rendition, book: epubBook, isReady, error: readerError, getToc, navigateToTocEntry } =
+    useEpubReader(epubUrl)
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />
@@ -57,14 +60,23 @@ export default function ReaderPage() {
     return <ReaderErrorPage category="parse" />
   }
 
-  if (!epubUrl) {
+  if (!epubUrl || readerError) {
     return <ReaderErrorPage category="parse" />
   }
 
   return (
-    <ChromelessLayout book={book} hasCoverPage={false}>
+    <ChromelessLayout
+      book={book}
+      hasCoverPage={false}
+      getToc={getToc}
+      navigateToTocEntry={navigateToTocEntry}
+    >
       <ReaderEngine
-        epubUrl={epubUrl}
+        containerRef={containerRef}
+        rendition={rendition}
+        book={epubBook}
+        isReady={isReady}
+        error={readerError}
         bookId={bookId}
         bookTitle={book.title}
         initialCfi={initialCfi}
