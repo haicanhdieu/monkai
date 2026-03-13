@@ -14,9 +14,7 @@ export default defineConfig(async ({ mode }) => {
       userAgent: 'Node.js',
     }
   }
-  const { BroadcastUpdatePlugin } = await import('workbox-broadcast-update')
-
-  const env = loadEnv(mode, process.cwd(), '')
+const env = loadEnv(mode, process.cwd(), '')
   return {
     base: env.VITE_BASE_PATH ?? '/',
     resolve: {
@@ -83,7 +81,7 @@ export default defineConfig(async ({ mode }) => {
               options: {
                 cacheName: 'catalog-cache',
                 expiration: { maxEntries: 1, maxAgeSeconds: 24 * 60 * 60 },
-                plugins: [new BroadcastUpdatePlugin({ channelName: 'catalog-updates' })],
+                plugins: [],
               },
             },
             {

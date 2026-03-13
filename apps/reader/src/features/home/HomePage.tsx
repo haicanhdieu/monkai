@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ReaderIcon, BookmarkIcon, ChevronRightIcon, PersonIcon } from '@radix-ui/react-icons'
 import { AppLogo } from '@/shared/components/AppLogo'
@@ -22,31 +22,6 @@ const quickActions = [
   },
 ]
 
-const COVER_ASPECT_RATIO = 2 / 3
-
-function useCoverDimensions(contentRef: React.RefObject<HTMLDivElement | null>) {
-  const [dimensions, setDimensions] = useState<{ height: number; width: number } | null>(null)
-
-  useLayoutEffect(() => {
-    const el = contentRef.current
-    if (!el) return
-
-    const update = () => {
-      const height = el.getBoundingClientRect().height
-      if (height > 0) {
-        setDimensions({ height, width: height * COVER_ASPECT_RATIO })
-      }
-    }
-
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [contentRef])
-
-  return dimensions
-}
-
 function ContinueReadingCard() {
   const {
     lastReadBookId,
@@ -58,8 +33,6 @@ function ContinueReadingCard() {
   const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '')
   const [coverError, setCoverError] = useState(false)
   const [coverLoaded, setCoverLoaded] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const coverDimensions = useCoverDimensions(contentRef)
 
   if (!hasLastRead) return null
 
@@ -80,48 +53,38 @@ function ContinueReadingCard() {
       </h2>
       <Link
         to={toRead(lastReadBookId)}
-        className="grid min-h-[44px] grid-cols-[auto_1fr] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
+        className="flex min-h-[44px] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
         style={{
           backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
         }}
         aria-label={`Tiếp tục đọc ${displayTitle}, trang ${currentPage}/${totalPages}`}
       >
-        {/* Cover: when dimensions set, lock size so image cannot extend card; when null, placeholder only (content drives row height). */}
-        <div className="flex min-h-0 items-stretch" style={{ maxWidth: '40%' }}>
-          {coverDimensions ? (
-            <div
-              className="relative shrink-0 overflow-hidden rounded"
-              style={{ height: coverDimensions.height, width: coverDimensions.width }}
-            >
-              {coverUrl && !coverError && (
-                <>
-                  {!coverLoaded && (
-                    <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />
-                  )}
-                  <img
-                    src={coverUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    onLoad={() => setCoverLoaded(true)}
-                    onError={() => setCoverError(true)}
-                  />
-                </>
+        {/* Cover: fixed 38% of card width, 2:3 aspect ratio. self-start prevents stretching to content height.
+            Flexbox % resolves against the card's definite inline size — no circular grid-auto dependency. */}
+        <div
+          className="relative w-[38%] flex-none self-start overflow-hidden rounded"
+          style={{ aspectRatio: '2/3' }}
+          data-testid="continue-reading-cover"
+        >
+          {coverUrl && !coverError ? (
+            <>
+              {!coverLoaded && (
+                <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />
               )}
-              {(!coverUrl || coverError) && (
-                <div className="absolute inset-0" style={coverPlaceholderStyle} />
-              )}
-            </div>
+              <img
+                src={coverUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                onLoad={() => setCoverLoaded(true)}
+                onError={() => setCoverError(true)}
+              />
+            </>
           ) : (
-            <div
-              className="relative h-full min-h-0 w-full overflow-hidden rounded"
-              style={{ aspectRatio: '2/3' }}
-            >
-              <div className="h-full w-full" style={coverPlaceholderStyle} />
-            </div>
+            <div className="h-full w-full" style={coverPlaceholderStyle} />
           )}
         </div>
-        <div ref={contentRef} className="min-h-0 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <span
