@@ -88,7 +88,7 @@ function ContinueReadingCard() {
         aria-label={`Tiếp tục đọc ${displayTitle}, trang ${currentPage}/${totalPages}`}
       >
         {/* Cover: when dimensions set, lock size so image cannot extend card; when null, placeholder only (content drives row height). */}
-        <div className="flex min-h-0 items-stretch">
+        <div className="flex min-h-0 items-stretch" style={{ maxWidth: '40%' }}>
           {coverDimensions ? (
             <div
               className="relative shrink-0 overflow-hidden rounded"

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ArrowLeftIcon, ListBulletIcon } from '@radix-ui/react-icons'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
@@ -13,8 +14,13 @@ import { TocDrawer } from './TocDrawer'
 // - currentPage and pages are stubbed; page progress will use CFI in Story 2.2
 // - isChromeVisible and toggleChrome remain in reader.store
 
-const CHROME_AUTOHIDE_MS = 3000
-const FIRST_OPEN_HINT = 'Chạm vào giữa màn hình để hiện menu'
+export const CHROME_AUTOHIDE_MS = 3000
+const NAV_HINT_STORAGE_KEY = 'reader_nav_hint_seen'
+const HINT_MESSAGES = {
+  center: 'Chạm giữa để hiện menu',
+  left: 'Chạm trái → trang trước',
+  right: 'Chạm phải → trang tiếp',
+} as const
 
 interface ChromelessLayoutProps {
   book: Book
@@ -35,9 +41,14 @@ export function ChromelessLayout({
   const navigate = useNavigate()
   const { isChromeVisible, toggleChrome, currentPage, totalPages } = useReaderStore()
 
-  // Hint state is a local concern; not persisted in store after CFI migration
-  const [hasSeenHint, setHasSeenHint] = useState(false)
-  const dismissHint = () => setHasSeenHint(true)
+  // Hint state persisted in localStorage so it survives remounts (user navigating away and back)
+  const [hasSeenHint, setHasSeenHint] = useState(
+    () => localStorage.getItem(NAV_HINT_STORAGE_KEY) === 'true'
+  )
+  const dismissHint = () => {
+    localStorage.setItem(NAV_HINT_STORAGE_KEY, 'true')
+    setHasSeenHint(true)
+  }
 
   // history.length can be unreliable in iframes or some browser contexts; fallback to Library when uncertain.
   const handleBack = () => {
@@ -71,6 +82,15 @@ export function ChromelessLayout({
       }
     }
   }, []) // intentionally runs only on mount; toggleChrome is a stable Zustand action ref
+
+  // Auto-hide hint at same time as chrome — both fire at CHROME_AUTOHIDE_MS, controlling independent UI state
+  // Guard: skip scheduling if hint already seen on mount (avoids gratuitous localStorage write for returning users)
+  useEffect(() => {
+    if (hasSeenHint) return
+    const t = setTimeout(() => dismissHint(), CHROME_AUTOHIDE_MS)
+    return () => clearTimeout(t)
+    // safe: closure captures stable setHasSeenHint setter (dismissHint recreated each render but dep array intentionally empty)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle center-tap: cancel auto-hide timer first so a user reveal isn't overridden 3s later.
   // Clears the timer on first interaction so chrome state stays fully user-controlled after that.
@@ -175,13 +195,13 @@ export function ChromelessLayout({
           ref={backButtonRef}
           type="button"
           onClick={handleBack}
-          className="text-sm bg-transparent border-none cursor-pointer p-0 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+          className="text-sm bg-transparent border-none cursor-pointer p-2 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
           style={{ color: 'var(--color-text-muted)' }}
           tabIndex={chromeHidden ? -1 : 0}
           aria-label="Về Thư viện"
           data-testid="chrome-back"
         >
-          ← Thư viện
+          <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
         </button>
         <h1
           className="flex-1 text-center text-sm font-medium truncate px-4"
@@ -194,13 +214,13 @@ export function ChromelessLayout({
             ref={tocTriggerRef}
             type="button"
             onClick={handleOpenToc}
-            className="text-sm bg-transparent border-none cursor-pointer p-0 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+            className="text-sm bg-transparent border-none cursor-pointer p-2 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
             style={{ color: 'var(--color-text-muted)' }}
             tabIndex={chromeHidden ? -1 : 0}
             aria-label="Mở mục lục"
             data-testid="toc-trigger"
           >
-            Mục lục
+            <ListBulletIcon className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
       </div>
@@ -254,23 +274,52 @@ export function ChromelessLayout({
         data-testid="center-tap-zone"
       />
 
-      {/* First-open hint (AC 3) — shown until first center-tap */}
+      {/* First-open hint (AC 3) — shown until dismissed or auto-hidden after CHROME_AUTOHIDE_MS */}
       {!hasSeenHint && (
         <div
-          className="fixed inset-0 z-10 flex items-end justify-center pb-24 pointer-events-none"
+          className="pointer-events-none fixed inset-0 z-[11]"
           data-testid="chrome-hint"
           aria-hidden="true"
         >
-          <span
-            className="text-xs px-4 py-2 rounded-full"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              color: 'var(--color-text-muted)',
-              border: '1px solid var(--color-border)',
-            }}
-          >
-            {FIRST_OPEN_HINT}
-          </span>
+          {/* Center hint */}
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2">
+            <span
+              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              {HINT_MESSAGES.center}
+            </span>
+          </div>
+          {/* Left hint: left tap = previous page (confirmed from ReaderEngine.tsx) */}
+          <div className="absolute bottom-24 left-4">
+            <span
+              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              {HINT_MESSAGES.left}
+            </span>
+          </div>
+          {/* Right hint: right tap = next page (confirmed from ReaderEngine.tsx) */}
+          <div className="absolute bottom-24 right-4">
+            <span
+              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              {HINT_MESSAGES.right}
+            </span>
+          </div>
         </div>
       )}
       <TocDrawer

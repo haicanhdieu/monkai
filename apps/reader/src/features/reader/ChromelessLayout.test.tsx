@@ -1,7 +1,7 @@
 import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ChromelessLayout } from '@/features/reader/ChromelessLayout'
+import { ChromelessLayout, CHROME_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
 import { ROUTES } from '@/shared/constants/routes'
@@ -48,6 +48,7 @@ describe('ChromelessLayout', () => {
     useReaderStore.getState().reset()
     vi.useFakeTimers()
     mockNavigate.mockClear()
+    localStorage.clear()
   })
 
   afterEach(() => {
@@ -98,7 +99,7 @@ describe('ChromelessLayout', () => {
   it('shows the first-open hint on initial render', () => {
     renderLayout()
     expect(screen.getByTestId('chrome-hint')).toBeInTheDocument()
-    expect(screen.getByText('Chạm vào giữa màn hình để hiện menu')).toBeInTheDocument()
+    expect(screen.getByText('Chạm giữa để hiện menu')).toBeInTheDocument()
   })
 
   // AC 3 — chrome auto-hides after 3 seconds
@@ -123,6 +124,14 @@ describe('ChromelessLayout', () => {
       zone.click()
     })
 
+    expect(screen.queryByTestId('chrome-hint')).not.toBeInTheDocument()
+  })
+
+  // AC 3.3a — hint auto-hides after CHROME_AUTOHIDE_MS
+  it('auto-hides hint after CHROME_AUTOHIDE_MS ms', () => {
+    renderLayout()
+    expect(screen.getByTestId('chrome-hint')).toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(CHROME_AUTOHIDE_MS) })
     expect(screen.queryByTestId('chrome-hint')).not.toBeInTheDocument()
   })
 

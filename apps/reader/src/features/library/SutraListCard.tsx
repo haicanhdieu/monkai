@@ -45,9 +45,8 @@ export function SutraListCard({ book }: SutraListCardProps) {
           <p className="text-xl leading-tight" style={{ fontFamily: 'Lora, serif' }}>
             {book.title}
           </p>
-          <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {book.subcategory}
-          </p>
+          {/* book.subcategory (book_seo_name slug) is intentionally not rendered — displays a URL slug
+              not meaningful to users. Field still exists in CatalogBook type for potential future use. */}
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {book.translator}
           </p>

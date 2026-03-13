@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import localforage from 'localforage'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -8,6 +10,8 @@ export function OfflineStorageInfo() {
   const [available, setAvailable] = useState(true)
   const [clearing, setClearing] = useState(false)
   const [quotaError, setQuotaError] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [clearError, setClearError] = useState(false)
 
   async function loadEstimate() {
     if (!navigator.storage?.estimate) {
@@ -34,14 +38,17 @@ export function OfflineStorageInfo() {
   }, [])
 
   async function handleClearCache() {
-    if (!window.confirm('Xóa toàn bộ bộ nhớ đệm offline?')) return
+    setClearError(false)
     setClearing(true)
     try {
       const keys = await caches.keys()
       await Promise.all(keys.map((key) => caches.delete(key)))
       queryClient.clear()
-      await loadEstimate()
+      await localforage.clear()
+    } catch {
+      setClearError(true)
     } finally {
+      await loadEstimate()
       setClearing(false)
     }
   }
@@ -73,13 +80,69 @@ export function OfflineStorageInfo() {
         </p>
       )}
       <button
-        onClick={() => void handleClearCache()}
-        disabled={clearing}
+        onClick={() => { setClearError(false); setShowConfirm(true) }}
+        disabled={showConfirm || clearing}
         className="self-start rounded-xl px-4 py-3 text-sm font-medium min-h-[44px]"
         style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
       >
         {clearing ? 'Đang xóa…' : 'Xóa bộ nhớ đệm'}
       </button>
+      {clearError && (
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          Xóa thất bại — vui lòng thử lại.
+        </p>
+      )}
+      <Dialog.Root open={showConfirm} onOpenChange={setShowConfirm}>
+        <Dialog.Portal>
+          <Dialog.Overlay
+            className="fixed inset-0 z-40"
+            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          />
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl p-6 shadow-xl"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            <Dialog.Title
+              className="mb-2 text-base font-semibold"
+              style={{ color: 'var(--color-text)' }}
+            >
+              Xóa bộ nhớ đệm
+            </Dialog.Title>
+            <Dialog.Description
+              className="mb-6 text-sm"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              Toàn bộ dữ liệu đã lưu offline (sách, vị trí đọc, dấu trang) sẽ bị xóa. Tiếp tục?
+            </Dialog.Description>
+            <div className="flex justify-end gap-3">
+              <Dialog.Close asChild>
+                <button
+                  className="rounded-xl px-4 py-2 text-sm font-medium min-h-[44px]"
+                  style={{
+                    backgroundColor: 'var(--color-border)',
+                    color: 'var(--color-text)',
+                  }}
+                >
+                  Huỷ
+                </button>
+              </Dialog.Close>
+              <button
+                className="rounded-xl px-4 py-2 text-sm font-medium min-h-[44px] text-white"
+                style={{ backgroundColor: 'var(--color-accent)' }}
+                onClick={() => {
+                  setShowConfirm(false)
+                  void handleClearCache()
+                }}
+              >
+                Xóa
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }

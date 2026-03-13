@@ -13,6 +13,13 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
+const { mockLocalforageClear } = vi.hoisted(() => ({
+  mockLocalforageClear: vi.fn(),
+}))
+vi.mock('localforage', () => ({
+  default: { clear: mockLocalforageClear },
+}))
+
 const mockCachesKeys = vi.fn()
 const mockCachesDelete = vi.fn()
 
@@ -20,6 +27,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockCachesKeys.mockResolvedValue([])
   mockCachesDelete.mockResolvedValue(true)
+  mockLocalforageClear.mockResolvedValue(undefined)
   Object.defineProperty(globalThis, 'caches', {
     value: { keys: mockCachesKeys, delete: mockCachesDelete },
     writable: true,
@@ -55,7 +63,7 @@ describe('OfflineStorageInfo', () => {
     })
   })
 
-  it('"Xóa bộ nhớ đệm" button triggers cache clearing and query clear', async () => {
+  it('"Xóa bộ nhớ đệm" button opens dialog; confirm clears all caches', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('navigator', {
       ...navigator,
@@ -63,23 +71,25 @@ describe('OfflineStorageInfo', () => {
         estimate: vi.fn().mockResolvedValue({ usage: 0, quota: 50000000 }),
       },
     })
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true))
     mockCachesKeys.mockResolvedValue(['book-data', 'precache'])
 
     render(<OfflineStorageInfo />)
 
-    const button = screen.getByRole('button', { name: /Xóa bộ nhớ đệm/i })
-    await user.click(button)
+    await user.click(screen.getByRole('button', { name: /Xóa bộ nhớ đệm/i }))
+    // Dialog should be open — find and click the confirm button
+    const confirmBtn = await screen.findByRole('button', { name: /^Xóa$/ })
+    await user.click(confirmBtn)
 
     await waitFor(() => {
       expect(mockCachesKeys).toHaveBeenCalled()
       expect(mockCachesDelete).toHaveBeenCalledWith('book-data')
       expect(mockCachesDelete).toHaveBeenCalledWith('precache')
       expect(mockClear).toHaveBeenCalled()
+      expect(mockLocalforageClear).toHaveBeenCalled()
     })
   })
 
-  it('does not clear cache when user cancels confirm dialog', async () => {
+  it('does not clear cache when user cancels dialog', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('navigator', {
       ...navigator,
@@ -87,14 +97,16 @@ describe('OfflineStorageInfo', () => {
         estimate: vi.fn().mockResolvedValue({ usage: 1000, quota: 50000000 }),
       },
     })
-    vi.stubGlobal('confirm', vi.fn().mockReturnValue(false))
 
     render(<OfflineStorageInfo />)
 
     await user.click(screen.getByRole('button', { name: /Xóa bộ nhớ đệm/i }))
+    const cancelBtn = await screen.findByRole('button', { name: /Huỷ/i })
+    await user.click(cancelBtn)
 
     expect(mockCachesKeys).not.toHaveBeenCalled()
     expect(mockClear).not.toHaveBeenCalled()
+    expect(mockLocalforageClear).not.toHaveBeenCalled()
   })
 
   it('shows quota error message when storage-quota-exceeded event is fired', async () => {
