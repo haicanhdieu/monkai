@@ -4,3 +4,13 @@ export const STORAGE_KEYS = {
   USER_SETTINGS: 'user_settings',
   BOOKMARKS: 'bookmarks',
 } as const
+
+/** Prefix for cached EPUB blobs (JSON books converted in-memory). Key: epubBlobKey(bookId)
+ * Bump the version suffix when the EPUB generation logic changes in a way that might
+ * fix previously broken blobs, so that stale blobs don't mask fixes.
+ */
+export const EPUB_BLOB_CACHE_PREFIX = 'epub_blob_v2_'
+
+export function epubBlobCacheKey(bookId: string): string {
+  return `${EPUB_BLOB_CACHE_PREFIX}${bookId}`
+}

@@ -8,6 +8,7 @@ import type { DataErrorCategory } from '@/shared/types/global.types'
 import ReaderErrorPage from './ReaderErrorPage'
 import { ReaderEngine } from './ReaderEngine'
 import { ChromelessLayout } from './ChromelessLayout'
+import { useEpubFromBook } from './useEpubFromBook'
 
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
@@ -17,8 +18,14 @@ export default function ReaderPage() {
   const isOnline = useOnlineStatus()
 
   const catalogBook = catalog?.books.find((b) => b.id === bookId)
-  const epubUrl = catalogBook?.epubUrl ?? null
+  const epubUrlFromCatalog = catalogBook?.epubUrl ?? null
   const initialCfi = (location.state as { cfi?: string } | null)?.cfi ?? null
+
+  // When catalog has no epubUrl, build EPUB from JSON in memory and cache in browser storage
+  const { epubUrl: epubUrlFromBook, isLoading: epubFromBookLoading, error: epubFromBookError } =
+    useEpubFromBook(epubUrlFromCatalog ? null : book ?? null)
+
+  const epubUrl = epubUrlFromCatalog ?? epubUrlFromBook
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />
@@ -36,6 +43,18 @@ export default function ReaderPage() {
     const category: DataErrorCategory =
       error instanceof DataError ? error.category : 'unknown'
     return <ReaderErrorPage category={category} isOffline={!isOnline} />
+  }
+
+  if (!epubUrlFromCatalog && epubFromBookLoading) {
+    return (
+      <div className="p-6" data-testid="reader-loading">
+        <SkeletonText lines={14} />
+      </div>
+    )
+  }
+
+  if (!epubUrlFromCatalog && epubFromBookError) {
+    return <ReaderErrorPage category="parse" />
   }
 
   if (!epubUrl) {
