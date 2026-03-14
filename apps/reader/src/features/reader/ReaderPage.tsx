@@ -68,6 +68,7 @@ export default function ReaderPage() {
     <ChromelessLayout
       book={book}
       hasCoverPage={false}
+      isReady={isReady}
       getToc={getToc}
       navigateToTocEntry={navigateToTocEntry}
     >

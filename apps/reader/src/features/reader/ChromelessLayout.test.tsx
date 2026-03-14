@@ -48,7 +48,6 @@ describe('ChromelessLayout', () => {
     useReaderStore.getState().reset()
     vi.useFakeTimers()
     mockNavigate.mockClear()
-    localStorage.clear()
   })
 
   afterEach(() => {
@@ -99,7 +98,9 @@ describe('ChromelessLayout', () => {
   it('shows the first-open hint on initial render', () => {
     renderLayout()
     expect(screen.getByTestId('chrome-hint')).toBeInTheDocument()
-    expect(screen.getByText('Chạm giữa để hiện menu')).toBeInTheDocument()
+    expect(screen.getByText('Menu')).toBeInTheDocument()
+    expect(screen.getByText('Trang trước')).toBeInTheDocument()
+    expect(screen.getByText('Trang tiếp')).toBeInTheDocument()
   })
 
   // AC 3 — chrome auto-hides after 3 seconds

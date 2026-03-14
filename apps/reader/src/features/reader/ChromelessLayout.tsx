@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftIcon, ListBulletIcon } from '@radix-ui/react-icons'
+import { ArrowLeftIcon, ArrowRightIcon, HamburgerMenuIcon, ListBulletIcon } from '@radix-ui/react-icons'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
@@ -15,11 +15,10 @@ import { TocDrawer } from './TocDrawer'
 // - isChromeVisible and toggleChrome remain in reader.store
 
 export const CHROME_AUTOHIDE_MS = 3000
-const NAV_HINT_STORAGE_KEY = 'reader_nav_hint_seen'
-const HINT_MESSAGES = {
-  center: 'Chạm giữa để hiện menu',
-  left: 'Chạm trái → trang trước',
-  right: 'Chạm phải → trang tiếp',
+const HINT_LABELS = {
+  left: 'Trang trước',
+  center: 'Menu',
+  right: 'Trang tiếp',
 } as const
 
 interface ChromelessLayoutProps {
@@ -29,6 +28,8 @@ interface ChromelessLayoutProps {
   children: ReactNode
   getToc?: () => Promise<TocEntry[]>
   navigateToTocEntry?: (entry: TocEntry) => Promise<void>
+  /** When false, hint auto-hide timer is deferred until the reader is ready. Defaults to true (tests and non-epub callers). */
+  isReady?: boolean
 }
 
 export function ChromelessLayout({
@@ -37,18 +38,14 @@ export function ChromelessLayout({
   children,
   getToc,
   navigateToTocEntry,
+  isReady = true,
 }: ChromelessLayoutProps) {
   const navigate = useNavigate()
   const { isChromeVisible, toggleChrome, currentPage, totalPages } = useReaderStore()
 
-  // Hint state persisted in localStorage so it survives remounts (user navigating away and back)
-  const [hasSeenHint, setHasSeenHint] = useState(
-    () => localStorage.getItem(NAV_HINT_STORAGE_KEY) === 'true'
-  )
-  const dismissHint = () => {
-    localStorage.setItem(NAV_HINT_STORAGE_KEY, 'true')
-    setHasSeenHint(true)
-  }
+  // Hint state: resets on every book open (local state, not persisted)
+  const [hasSeenHint, setHasSeenHint] = useState(false)
+  const dismissHint = () => setHasSeenHint(true)
 
   // history.length can be unreliable in iframes or some browser contexts; fallback to Library when uncertain.
   const handleBack = () => {
@@ -83,14 +80,16 @@ export function ChromelessLayout({
     }
   }, []) // intentionally runs only on mount; toggleChrome is a stable Zustand action ref
 
-  // Auto-hide hint at same time as chrome — both fire at CHROME_AUTOHIDE_MS, controlling independent UI state
-  // Guard: skip scheduling if hint already seen on mount (avoids gratuitous localStorage write for returning users)
+  // Auto-hide hint after CHROME_AUTOHIDE_MS once the reader is ready.
+  // Deferred until isReady=true so the timer doesn't fire during epub loading (skeleton phase),
+  // which would dismiss hints before the user ever sees the actual reader content.
+  // Guard: skip if hint already seen (avoids gratuitous localStorage write for returning users).
   useEffect(() => {
-    if (hasSeenHint) return
+    if (!isReady || hasSeenHint) return
     const t = setTimeout(() => dismissHint(), CHROME_AUTOHIDE_MS)
     return () => clearTimeout(t)
-    // safe: closure captures stable setHasSeenHint setter (dismissHint recreated each render but dep array intentionally empty)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // safe: closure captures stable setHasSeenHint setter; isReady only transitions false→true once
+  }, [isReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle center-tap: cancel auto-hide timer first so a user reveal isn't overridden 3s later.
   // Clears the timer on first interaction so chrome state stays fully user-controlled after that.
@@ -274,52 +273,51 @@ export function ChromelessLayout({
         data-testid="center-tap-zone"
       />
 
-      {/* First-open hint (AC 3) — shown until dismissed or auto-hidden after CHROME_AUTOHIDE_MS */}
+      {/* First-open hint — left/right pills at screen edges, center pill in the middle */}
       {!hasSeenHint && (
         <div
-          className="pointer-events-none fixed inset-0 z-[11]"
+          className="pointer-events-none fixed inset-0 z-[11] flex items-center justify-between"
           data-testid="chrome-hint"
           aria-hidden="true"
         >
-          {/* Center hint */}
-          <div className="absolute bottom-24 left-1/2 -translate-x-1/2">
-            <span
-              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              {HINT_MESSAGES.center}
-            </span>
-          </div>
-          {/* Left hint: left tap = previous page (confirmed from ReaderEngine.tsx) */}
-          <div className="absolute bottom-24 left-4">
-            <span
-              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              {HINT_MESSAGES.left}
-            </span>
-          </div>
-          {/* Right hint: right tap = next page (confirmed from ReaderEngine.tsx) */}
-          <div className="absolute bottom-24 right-4">
-            <span
-              className="text-xs px-4 py-2 rounded-full whitespace-nowrap"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              {HINT_MESSAGES.right}
-            </span>
-          </div>
+          {/* Left: previous page — no left margin so pill sits at screen edge */}
+          <span
+            className="flex flex-col items-center gap-1 text-xs px-3 py-3 rounded-r-2xl text-center w-20"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text-muted)',
+              border: '1px solid var(--color-border)',
+              borderLeftWidth: 0,
+            }}
+          >
+            <ArrowLeftIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>{HINT_LABELS.left}</span>
+          </span>
+          {/* Center: toggle menu */}
+          <span
+            className="flex flex-col items-center gap-1 text-xs px-3 py-3 rounded-2xl text-center w-20"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text-muted)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
+            <HamburgerMenuIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>{HINT_LABELS.center}</span>
+          </span>
+          {/* Right: next page — no right margin so pill sits at screen edge */}
+          <span
+            className="flex flex-col items-center gap-1 text-xs px-3 py-3 rounded-l-2xl text-center w-20"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text-muted)',
+              border: '1px solid var(--color-border)',
+              borderRightWidth: 0,
+            }}
+          >
+            <ArrowRightIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span>{HINT_LABELS.right}</span>
+          </span>
         </div>
       )}
       <TocDrawer
