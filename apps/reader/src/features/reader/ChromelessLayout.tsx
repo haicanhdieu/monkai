@@ -6,6 +6,7 @@ import { useReaderStore } from '@/stores/reader.store'
 import type { Book } from '@/shared/types/global.types'
 import type { TocEntry } from './useEpubReader'
 import { TocDrawer } from './TocDrawer'
+import { ReaderSettingsDrawer } from './ReaderSettingsDrawer'
 
 // TODO: epub.js rewrite in Story 2.2
 // ChromelessLayout previously read currentPage, pages, hasSeenHint, and dismissHint
@@ -60,6 +61,8 @@ export function ChromelessLayout({
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tocTriggerRef = useRef<HTMLButtonElement>(null)
   const [isTocOpen, setIsTocOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null)
   const [tocEntries, setTocEntries] = useState<TocEntry[]>([])
   const [tocLoading, setTocLoading] = useState(false)
   const [tocError, setTocError] = useState<Error | null>(null)
@@ -149,6 +152,11 @@ export function ChromelessLayout({
   const handleCloseToc = () => {
     setIsTocOpen(false)
     tocTriggerRef.current?.focus()
+  }
+
+  const handleCloseSettings = () => {
+    setIsSettingsOpen(false)
+    settingsTriggerRef.current?.focus()
   }
 
   // Clear navigation error after a short delay so user can read it
@@ -261,6 +269,18 @@ export function ChromelessLayout({
         >
           {totalPagesDisplay > 0 ? `${currentPage} / ${totalPagesDisplay}` : ''}
         </span>
+        <button
+          ref={settingsTriggerRef}
+          type="button"
+          onClick={() => setIsSettingsOpen(true)}
+          className="text-sm font-medium bg-transparent border-none cursor-pointer px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
+          style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
+          tabIndex={chromeHidden ? -1 : 0}
+          aria-label="Mở cài đặt hiển thị"
+          data-testid="settings-trigger"
+        >
+          Aa
+        </button>
       </div>
 
       {/* Center-tap zone — covers middle 60%, z-index below chrome bars but above content (AC 2)
@@ -328,6 +348,7 @@ export function ChromelessLayout({
         onSelect={handleSelectTocEntry}
         onClose={handleCloseToc}
       />
+      <ReaderSettingsDrawer isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </div>
   )
 }

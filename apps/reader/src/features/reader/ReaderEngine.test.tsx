@@ -175,7 +175,7 @@ describe('ReaderEngine — accessibility', () => {
 
 describe('ReaderEngine — themes and font size (Story 3.3)', () => {
   it('applies theme and fontSize to rendition when rendition is set', () => {
-    const themes = { select: vi.fn(), fontSize: vi.fn() }
+    const themes = { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() }
     render(
       <ReaderEngine
         containerRef={{ current: null }}
@@ -205,7 +205,7 @@ describe('ReaderEngine — tap navigation zones', () => {
       prev: vi.fn().mockResolvedValue(undefined),
       next: vi.fn().mockResolvedValue(undefined),
       display: vi.fn().mockResolvedValue(undefined),
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine
@@ -247,7 +247,7 @@ describe('ReaderEngine — tap navigation zones', () => {
       prev: mockPrev,
       next: mockNext,
       display: vi.fn().mockResolvedValue(undefined),
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine
@@ -274,7 +274,7 @@ describe('ReaderEngine — tap navigation zones', () => {
       prev: mockPrev,
       next: mockNext,
       display: vi.fn().mockResolvedValue(undefined),
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine
@@ -311,7 +311,7 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       }),
       off: vi.fn(),
       display: vi.fn().mockResolvedValue(undefined),
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine
@@ -344,7 +344,7 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       on: vi.fn(),
       off: vi.fn(),
       display: mockDisplay,
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine
@@ -372,7 +372,7 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       on: vi.fn(),
       off: vi.fn(),
       display: mockDisplay,
-      themes: { select: vi.fn(), fontSize: vi.fn() },
+      themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
     }
     render(
       <ReaderEngine

@@ -15,6 +15,21 @@ vi.mock('react-router-dom', async (importOriginal) => {
   }
 })
 
+vi.mock('./ReaderSettingsDrawer', () => ({
+  ReaderSettingsDrawer: ({
+    isOpen,
+    onClose,
+  }: {
+    isOpen: boolean
+    onClose: () => void
+  }) =>
+    isOpen ? (
+      <div data-testid="settings-drawer">
+        <button onClick={onClose} aria-label="Đóng cài đặt" />
+      </div>
+    ) : null,
+}))
+
 let savedHistory: History | undefined
 
 const bookFixture: Book = {
@@ -239,5 +254,52 @@ describe('ChromelessLayout', () => {
       expect(screen.getByText('Không có mục lục')).toBeInTheDocument()
     })
     vi.useFakeTimers()
+  })
+
+  it('renders Aa settings trigger in bottom bar', () => {
+    renderLayout()
+    expect(screen.getByTestId('settings-trigger')).toBeInTheDocument()
+  })
+
+  it('settings trigger has tabIndex 0 when chrome is visible', () => {
+    renderLayout()
+    expect(screen.getByTestId('settings-trigger')).toHaveAttribute('tabindex', '0')
+  })
+
+  it('settings trigger has tabIndex -1 when chrome is hidden', () => {
+    useReaderStore.setState({ isChromeVisible: false })
+    renderLayout()
+    expect(screen.getByTestId('settings-trigger')).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('opens ReaderSettingsDrawer when Aa trigger is clicked', () => {
+    renderLayout()
+    act(() => {
+      screen.getByTestId('settings-trigger').click()
+    })
+    expect(screen.getByTestId('settings-drawer')).toBeInTheDocument()
+  })
+
+  it('closes ReaderSettingsDrawer when onClose is called from drawer', () => {
+    renderLayout()
+    act(() => {
+      screen.getByTestId('settings-trigger').click()
+    })
+    expect(screen.getByTestId('settings-drawer')).toBeInTheDocument()
+    act(() => {
+      screen.getByLabelText('Đóng cài đặt').click()
+    })
+    expect(screen.queryByTestId('settings-drawer')).not.toBeInTheDocument()
+  })
+
+  it('returns focus to settings trigger when drawer closes', () => {
+    renderLayout()
+    act(() => {
+      screen.getByTestId('settings-trigger').click()
+    })
+    act(() => {
+      screen.getByLabelText('Đóng cài đặt').click()
+    })
+    expect(document.activeElement).toBe(screen.getByTestId('settings-trigger'))
   })
 })

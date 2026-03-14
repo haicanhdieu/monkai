@@ -4,7 +4,7 @@ import type { Book, Rendition } from 'epubjs' // eslint-disable-line no-restrict
 import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { toEpubThemeName } from './epubThemes'
+import { EPUB_THEMES, toEpubThemeName } from './epubThemes'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { SkeletonText } from '@/shared/components/SkeletonText'
@@ -58,7 +58,14 @@ export function ReaderEngine({
 
   useEffect(() => {
     if (!rendition) return
-    rendition.themes.select(toEpubThemeName(theme))
+    const themeName = toEpubThemeName(theme)
+    rendition.themes.select(themeName)
+    // Workaround for epub.js #1208: select() does not re-apply when switching back to a
+    // previously selected theme. Applying body styles via override() forces the iframe to update.
+    const bodyStyles = EPUB_THEMES[themeName].body
+    rendition.themes.override('background', bodyStyles.background, true)
+    rendition.themes.override('color', bodyStyles.color, true)
+    rendition.themes.override('font-family', bodyStyles.fontFamily, true)
   }, [rendition, theme])
 
   useEffect(() => {

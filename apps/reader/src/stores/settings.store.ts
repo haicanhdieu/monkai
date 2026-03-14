@@ -25,8 +25,8 @@ const DEFAULT_SETTINGS: UserSettings = {
 }
 
 const VALID_THEMES: ReadingTheme[] = ['sepia', 'light', 'dark']
-const FONT_SIZE_MIN = 14
-const FONT_SIZE_MAX = 28
+export const FONT_SIZE_MIN = 14
+export const FONT_SIZE_MAX = 28
 
 function sanitizeSettings(raw: Partial<UserSettings>): UserSettings {
   const fontSize =
