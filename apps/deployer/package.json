@@ -1,0 +1,17 @@
+{
+  "name": "deployer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "upload:book-data": "node scripts/upload-book-data-to-blob.mjs",
+    "deploy:reader": "node scripts/deploy-reader-static.mjs",
+    "deploy:all": "node scripts/upload-book-data-to-blob.mjs && node scripts/deploy-reader-static.mjs"
+  },
+  "dependencies": {
+    "@vercel/blob": "^0.25.0"
+  },
+  "devDependencies": {
+    "vercel": "^39.0.0"
+  }
+}

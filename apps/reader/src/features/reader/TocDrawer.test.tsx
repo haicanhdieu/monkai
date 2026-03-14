@@ -108,7 +108,7 @@ describe('TocDrawer', () => {
       />,
     )
 
-    const overlay = screen.getByLabelText('Đóng mục lục')
+    const overlay = screen.getByTestId('toc-drawer-backdrop')
     fireEvent.click(overlay)
     expect(onClose).toHaveBeenCalled()
   })

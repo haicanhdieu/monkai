@@ -2,7 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
   "packages": [
     "python@3.11",
-    "uv@0.10.4"
+    "uv@0.10.4",
+    "nodejs@24",
+    "pnpm@9"
   ],
   "shell": {
     "init_hook": [
@@ -16,7 +18,10 @@
       "test:crawler": "cd apps/crawler && uv run pytest",
       "lint": "cd apps/reader && pnpm lint",
       "build-books": "cd apps/crawler && uv run python book_builder.py",
-      "pipeline": "cd apps/crawler && uv run python pipeline.py"
+      "pipeline": "cd apps/crawler && uv run python pipeline.py",
+      "deploy:book-data": "cd apps/deployer && pnpm run upload:book-data",
+      "deploy:reader": "cd apps/deployer && pnpm run deploy:reader",
+      "deploy:all": "cd apps/deployer && pnpm run deploy:all"
     }
   }
 }

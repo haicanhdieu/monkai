@@ -22,6 +22,7 @@ The project bridges the gap between raw digital archives and modern reading expe
 - [Project Structure](#project-structure)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Deployment](#deployment)
 - [MCP Setup](#mcp-setup)
 - [Contributing](#contributing)
 - [License](#license)
@@ -74,6 +75,7 @@ A React-based Progressive Web Application built with Vite and Tailwind CSS. It c
 
 - `apps/crawler/`: The Python-based ingestion pipeline. See the [Crawler documentation](apps/crawler/README.md) for details.
 - `apps/reader/`: The Vite React application for reading. See the [Reader documentation](apps/reader/README.md) for details.
+- `apps/deployer/`: Scripts to upload book-data to Vercel Blob and deploy the reader as a static site. See [Deployment](#deployment) and [apps/deployer/README.md](apps/deployer/README.md).
 - `data/`: The shared corpus directory where the crawler outputs `index.json` and canonical data.
 - `docs/`: Centralized project documentation and architecture plans.
 
@@ -97,6 +99,18 @@ Follow the specific instructions within each application to run or deploy the se
 
 - To run the crawler and build the scripture index, navigate to `apps/crawler/` and use Devbox.
 - To serve the web application and read scriptures, navigate to `apps/reader/` and start the development server.
+
+## Deployment
+
+Deployment does not require the repository to be public or linked to Vercel via Git. Book-data is uploaded to **Vercel Blob**; the reader is deployed as a **static site** (e.g. via Vercel CLI).
+
+See **[apps/deployer/README.md](apps/deployer/README.md)** for one-time setup (Blob store, tokens, Vercel CLI auth) and full instructions.
+
+From repo root with Devbox:
+
+- `devbox run deploy:book-data` — upload book-data to Vercel Blob (set `BLOB_READ_WRITE_TOKEN`).
+- `devbox run deploy:reader` — build and deploy the reader (set `VITE_BOOK_DATA_URL` to the Blob store root after first upload).
+- `devbox run deploy:all` — run upload then reader deploy (when `VITE_BOOK_DATA_URL` is already set).
 
 ## MCP Setup
 

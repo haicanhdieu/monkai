@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Cross2Icon } from '@radix-ui/react-icons'
 import { useSettingsStore, FONT_SIZE_MIN, FONT_SIZE_MAX } from '@/stores/settings.store'
 import type { ReadingTheme } from '@/stores/settings.store'
 
@@ -101,7 +102,7 @@ export function ReaderSettingsDrawer({ isOpen, onClose }: ReaderSettingsDrawerPr
             className="text-xs bg-transparent border-none cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            Đóng
+            <Cross2Icon className="h-4 w-4" aria-hidden />
           </button>
         </div>
         {/* Font size row */}

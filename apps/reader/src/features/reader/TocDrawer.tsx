@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Cross2Icon } from '@radix-ui/react-icons'
 import type { TocEntry } from './useEpubReader'
 import { TocList } from './TocList'
 
@@ -54,6 +55,7 @@ export function TocDrawer({
         className="flex-1 bg-black/40"
         aria-label="Đóng mục lục"
         onClick={onClose}
+        data-testid="toc-drawer-backdrop"
       />
       <div
         className="w-80 max-w-[80vw] h-full bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-xl flex flex-col"
@@ -68,11 +70,12 @@ export function TocDrawer({
           <button
             ref={firstFocusableRef}
             type="button"
+            onClick={onClose}
+            aria-label="Đóng mục lục"
             className="text-xs bg-transparent border-none cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
             style={{ color: 'var(--color-text-muted)' }}
-            onClick={onClose}
           >
-            Đóng
+            <Cross2Icon className="h-4 w-4" aria-hidden />
           </button>
         </div>
         <div className="flex-1 px-3 py-2 overflow-y-auto">

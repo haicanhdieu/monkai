@@ -28,8 +28,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Monorepo & tooling
 
-- **Root:** `devbox.json` — Python 3.11, uv; scripts run from repo root via `devbox run <script>`.
-- **Scripts:** `crawl` / `pipeline` / `build-books` / `test:crawler` → `apps/crawler`; `dev` / `build` / `test` / `lint` → `apps/reader`. Run crawler tests with `devbox run test:crawler`, reader tests with `devbox run test`.
+- **Root:** `devbox.json` — Python 3.11, uv, Node.js, pnpm; scripts run from repo root via `devbox run <script>`.
+- **Scripts:** `crawl` / `pipeline` / `build-books` / `test:crawler` → `apps/crawler`; `dev` / `build` / `test` / `lint` → `apps/reader`; `deploy:book-data` / `deploy:reader` / `deploy:all` → `apps/deployer`. Run crawler tests with `devbox run test:crawler`, reader tests with `devbox run test`. Deployment: `devbox run deploy:book-data`, `devbox run deploy:reader`, `devbox run deploy:all` (see `apps/deployer/README.md`).
 
 ### Reader (`apps/reader`)
 
