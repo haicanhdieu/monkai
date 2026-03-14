@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ReaderEngine } from '@/features/reader/ReaderEngine'
@@ -194,6 +194,102 @@ describe('ReaderEngine — themes and font size (Story 3.3)', () => {
     )
     expect(themes.select).toHaveBeenCalledWith('theme-sepia')
     expect(themes.fontSize).toHaveBeenCalledWith('18px')
+  })
+})
+
+describe('ReaderEngine — tap navigation zones', () => {
+  it('renders tap-prev and tap-next zones when rendition is set', () => {
+    const mockRendition = {
+      on: vi.fn(),
+      off: vi.fn(),
+      prev: vi.fn().mockResolvedValue(undefined),
+      next: vi.fn().mockResolvedValue(undefined),
+      display: vi.fn().mockResolvedValue(undefined),
+      themes: { select: vi.fn(), fontSize: vi.fn() },
+    }
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="b1"
+        bookTitle="Book"
+      />,
+    )
+    expect(screen.getByTestId('tap-prev')).toBeInTheDocument()
+    expect(screen.getByTestId('tap-next')).toBeInTheDocument()
+  })
+
+  it('does not render tap zones when rendition is null', () => {
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={null}
+        book={null}
+        isReady={false}
+        error={null}
+        bookId="b1"
+        bookTitle="Book"
+      />,
+    )
+    expect(screen.queryByTestId('tap-prev')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('tap-next')).not.toBeInTheDocument()
+  })
+
+  it('clicking tap-prev calls rendition.prev()', () => {
+    const mockPrev = vi.fn().mockResolvedValue(undefined)
+    const mockNext = vi.fn().mockResolvedValue(undefined)
+    const mockRendition = {
+      on: vi.fn(),
+      off: vi.fn(),
+      prev: mockPrev,
+      next: mockNext,
+      display: vi.fn().mockResolvedValue(undefined),
+      themes: { select: vi.fn(), fontSize: vi.fn() },
+    }
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="b1"
+        bookTitle="Book"
+      />,
+    )
+    fireEvent.click(screen.getByTestId('tap-prev'))
+    expect(mockPrev).toHaveBeenCalledOnce()
+    expect(mockNext).not.toHaveBeenCalled()
+  })
+
+  it('clicking tap-next calls rendition.next()', () => {
+    const mockPrev = vi.fn().mockResolvedValue(undefined)
+    const mockNext = vi.fn().mockResolvedValue(undefined)
+    const mockRendition = {
+      on: vi.fn(),
+      off: vi.fn(),
+      prev: mockPrev,
+      next: mockNext,
+      display: vi.fn().mockResolvedValue(undefined),
+      themes: { select: vi.fn(), fontSize: vi.fn() },
+    }
+    render(
+      <ReaderEngine
+        containerRef={{ current: null }}
+        rendition={mockRendition as never}
+        book={{} as never}
+        isReady={true}
+        error={null}
+        bookId="b1"
+        bookTitle="Book"
+      />,
+    )
+    fireEvent.click(screen.getByTestId('tap-next'))
+    expect(mockNext).toHaveBeenCalledOnce()
+    expect(mockPrev).not.toHaveBeenCalled()
   })
 })
 

@@ -69,21 +69,11 @@ export function ReaderEngine({
   useEffect(() => {
     if (!rendition) return
 
-    const handleClick = (event: { clientX: number; screenX?: number }) => {
-      // epub.js paginated mode renders content in CSS columns inside an iframe that may be
-      // wider than the viewport. clientX is iframe-relative and shifts when epub.js scrolls
-      // to a later column, making left taps appear as right taps. screenX is screen-absolute
-      // and stays correct regardless of iframe scroll offset.
-      const screenX = (event as { screenX?: number }).screenX
-      const x = typeof screenX === 'number' ? screenX - window.screenX : event.clientX
-      const width = window.innerWidth
-      if (x < width * 0.2) {
-        void rendition.prev()
-      } else if (x > width * 0.8) {
-        void rendition.next()
-      } else {
-        toggleChrome()
-      }
+    // Tap navigation (prev/next) is handled by fixed overlay divs in the JSX, which live in
+    // the outer React document and have reliable coordinates. rendition.on('click') is kept
+    // only for chrome toggle on taps that reach the epub iframe (center 60%).
+    const handleClick = () => {
+      toggleChrome()
     }
 
     const handleKeyup = (event: { key: string }) => {
@@ -201,6 +191,26 @@ export function ReaderEngine({
         }}
         data-testid="epub-container"
       />
+
+      {/* Fixed tap zones in the outer DOM — avoids epub.js iframe coordinate issues.
+          Left 20%: go to previous page. Right 20%: go to next page.
+          z-index 10 matches ChromelessLayout's center zone so all three zones are on the same layer. */}
+      {rendition && (
+        <>
+          <div
+            aria-hidden="true"
+            data-testid="tap-prev"
+            style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: '20%', zIndex: 10 }}
+            onClick={() => void rendition.prev()}
+          />
+          <div
+            aria-hidden="true"
+            data-testid="tap-next"
+            style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '20%', zIndex: 10 }}
+            onClick={() => void rendition.next()}
+          />
+        </>
+      )}
     </div>
   )
 }
