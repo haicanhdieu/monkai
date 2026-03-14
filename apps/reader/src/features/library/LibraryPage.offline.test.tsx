@@ -57,7 +57,7 @@ describe('LibraryPage offline parity', () => {
       )
 
       const user = userEvent.setup()
-      await user.type(screen.getByRole('searchbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+      await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
 
       await waitFor(() => expect(screen.getByLabelText('Kết quả tìm kiếm')).toBeInTheDocument())
       expect(screen.getByRole('link', { name: /Đọc Kinh Bát Nhã/i })).toBeInTheDocument()

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { toRead } from '@/shared/constants/routes'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
@@ -38,6 +39,8 @@ function highlightText(text: string, query: string): React.ReactNode {
   )
 }
 
+const getMain = () => document.querySelector('main') as HTMLElement | null
+
 export function SearchResults({ query, results }: SearchResultsProps) {
   if (results.length === 0) {
     return (
@@ -56,11 +59,56 @@ export function SearchResults({ query, results }: SearchResultsProps) {
     )
   }
 
+  return <VirtualSearchResults query={query} results={results} />
+}
+
+function VirtualSearchResults({ query, results }: SearchResultsProps) {
+  const parentRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  const virtualizer = useVirtualizer({
+    count: results.length,
+    getScrollElement: getMain,
+    estimateSize: () => 116, // SearchResultCard ~108px + space-y-2 gap (8px)
+    overscan: 5,
+    scrollMargin,
+  })
+
+  // Reset scroll to top when query changes so results start from the beginning
+  useEffect(() => {
+    const main = getMain()
+    if (main) main.scrollTop = 0
+  }, [query])
+
+  // Measure distance from <main> top to the list container (AppBar + search bar height)
+  useLayoutEffect(() => {
+    const main = getMain()
+    const el = parentRef.current
+    if (!main || !el) return
+    setScrollMargin(el.getBoundingClientRect().top - main.getBoundingClientRect().top)
+  }, [])
+
   return (
-    <section className="space-y-2" aria-label="Kết quả tìm kiếm">
-      {results.map((result) => (
-        <SearchResultCard key={result.id} result={result} query={query} />
-      ))}
+    <section ref={parentRef} aria-label="Kết quả tìm kiếm">
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((virtualItem) => (
+          <div
+            key={virtualItem.key}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              transform: `translateY(${virtualItem.start - scrollMargin}px)`,
+              paddingBottom: '8px',
+            }}
+            ref={virtualizer.measureElement}
+            data-index={virtualItem.index}
+          >
+            <SearchResultCard result={results[virtualItem.index]} query={query} />
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -107,7 +155,7 @@ function SearchResultCard({
             {highlightText(result.title, query)}
           </p>
           <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {result.category} • {result.subcategory}
+            {result.category}
           </p>
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {result.translator}

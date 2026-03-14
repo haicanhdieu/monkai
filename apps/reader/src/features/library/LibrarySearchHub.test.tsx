@@ -65,7 +65,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm kiếm kinh sách' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), {
       target: { value: 'Bát Nhã' },
     })
 
@@ -90,7 +90,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByRole('searchbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
     await waitFor(() => expect(screen.getByLabelText('Kết quả tìm kiếm')).toBeInTheDocument())
 
     const results = screen.getAllByRole('link', { name: /Đọc/i })
@@ -109,7 +109,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByRole('searchbox', { name: 'Tìm kiếm kinh sách' }), 'khong-ton-tai')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'khong-ton-tai')
     await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả')).toBeInTheDocument())
   })
 })

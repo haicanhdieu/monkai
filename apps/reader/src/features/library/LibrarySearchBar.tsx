@@ -17,10 +17,12 @@ export function LibrarySearchBar({ query, onQueryChange, onClear }: LibrarySearc
     >
       <MagnifyingGlassIcon className="mr-2 h-4 w-4 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
       <input
-        type="search"
+        type="text"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
+        onKeyDown={(event) => { if (event.key === 'Escape') onClear() }}
         placeholder="Tìm kiếm kinh điển..."
+        enterKeyHint="search"
         className="h-full w-full border-none bg-transparent p-0 text-sm font-medium outline-none focus:ring-0"
         aria-label="Tìm kiếm kinh sách"
       />

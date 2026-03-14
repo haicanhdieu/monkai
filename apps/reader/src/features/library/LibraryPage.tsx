@@ -43,11 +43,11 @@ export default function LibraryPage() {
             <SkeletonText lines={1} />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2" data-testid="library-skeleton-grid">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4" data-testid="library-skeleton-grid">
             {Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
-                className="rounded-2xl border p-4 min-h-[128px]"
+                className="rounded-2xl border p-4"
                 style={{
                   backgroundColor: 'var(--color-surface)',
                   borderColor: 'var(--color-border)',

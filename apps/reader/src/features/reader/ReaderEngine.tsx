@@ -69,8 +69,13 @@ export function ReaderEngine({
   useEffect(() => {
     if (!rendition) return
 
-    const handleClick = (event: { clientX: number }) => {
-      const x = event.clientX
+    const handleClick = (event: { clientX: number; screenX?: number }) => {
+      // epub.js paginated mode renders content in CSS columns inside an iframe that may be
+      // wider than the viewport. clientX is iframe-relative and shifts when epub.js scrolls
+      // to a later column, making left taps appear as right taps. screenX is screen-absolute
+      // and stays correct regardless of iframe scroll offset.
+      const screenX = (event as { screenX?: number }).screenX
+      const x = typeof screenX === 'number' ? screenX - window.screenX : event.clientX
       const width = window.innerWidth
       if (x < width * 0.2) {
         void rendition.prev()

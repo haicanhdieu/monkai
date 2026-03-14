@@ -6,6 +6,7 @@ import CategoryPage from '@/features/library/CategoryPage'
 import { DataError } from '@/shared/services/data.service'
 import type { CatalogIndex } from '@/shared/types/global.types'
 
+
 const mockUseCatalogIndex = vi.fn()
 const mockUseOnlineStatus = vi.fn()
 const mockUseParams = vi.fn()
