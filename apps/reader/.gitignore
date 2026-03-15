@@ -30,3 +30,8 @@ playwright-report/
 
 # Vercel
 .vercel
+
+# Env files — use .env.sample as the committed template
+.env
+.env.*
+!.env.sample
