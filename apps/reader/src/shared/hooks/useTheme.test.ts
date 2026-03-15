@@ -12,7 +12,7 @@ vi.mock('@/stores/settings.store', () => ({
 // The mock intercepts the call and returns the theme string directly.
 function mockTheme(theme: ReadingTheme) {
   vi.mocked(useSettingsStore).mockImplementation(
-    (selector: (s: { theme: ReadingTheme }) => ReadingTheme) => selector({ theme }),
+    (selector) => (selector as unknown as (s: { theme: ReadingTheme }) => ReadingTheme)({ theme }),
   )
 }
 

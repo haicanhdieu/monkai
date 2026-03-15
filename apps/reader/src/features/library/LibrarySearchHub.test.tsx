@@ -15,6 +15,7 @@ const booksFixture: CatalogBook[] = [
     subcategory: 'dai-thua',
     translator: 'HT. A',
     coverImageUrl: null,
+    artifacts: [],
   },
   {
     id: 'book-category-hit',
@@ -24,6 +25,7 @@ const booksFixture: CatalogBook[] = [
     subcategory: 'luan',
     translator: 'HT. B',
     coverImageUrl: null,
+    artifacts: [],
   },
 ]
 

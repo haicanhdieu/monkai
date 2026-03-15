@@ -9,11 +9,13 @@ export interface DataService {
 
 export class DataError extends Error {
   readonly category: DataErrorCategory
+  readonly details?: unknown
 
-  constructor(category: DataErrorCategory, message: string, public readonly details?: unknown) {
+  constructor(category: DataErrorCategory, message: string, details?: unknown) {
     super(message)
     this.name = 'DataError'
     this.category = category
+    this.details = details
   }
 }
 
@@ -77,10 +79,12 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 }
 
 export class StaticJsonDataService implements DataService {
+  private readonly fetchImpl: typeof fetch
   private readonly baseUrl: string
   private catalogPromise: Promise<CatalogIndex> | null = null
 
-  constructor(private readonly fetchImpl: typeof fetch = fetch.bind(globalThis), baseUrl = resolveBookDataBaseUrl()) {
+  constructor(fetchImpl: typeof fetch = fetch.bind(globalThis), baseUrl = resolveBookDataBaseUrl()) {
+    this.fetchImpl = fetchImpl
     this.baseUrl = baseUrl
   }
 

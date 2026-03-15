@@ -37,6 +37,7 @@ const catalogFixture: CatalogIndex = {
       subcategory: 'bat-nha',
       translator: 'HT. A',
       coverImageUrl: null,
+      artifacts: [],
     },
   ],
   categories: [

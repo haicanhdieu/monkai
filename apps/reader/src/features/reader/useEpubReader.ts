@@ -161,7 +161,7 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         return entries
       }
 
-      return flatten(navigationToc)
+      return flatten(navigationToc as Parameters<typeof flatten>[0])
     } catch (err) {
       // Malformed nav: return empty list so UI shows "Không có mục lục" instead of error
       console.warn('[useEpubReader] getToc error (returning empty):', err)

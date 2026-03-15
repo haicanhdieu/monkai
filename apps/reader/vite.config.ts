@@ -6,10 +6,10 @@ import { fileURLToPath } from 'url'
 export default defineConfig(async ({ mode }) => {
   // workbox-broadcast-update uses browser globals (`self`, `navigator`) at module evaluation time,
   // which crash in Node.js when Vite loads this config. Polyfill before the dynamic import.
-  if (typeof globalThis.self === 'undefined') {
+  if (!('self' in globalThis)) {
     ;(globalThis as unknown as { self: typeof globalThis }).self = globalThis
   }
-  if (typeof globalThis.navigator === 'undefined') {
+  if (!('navigator' in globalThis)) {
     ;(globalThis as unknown as { navigator: { userAgent: string } }).navigator = {
       userAgent: 'Node.js',
     }

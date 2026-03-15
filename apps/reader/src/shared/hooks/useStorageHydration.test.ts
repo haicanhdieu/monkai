@@ -13,7 +13,7 @@ vi.mock('@/shared/services/storage.service', () => ({
 
 import { storageService } from '@/shared/services/storage.service'
 
-const mockStorageService = storageService as { getItem: ReturnType<typeof vi.fn> }
+const mockStorageService = storageService as unknown as { getItem: ReturnType<typeof vi.fn> }
 
 beforeEach(() => {
   useReaderStore.setState({ currentCfi: null })

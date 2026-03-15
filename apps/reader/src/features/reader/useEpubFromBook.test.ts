@@ -1,4 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
+import { vi, describe, it, expect, beforeEach, type Mock } from 'vitest'
 import { useEpubFromBook } from './useEpubFromBook'
 import type { Book } from '@/shared/types/global.types'
 
@@ -62,8 +63,8 @@ describe('useEpubFromBook', () => {
     const { bookToEpubBuffer } = await import('@/shared/lib/bookToEpub')
     const { storageService } = await import('@/shared/services/storage.service')
 
-    ;(storageService.getItem as vi.Mock).mockResolvedValue(null)
-    ;(bookToEpubBuffer as vi.Mock).mockReturnValue(
+    ;(storageService.getItem as Mock).mockResolvedValue(null)
+    ;(bookToEpubBuffer as Mock).mockReturnValue(
       new Promise<ArrayBuffer>(() => {
         // never resolve to simulate in-flight generation
       }),
@@ -84,8 +85,8 @@ describe('useEpubFromBook', () => {
     const { bookToEpubBuffer } = await import('@/shared/lib/bookToEpub')
     const { storageService } = await import('@/shared/services/storage.service')
 
-    ;(storageService.getItem as vi.Mock).mockResolvedValue(null)
-    ;(bookToEpubBuffer as vi.Mock).mockResolvedValue(new ArrayBuffer(8))
+    ;(storageService.getItem as Mock).mockResolvedValue(null)
+    ;(bookToEpubBuffer as Mock).mockResolvedValue(new ArrayBuffer(8))
 
     const { result } = renderHook(() => useEpubFromBook(bookFixture))
 
@@ -104,8 +105,8 @@ describe('useEpubFromBook', () => {
     const { bookToEpubBuffer } = await import('@/shared/lib/bookToEpub')
     const { storageService } = await import('@/shared/services/storage.service')
 
-    ;(storageService.getItem as vi.Mock).mockResolvedValue(null)
-    ;(bookToEpubBuffer as vi.Mock).mockRejectedValue(new Error('fail'))
+    ;(storageService.getItem as Mock).mockResolvedValue(null)
+    ;(bookToEpubBuffer as Mock).mockRejectedValue(new Error('fail'))
 
     const { result } = renderHook(() => useEpubFromBook(bookFixture))
 
@@ -124,7 +125,7 @@ describe('useEpubFromBook', () => {
     const { storageService } = await import('@/shared/services/storage.service')
 
     const cachedBlob = new Blob([new ArrayBuffer(8)], { type: 'application/epub+zip' })
-    ;(storageService.getItem as vi.Mock).mockResolvedValue(cachedBlob)
+    ;(storageService.getItem as Mock).mockResolvedValue(cachedBlob)
 
     const { result, unmount } = renderHook(() => useEpubFromBook(bookFixture))
 
