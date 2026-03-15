@@ -67,10 +67,15 @@ test.describe('Reader TOC', () => {
 
     await page.goto(`/read/${BOOK_ID}`)
 
-    await expect(page.getByTestId('reader-engine')).toBeVisible()
+    await expect(page.getByTestId('epub-container')).toBeVisible({ timeout: 15000 })
 
+    // Chrome top bar auto-hides after 3 s; if epub loading took longer it may already be hidden.
+    // Tap the center zone to reveal it if needed.
     const tocTrigger = page.getByTestId('toc-trigger')
-    await expect(tocTrigger).toBeVisible()
+    if (!(await tocTrigger.isVisible())) {
+      await page.getByTestId('center-tap-zone').click()
+    }
+    await expect(tocTrigger).toBeVisible({ timeout: 4000 })
     await tocTrigger.click()
 
     const drawer = page.getByTestId('toc-drawer')
