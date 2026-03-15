@@ -80,7 +80,7 @@ export class StaticJsonDataService implements DataService {
   private readonly baseUrl: string
   private catalogPromise: Promise<CatalogIndex> | null = null
 
-  constructor(private readonly fetchImpl: typeof fetch = fetch, baseUrl = resolveBookDataBaseUrl()) {
+  constructor(private readonly fetchImpl: typeof fetch = fetch.bind(globalThis), baseUrl = resolveBookDataBaseUrl()) {
     this.baseUrl = baseUrl
   }
 
