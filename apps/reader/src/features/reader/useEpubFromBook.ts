@@ -73,6 +73,7 @@ export function useEpubFromBook(book: Book | null): UseEpubFromBookResult {
         blobUrlRef.current = null
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-run only when book.id changes, not on every book object re-creation
   }, [book?.id])
   const derivedLoading = isLoading || (book !== null && epubUrl === null && error === null)
 

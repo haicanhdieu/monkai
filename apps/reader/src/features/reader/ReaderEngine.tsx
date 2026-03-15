@@ -43,7 +43,6 @@ export interface ReaderEngineProps {
 export function ReaderEngine({
   containerRef,
   rendition,
-  book: _book,
   isReady,
   error,
   bookId,

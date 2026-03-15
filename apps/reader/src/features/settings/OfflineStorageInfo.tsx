@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import localforage from 'localforage'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
 import { useQueryClient } from '@tanstack/react-query'
+import { storageService } from '@/shared/services/storage.service'
 
 export function OfflineStorageInfo() {
   const queryClient = useQueryClient()
@@ -44,7 +44,7 @@ export function OfflineStorageInfo() {
       const keys = await caches.keys()
       await Promise.all(keys.map((key) => caches.delete(key)))
       queryClient.clear()
-      await localforage.clear()
+      await storageService.clear()
     } catch {
       setClearError(true)
     } finally {

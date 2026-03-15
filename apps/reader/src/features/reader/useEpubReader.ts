@@ -50,7 +50,6 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         if (cancelled) return null
         const error =
           err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Failed to load EPUB')
-        // eslint-disable-next-line no-console
         console.error('[useEpubReader] createBook error:', error)
         errorOccurredRef.current = true
         setError(error)
@@ -68,7 +67,6 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
 
       bookInstance.on('openFailed', (err: Error) => {
         // Helpful for diagnosing EPUB parse issues in the browser console.
-        // eslint-disable-next-line no-console
         console.error('[useEpubReader] openFailed:', err)
         errorOccurredRef.current = true
         setError(err)
@@ -91,14 +89,12 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         })
         .catch((err: Error) => {
           if (cancelled) return
-          // eslint-disable-next-line no-console
           console.error('[useEpubReader] display error:', err)
           errorOccurredRef.current = true
           setError(err)
         })
 
       localRenditionInstance.on('loadError', (err: Error) => {
-        // eslint-disable-next-line no-console
         console.error('[useEpubReader] loadError:', err)
         errorOccurredRef.current = true
         setError(err)
@@ -168,7 +164,6 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
       return flatten(navigationToc)
     } catch (err) {
       // Malformed nav: return empty list so UI shows "Không có mục lục" instead of error
-      // eslint-disable-next-line no-console
       console.warn('[useEpubReader] getToc error (returning empty):', err)
       return []
     }
@@ -183,7 +178,6 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
       if (!book) {
         const err =
           primaryErr instanceof Error ? primaryErr : new Error('Failed to navigate to TOC entry')
-        // eslint-disable-next-line no-console
         console.error('[useEpubReader] navigateToTocEntry error:', err)
         throw err
       }
@@ -198,10 +192,9 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         const cfi = section.cfiFromElement(el)
         if (!cfi) throw new Error('CFI from element failed')
         await rendition.display(cfi)
-      } catch (_fallbackErr) {
+      } catch {
         const err =
           primaryErr instanceof Error ? primaryErr : new Error('Failed to navigate to TOC entry')
-        // eslint-disable-next-line no-console
         console.error('[useEpubReader] navigateToTocEntry error:', err)
         throw err
       }

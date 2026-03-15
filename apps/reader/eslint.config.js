@@ -45,4 +45,10 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  {
+    files: ['src/shared/services/storage.service.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
 )

@@ -82,16 +82,6 @@ const bookFixture: Book = {
   content: ['Đoạn 1.', 'Đoạn 2.', 'Đoạn 3.'],
 }
 
-const bookFixtureSeoSlug: Book = {
-  id: 'seo-slug-internal',
-  title: 'Kinh Test',
-  category: 'Kinh',
-  subcategory: 'test',
-  translator: 'HT. Test',
-  coverImageUrl: null,
-  content: ['Đoạn 1.'],
-}
-
 function renderReaderPage(
   bookId = 'bat-nha',
   locationState?: { page?: number; cfi?: string },

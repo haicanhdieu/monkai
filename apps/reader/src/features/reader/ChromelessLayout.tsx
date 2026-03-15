@@ -81,7 +81,7 @@ export function ChromelessLayout({
         clearTimeout(autoHideTimerRef.current)
       }
     }
-  }, []) // intentionally runs only on mount; toggleChrome is a stable Zustand action ref
+  }, [toggleChrome])
 
   // Auto-hide hint after CHROME_AUTOHIDE_MS once the reader is ready.
   // Deferred until isReady=true so the timer doesn't fire during epub loading (skeleton phase),
