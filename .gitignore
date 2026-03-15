@@ -27,9 +27,16 @@ node_modules/
 # Local scripts
 cursor.sh
 
+# Env files (tokens, secrets)
+.env
+.env.local
+.env.*.local
+
 # MCP config (contains API keys) - use mcp.canonical.example.json as template
 mcp.canonical.json
 mcp_settings.json
 .mcp.json
 .cursor/mcp.json
 .gemini/settings.json
+.vercel
+.env*.local

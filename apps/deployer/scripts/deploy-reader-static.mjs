@@ -1,8 +1,9 @@
 /**
  * deploy-reader-static.mjs — Build and deploy the reader as a static site via Vercel CLI
  *
- * Requires VITE_BOOK_DATA_URL (Blob store root). Deploys from apps/reader with
- * Vercel CLI so no Git link is required.
+ * Requires VITE_BOOK_DATA_URL (Blob store root, e.g. https://xxx.public.blob.vercel-storage.com).
+ * Deploys from apps/reader with Vercel CLI so no Git link is required.
+ * To upload book-data to Blob, run upload-book-data-to-blob.mjs first (or pnpm run upload:book-data).
  *
  * Usage: node scripts/deploy-reader-static.mjs
  * Env: VITE_BOOK_DATA_URL (required), VERCEL_TOKEN (optional, for CI), VITE_BASE_PATH (optional)

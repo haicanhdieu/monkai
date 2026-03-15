@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/((?!book-data/).*)", "destination": "/index.html" }
+  ]
+}

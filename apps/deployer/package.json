@@ -4,11 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "create-blob-token": "node scripts/create-blob-token.mjs",
+    "delete-blob-store": "node scripts/delete-blob-store.mjs",
     "upload:book-data": "node scripts/upload-book-data-to-blob.mjs",
+    "upload:book-data:r2": "node scripts/upload-book-data-to-r2.mjs",
     "deploy:reader": "node scripts/deploy-reader-static.mjs",
     "deploy:all": "node scripts/upload-book-data-to-blob.mjs && node scripts/deploy-reader-static.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.700.0",
     "@vercel/blob": "^0.25.0"
   },
   "devDependencies": {

@@ -1,18 +1,23 @@
 /**
- * upload-book-data-to-blob.mjs — Upload crawler book-data tree to Vercel Blob
+ * upload-book-data-to-r2.mjs — Upload crawler book-data tree to Cloudflare R2
  *
  * Walks BOOK_DATA_SRC (default: apps/crawler/data/book-data), uploads each file
- * with pathname book-data/<relative path>. Reader uses VITE_BOOK_DATA_URL = Blob
- * store root so that base + '/book-data/' + path resolves correctly.
+ * with key book-data/<relative path>. Reader uses VITE_BOOK_DATA_URL = R2 public
+ * bucket root so that base + '/book-data/' + path resolves correctly.
  *
- * Usage: node scripts/upload-book-data-to-blob.mjs [--dry-run]
- * Env: BLOB_READ_WRITE_TOKEN (required), BOOK_DATA_SRC (optional)
+ * R2 is S3-compatible. Enable public access on the bucket in Cloudflare dashboard
+ * (R2 → bucket → Settings → Public access) and set VITE_BOOK_DATA_URL to that
+ * URL (e.g. https://pub-xxxx.r2.dev, no trailing slash).
+ *
+ * Usage: node scripts/upload-book-data-to-r2.mjs [--dry-run]
+ * Env: CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME (required);
+ *      BOOK_DATA_SRC (optional)
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { put } from '@vercel/blob'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEPLOYER_ROOT = path.resolve(__dirname, '..')
@@ -22,7 +27,8 @@ const ENV_FILE = path.join(__dirname, '.env')
 const DEFAULT_BOOK_DATA_SRC = path.join(REPO_ROOT, 'apps', 'crawler', 'data', 'book-data')
 
 function loadEnvIfNeeded() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) return
+  const required = ['CLOUDFLARE_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME']
+  if (required.every((k) => process.env[k])) return
   if (!fs.existsSync(ENV_FILE)) return
   const content = fs.readFileSync(ENV_FILE, 'utf8')
   for (const line of content.split('\n')) {
@@ -69,13 +75,18 @@ function* walkDir(dir, baseDir = dir) {
 function main() {
   loadEnvIfNeeded()
   const dryRun = process.argv.includes('--dry-run')
-  const token = process.env.BLOB_READ_WRITE_TOKEN
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+  const bucket = process.env.R2_BUCKET_NAME
   const bookDataSrc = process.env.BOOK_DATA_SRC
     ? path.resolve(process.cwd(), process.env.BOOK_DATA_SRC)
     : DEFAULT_BOOK_DATA_SRC
 
-  if (!token && !dryRun) {
-    console.error('BLOB_READ_WRITE_TOKEN is required. Set it or run with --dry-run.')
+  if ((!accountId || !accessKeyId || !secretAccessKey || !bucket) && !dryRun) {
+    console.error(
+      'CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are required. Set them or run with --dry-run.'
+    )
     process.exit(1)
   }
 
@@ -98,52 +109,52 @@ function main() {
 
   runUpload(bookDataSrc, files).catch((err) => {
     console.error('Upload failed:', err.message || err)
-    if (err?.name === 'BlobStoreSuspendedError' || /suspended/i.test(String(err?.message ?? err))) {
-      console.error('')
-      console.error('This Blob store has been suspended by Vercel. You need to:')
-      console.error('  1. Open your Vercel dashboard → Project → Storage')
-      console.error('  2. Check the store status or create a new Blob store')
-      console.error('  3. Run create-blob-token again to pull the new token, then re-run this upload')
-    }
     process.exit(1)
   })
 }
 
 async function runUpload(bookDataSrc, files) {
   const LOG_EVERY = 50
-  let blobStoreRoot = null
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+  const endpoint = `https://${accountId}.r2.cloudflarestorage.com`
+
+  const s3 = new S3Client({
+    region: 'auto',
+    endpoint,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    },
+    forcePathStyle: true,
+  })
+
+  const bucketName = process.env.R2_BUCKET_NAME
 
   for (let i = 0; i < files.length; i++) {
     const rel = files[i]
-    const pathname = 'book-data/' + rel.replaceAll(path.sep, '/')
+    const key = 'book-data/' + rel.replaceAll(path.sep, '/')
     const fullPath = path.join(bookDataSrc, rel)
     const body = fs.readFileSync(fullPath)
     const contentType = getContentType(fullPath)
 
-    const result = await put(pathname, body, {
-      access: 'public',
-      addRandomSuffix: false,
-      allowOverwrite: true,
-      contentType,
-    })
-
-    if (result?.url) {
-      if (blobStoreRoot == null) {
-        const u = new URL(result.url)
-        blobStoreRoot = u.origin
-        console.log('Blob store root URL (set VITE_BOOK_DATA_URL to this):', blobStoreRoot)
-      }
-    }
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      })
+    )
 
     if ((i + 1) % LOG_EVERY === 0) {
       console.log(`Uploaded ${i + 1}/${files.length} files...`)
     }
   }
 
-  console.log(`Done. Uploaded ${files.length} files.`)
-  if (blobStoreRoot) {
-    console.log('VITE_BOOK_DATA_URL=', blobStoreRoot)
-  }
+  console.log(`Done. Uploaded ${files.length} files to R2 bucket "${bucketName}".`)
+  console.log('')
+  console.log('Set VITE_BOOK_DATA_URL to your R2 public bucket URL (no trailing slash),')
+  console.log('e.g. https://pub-xxxx.r2.dev — enable Public access in R2 → bucket → Settings.')
 }
 
 main()

@@ -15,6 +15,9 @@ export default defineConfig(async ({ mode }) => {
     }
   }
 const env = loadEnv(mode, process.cwd(), '')
+// Strip trailing slash so navigateFallback resolves correctly for any base path.
+// When VITE_BASE_PATH='/', this produces '' → navigateFallback becomes '/index.html' (correct).
+const baseFallback = (env.VITE_BASE_PATH ?? '/').replace(/\/+$/, '')
   return {
     base: env.VITE_BASE_PATH ?? '/',
     resolve: {
@@ -73,7 +76,11 @@ const env = loadEnv(mode, process.cwd(), '')
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,woff2,ico,png}'],
-          navigateFallback: 'offline.html',
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
+          navigateFallback: `${baseFallback}/index.html`,
+          navigateFallbackDenylist: [/^\/book-data\//],
           runtimeCaching: [
             {
               urlPattern: /\/book-data\/index\.json/,
