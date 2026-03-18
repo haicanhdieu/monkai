@@ -129,7 +129,9 @@ export class StaticJsonDataService implements DataService {
       throw new DataError('parse', `Book payload failed schema validation for id: ${id}`, parsed.error.flatten())
     }
 
-    return parsed.data
+    // Override the internal slug id from book.json with the catalog UUID used to fetch it.
+    // This ensures book.id is always the catalog UUID everywhere (bookmarks, routing, etc.).
+    return { ...parsed.data, id }
   }
 
   private async fetchJson(path: string): Promise<unknown> {

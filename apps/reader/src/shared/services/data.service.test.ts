@@ -119,6 +119,46 @@ describe('StaticJsonDataService', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
+
+  it('returns book.id as the catalog UUID, not the internal slug from book JSON', async () => {
+    const catalogUuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+    const internalSlug = 'vbeta__some-book'
+
+    const catalogWithUuid = {
+      books: [
+        {
+          id: catalogUuid,
+          book_name: 'Test Book',
+          category_name: 'Kinh',
+          artifacts: [{ format: 'json', path: 'some-book.json', source: 'test', built_at: '2026-01-01' }],
+        },
+      ],
+    }
+    const bookWithSlug = {
+      id: internalSlug,
+      book_name: 'Test Book',
+      category_name: 'Kinh',
+      chapters: [],
+    }
+
+    let callCount = 0
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      callCount++
+      return {
+        ok: true,
+        status: 200,
+        json: async () => (callCount === 1 ? catalogWithUuid : bookWithSlug),
+      }
+    })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
+    const book = await service.getBook(catalogUuid)
+
+    // book.id must be the catalog UUID so bookmarks survive storage hydration
+    // (hydration filter rejects slugs — only UUIDs pass isValidBookId)
+    expect(book.id).toBe(catalogUuid)
+    expect(book.id).not.toBe(internalSlug)
+  })
 })
 
 describe('resolveCoverUrl', () => {
