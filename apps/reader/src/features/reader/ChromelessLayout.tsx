@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeftIcon, ArrowRightIcon, HamburgerMenuIcon, ListBulletIcon } from '@radix-ui/react-icons'
+import { ArrowLeftIcon, ArrowRightIcon, BookmarkFilledIcon, BookmarkIcon, HamburgerMenuIcon, ListBulletIcon } from '@radix-ui/react-icons'
 import { ROUTES } from '@/shared/constants/routes'
 import { useReaderStore } from '@/stores/reader.store'
+import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { storageService } from '@/shared/services/storage.service'
+import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import type { Book } from '@/shared/types/global.types'
 import type { TocEntry } from './useEpubReader'
 import { TocDrawer } from './TocDrawer'
@@ -16,6 +19,7 @@ import { ReaderSettingsDrawer } from './ReaderSettingsDrawer'
 // - isChromeVisible and toggleChrome remain in reader.store
 
 export const CHROME_AUTOHIDE_MS = 3000
+export const CHROME_BOOKMARK_AUTOHIDE_MS = 4000
 const HINT_LABELS = {
   left: 'Trang trước',
   center: 'Menu',
@@ -42,7 +46,8 @@ export function ChromelessLayout({
   isReady = true,
 }: ChromelessLayoutProps) {
   const navigate = useNavigate()
-  const { isChromeVisible, toggleChrome, currentPage, totalPages } = useReaderStore()
+  const { isChromeVisible, toggleChrome, currentPage, totalPages, currentCfi } = useReaderStore()
+  const { bookmarks, addManualBookmark, removeManualBookmark } = useBookmarksStore()
 
   // Hint state: resets on every book open (local state, not persisted)
   const [hasSeenHint, setHasSeenHint] = useState(false)
@@ -67,6 +72,28 @@ export function ChromelessLayout({
   const [tocLoading, setTocLoading] = useState(false)
   const [tocError, setTocError] = useState<Error | null>(null)
   const [tocNavigateError, setTocNavigateError] = useState<string | null>(null)
+
+  const isManuallyBookmarked =
+    currentCfi != null &&
+    bookmarks.some((b) => b.bookId === book.id && b.cfi === currentCfi && b.type === 'manual')
+
+  const handleBookmarkToggle = () => {
+    if (!currentCfi) return
+    // Reset auto-hide to 4s so user sees the result before chrome fades
+    if (autoHideTimerRef.current !== null) clearTimeout(autoHideTimerRef.current)
+    autoHideTimerRef.current = setTimeout(() => {
+      if (useReaderStore.getState().isChromeVisible) toggleChrome()
+      autoHideTimerRef.current = null
+    }, CHROME_BOOKMARK_AUTOHIDE_MS)
+    // Toggle bookmark
+    if (isManuallyBookmarked) {
+      removeManualBookmark(book.id, currentCfi)
+    } else {
+      addManualBookmark({ bookId: book.id, bookTitle: book.title, cfi: currentCfi, type: 'manual', timestamp: Date.now(), page: currentPage, total: totalPagesDisplay })
+    }
+    // Save immediately — Zustand set() is synchronous so getState() already reflects the toggle
+    void storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)
+  }
 
   // Auto-hide chrome after 3 seconds on first mount (AC 3)
   useEffect(() => {
@@ -230,6 +257,21 @@ export function ChromelessLayout({
             <ListBulletIcon className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleBookmarkToggle}
+          disabled={currentCfi == null}
+          className="text-sm bg-transparent border-none cursor-pointer p-2 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] active:scale-125 transition-transform"
+          style={{ color: isManuallyBookmarked ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
+          tabIndex={chromeHidden || currentCfi == null ? -1 : 0}
+          aria-label={isManuallyBookmarked ? 'Xóa dấu trang' : 'Thêm dấu trang'}
+          data-testid="bookmark-toggle"
+          aria-pressed={isManuallyBookmarked}
+        >
+          {isManuallyBookmarked
+            ? <BookmarkFilledIcon className="h-4 w-4" aria-hidden="true" />
+            : <BookmarkIcon className="h-4 w-4" aria-hidden="true" />}
+        </button>
       </div>
 
       {/* Brief message when TOC navigation failed (drawer already closed) */}
