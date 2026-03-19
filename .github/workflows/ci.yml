@@ -73,9 +73,6 @@ jobs:
           path: apps/reader/.vercel/output/
           retention-days: 1
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
-
 
   deploy:
     name: Deploy to Vercel (production)
