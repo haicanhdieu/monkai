@@ -1,8 +1,9 @@
 import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ChromelessLayout, CHROME_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
+import { ChromelessLayout, CHROME_AUTOHIDE_MS, CHROME_BOOKMARK_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
 import { useReaderStore } from '@/stores/reader.store'
+import { useBookmarksStore } from '@/stores/bookmarks.store'
 import type { Book } from '@/shared/types/global.types'
 import { ROUTES } from '@/shared/constants/routes'
 
@@ -14,6 +15,25 @@ vi.mock('react-router-dom', async (importOriginal) => {
     useNavigate: () => mockNavigate,
   }
 })
+
+const { mockAddManualBookmark, mockRemoveManualBookmark } = vi.hoisted(() => ({
+  mockAddManualBookmark: vi.fn(),
+  mockRemoveManualBookmark: vi.fn(),
+}))
+
+vi.mock('@/stores/bookmarks.store', () => {
+  const store = vi.fn(() => ({
+    bookmarks: [],
+    addManualBookmark: mockAddManualBookmark,
+    removeManualBookmark: mockRemoveManualBookmark,
+  })) as ReturnType<typeof vi.fn> & { getState: () => { bookmarks: [] } }
+  store.getState = () => ({ bookmarks: [] })
+  return { useBookmarksStore: store }
+})
+
+vi.mock('@/shared/services/storage.service', () => ({
+  storageService: { setItem: vi.fn() },
+}))
 
 vi.mock('./ReaderSettingsDrawer', () => ({
   ReaderSettingsDrawer: ({
@@ -61,8 +81,17 @@ function renderLayout(
 describe('ChromelessLayout', () => {
   beforeEach(() => {
     useReaderStore.getState().reset()
+    useReaderStore.setState({ currentCfi: 'epubcfi(/6/4!/4/2/1:0)' })
     vi.useFakeTimers()
     mockNavigate.mockClear()
+    mockAddManualBookmark.mockClear()
+    mockRemoveManualBookmark.mockClear()
+    // Reset useBookmarksStore mock to default (empty bookmarks) after any mockReturnValue calls
+    vi.mocked(useBookmarksStore).mockImplementation(() => ({
+      bookmarks: [],
+      addManualBookmark: mockAddManualBookmark,
+      removeManualBookmark: mockRemoveManualBookmark,
+    }))
   })
 
   afterEach(() => {
@@ -301,5 +330,95 @@ describe('ChromelessLayout', () => {
       screen.getByLabelText('Đóng cài đặt').click()
     })
     expect(document.activeElement).toBe(screen.getByTestId('settings-trigger'))
+  })
+
+  // Bookmark toggle button tests
+  it('renders bookmark-toggle button in top bar', () => {
+    renderLayout()
+    expect(screen.getByTestId('bookmark-toggle')).toBeInTheDocument()
+  })
+
+  it('bookmark-toggle has tabIndex -1 when chrome is hidden', () => {
+    useReaderStore.setState({ isChromeVisible: false })
+    renderLayout()
+    expect(screen.getByTestId('bookmark-toggle')).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('bookmark-toggle has tabIndex 0 when chrome is visible and currentCfi is set', () => {
+    renderLayout()
+    expect(screen.getByTestId('bookmark-toggle')).toHaveAttribute('tabindex', '0')
+  })
+
+  it('bookmark-toggle is disabled when currentCfi is null', () => {
+    useReaderStore.setState({ currentCfi: null })
+    renderLayout()
+    expect(screen.getByTestId('bookmark-toggle')).toBeDisabled()
+  })
+
+  it('shows aria-pressed=false and label "Thêm dấu trang" when not bookmarked', () => {
+    renderLayout()
+    const btn = screen.getByTestId('bookmark-toggle')
+    expect(btn).toHaveAttribute('aria-pressed', 'false')
+    expect(btn).toHaveAttribute('aria-label', 'Thêm dấu trang')
+  })
+
+  it('shows aria-pressed=true and label "Xóa dấu trang" when current page is bookmarked', () => {
+    const currentCfi = 'epubcfi(/6/4!/4/2/1:0)'
+    useReaderStore.setState({ currentCfi })
+    // Return a matching manual bookmark from the store mock
+    vi.mocked(useBookmarksStore).mockReturnValue({
+      bookmarks: [{ bookId: bookFixture.id, bookTitle: bookFixture.title, cfi: currentCfi, type: 'manual', timestamp: 1000 }],
+      addManualBookmark: mockAddManualBookmark,
+      removeManualBookmark: mockRemoveManualBookmark,
+    })
+    renderLayout()
+    const btn = screen.getByTestId('bookmark-toggle')
+    expect(btn).toHaveAttribute('aria-pressed', 'true')
+    expect(btn).toHaveAttribute('aria-label', 'Xóa dấu trang')
+  })
+
+  it('clicking when not bookmarked calls addManualBookmark with correct payload', () => {
+    const currentCfi = 'epubcfi(/6/4!/4/2/1:0)'
+    useReaderStore.setState({ currentCfi })
+    renderLayout()
+    act(() => {
+      screen.getByTestId('bookmark-toggle').click()
+    })
+    expect(mockAddManualBookmark).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookId: bookFixture.id,
+        bookTitle: bookFixture.title,
+        cfi: currentCfi,
+        type: 'manual',
+      })
+    )
+  })
+
+  it('clicking when bookmarked calls removeManualBookmark with bookId and cfi', () => {
+    const currentCfi = 'epubcfi(/6/4!/4/2/1:0)'
+    useReaderStore.setState({ currentCfi })
+    vi.mocked(useBookmarksStore).mockReturnValue({
+      bookmarks: [{ bookId: bookFixture.id, bookTitle: bookFixture.title, cfi: currentCfi, type: 'manual', timestamp: 1000 }],
+      addManualBookmark: mockAddManualBookmark,
+      removeManualBookmark: mockRemoveManualBookmark,
+    })
+    renderLayout()
+    act(() => {
+      screen.getByTestId('bookmark-toggle').click()
+    })
+    expect(mockRemoveManualBookmark).toHaveBeenCalledWith(bookFixture.id, currentCfi)
+  })
+
+  it('after bookmark tap, auto-hide fires at CHROME_BOOKMARK_AUTOHIDE_MS (4000ms), not 3000ms', () => {
+    renderLayout()
+    act(() => {
+      screen.getByTestId('bookmark-toggle').click()
+    })
+    // Chrome should still be visible at 3000ms
+    act(() => { vi.advanceTimersByTime(3000) })
+    expect(useReaderStore.getState().isChromeVisible).toBe(true)
+    // Chrome hides at 4000ms
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(useReaderStore.getState().isChromeVisible).toBe(false)
   })
 })

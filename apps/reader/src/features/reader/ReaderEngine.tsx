@@ -117,6 +117,7 @@ export function ReaderEngine({
           bookId,
           bookTitle,
           cfi,
+          type: 'auto',
           timestamp: Date.now(),
           ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
         })

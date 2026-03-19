@@ -119,6 +119,21 @@ describe('useStorageHydration', () => {
     unmount()
   })
 
+  it('defaults type to "auto" for legacy bookmarks without a type field', async () => {
+    const bookmarks = [
+      { bookId: UUID_BOOK_ID, bookTitle: 'Legacy', cfi: SAMPLE_CFI, timestamp: 1000 }
+    ]
+    mockStorageService.getItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(bookmarks)
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useBookmarksStore.getState().bookmarks[0].type).toBe('auto')
+    })
+    unmount()
+  })
+
   it('does not hydrate bookmarks store when all persisted bookmarks are legacy SEO slugs', async () => {
     const bookmarks = [
       { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', cfi: 'epubcfi(/6/2!/4/2/1:0)', timestamp: 1000 },

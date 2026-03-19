@@ -41,9 +41,12 @@ export function useStorageHydration() {
         }
         if (settings) useSettingsStore.getState().hydrate(settings)
         if (bookmarks) {
-          const validBookmarks = bookmarks.filter(
-            (b) => isValidBookId(b.bookId) && typeof (b as { cfi?: string }).cfi === 'string'
-          ) as Bookmark[]
+          const validBookmarks = bookmarks
+            .filter((b) => isValidBookId(b.bookId) && typeof b.cfi === 'string')
+            .map((b) => ({
+              ...b,
+              type: (b as { type?: string }).type === 'manual' ? 'manual' : 'auto',
+            } as Bookmark))
           if (validBookmarks.length > 0) {
             useBookmarksStore.getState().hydrate(validBookmarks)
           }
