@@ -95,6 +95,34 @@ describe('BookmarkCard', () => {
       expect(onDelete).toHaveBeenCalledTimes(1)
     })
 
+    it('swipe right on an open item closes the delete button', () => {
+      renderCard(MANUAL_BOOKMARK, vi.fn())
+      const card = screen.getByTestId('bookmark-card')
+      // Open the item with a left swipe
+      fireEvent.pointerDown(card, { clientX: 200 })
+      fireEvent.pointerMove(card, { clientX: 130 }) // 70px left → open
+      const deleteZone = screen.getByTestId('bookmark-delete-btn').parentElement!
+      expect(deleteZone).toHaveAttribute('aria-hidden', 'false')
+      // Now swipe right from the open position
+      fireEvent.pointerDown(card, { clientX: 130 })
+      fireEvent.pointerMove(card, { clientX: 210 }) // 80px right → should close
+      fireEvent.pointerUp(card)
+      expect(deleteZone).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('pointerdown outside an open item closes the delete button', () => {
+      renderCard(MANUAL_BOOKMARK, vi.fn())
+      const card = screen.getByTestId('bookmark-card')
+      // Open the item
+      fireEvent.pointerDown(card, { clientX: 200 })
+      fireEvent.pointerMove(card, { clientX: 130 }) // 70px left → open
+      const deleteZone = screen.getByTestId('bookmark-delete-btn').parentElement!
+      expect(deleteZone).toHaveAttribute('aria-hidden', 'false')
+      // Tap outside the card
+      fireEvent.pointerDown(document.body)
+      expect(deleteZone).toHaveAttribute('aria-hidden', 'true')
+    })
+
     it('navigation is prevented after swipe (onClickCapture stops propagation)', () => {
       const onDelete = vi.fn()
       renderCard(MANUAL_BOOKMARK, onDelete)
