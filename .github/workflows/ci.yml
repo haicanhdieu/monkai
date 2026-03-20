@@ -60,4 +60,8 @@ jobs:
     environment: production
     steps:
       - name: Trigger Vercel deploy hook
-        run: curl -fsSX POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          URL=$(echo -n "$DEPLOY_HOOK_URL" | tr -d '[:space:]')
+          curl -fsSX POST "$URL"
