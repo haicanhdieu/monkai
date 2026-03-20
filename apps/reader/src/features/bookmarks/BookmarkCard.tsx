@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { BookmarkFilledIcon, UpdateIcon } from '@radix-ui/react-icons'
 import { toRead } from '@/shared/constants/routes'
@@ -13,24 +13,39 @@ interface BookmarkCardProps {
 export function BookmarkCard({ bookmark, onDelete }: BookmarkCardProps) {
   const [swipeX, setSwipeX] = useState(0)
   const startXRef = useRef(0)
+  const startSwipeXRef = useRef(0)
   const didSwipeRef = useRef(false)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const isManual = bookmark.type === 'manual'
 
   const resetSwipe = () => setSwipeX(0)
 
+  // Close when the user taps outside while the delete button is revealed
+  useEffect(() => {
+    if (swipeX < 60) return
+    const handleOutside = (e: PointerEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setSwipeX(0)
+      }
+    }
+    document.addEventListener('pointerdown', handleOutside, { capture: true })
+    return () => document.removeEventListener('pointerdown', handleOutside, { capture: true })
+  }, [swipeX])
+
   const pointerHandlers = isManual
     ? {
         onPointerDown: (e: React.PointerEvent) => {
           startXRef.current = e.clientX
+          startSwipeXRef.current = swipeX
           didSwipeRef.current = false
           // Capture pointer so onPointerMove keeps firing even when the finger leaves the element
           e.currentTarget.setPointerCapture?.(e.pointerId)
         },
         onPointerMove: (e: React.PointerEvent) => {
           const delta = startXRef.current - e.clientX
-          if (delta > 5) didSwipeRef.current = true
-          if (delta > 0) setSwipeX(Math.min(delta, 72))
+          if (Math.abs(delta) > 5) didSwipeRef.current = true
+          setSwipeX(Math.max(0, Math.min(startSwipeXRef.current + delta, 72)))
         },
         onPointerUp: () => {
           if (swipeX < 60) setSwipeX(0)
@@ -55,6 +70,7 @@ export function BookmarkCard({ bookmark, onDelete }: BookmarkCardProps) {
 
   return (
     <div
+      ref={cardRef}
       data-testid="bookmark-card"
       className="relative overflow-hidden rounded-2xl"
       style={isManual ? { touchAction: 'pan-y' } : undefined}

@@ -2,8 +2,8 @@
 title: 'Gate Vercel Deployment Behind CI Pipeline'
 slug: 'gate-vercel-deployment-behind-ci'
 created: '2026-03-19'
-status: 'in-progress'
-stepsCompleted: [1, 2]
+status: 'Completed'
+stepsCompleted: [1, 2, 3, 4]
 tech_stack: ['GitHub Actions', 'Vercel CLI', 'pnpm']
 files_to_modify: ['.github/workflows/ci.yml']
 code_patterns: []
@@ -330,7 +330,15 @@ Manual verification steps after merge:
 
 ### Notes
 
-- The `dist/` artifact upload is placed **after** `Build` and **before** Playwright install — this ensures the artifact is always uploaded even if E2E tests fail (though `deploy` still won't run since `needs: ci` requires the whole job to pass).
+- The `.vercel/output/` artifact upload is placed **after** `Build` and **before** Playwright install — this ensures the artifact is always uploaded even if E2E tests fail (though `deploy` still won't run since `needs: ci` requires the whole job to pass).
 - `retention-days: 1` on the artifact keeps storage usage minimal.
 - `vercel pull` is fast (just fetches project config) and needed to create `.vercel/project.json` for the prebuilt deploy to work correctly.
 - The Vercel project root is `apps/reader/` — all `vercel` CLI commands must run with `working-directory: apps/reader`.
+- `vercel build --prod` (not `pnpm build`) is used in the CI job — it internally runs the Vite build and packages output to `.vercel/output/` (Vercel Build Output API format), which is what `vercel deploy --prebuilt` requires. Raw Vite `dist/` is not compatible with `--prebuilt`.
+- VERCEL secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`) are required in **both** the `ci` and `deploy` jobs.
+
+## Review Notes
+- Adversarial review completed
+- Findings: 12 total, 7 fixed, 5 skipped (noise/intentional)
+- Resolution approach: auto-fix
+- Key fix: replaced `pnpm build` with `vercel build` in CI job and artifact path from `dist/` to `.vercel/output/` to satisfy `--prebuilt` contract

@@ -1,7 +1,7 @@
 import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ChromelessLayout, CHROME_AUTOHIDE_MS, CHROME_BOOKMARK_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
+import { ChromelessLayout, CHROME_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import type { Book } from '@/shared/types/global.types'
