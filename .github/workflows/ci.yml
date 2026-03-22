@@ -79,6 +79,9 @@ jobs:
         working-directory: apps/reader
         run: pnpm build
 
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
       - name: Deploy to Vercel
         working-directory: apps/reader
-        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
