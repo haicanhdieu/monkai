@@ -59,9 +59,26 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment: production
     steps:
-      - name: Trigger Vercel deploy hook
-        env:
-          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
-        run: |
-          URL=$(echo -n "$DEPLOY_HOOK_URL" | tr -d '[:space:]')
-          curl -fsSX POST "$URL"
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: apps/reader/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: apps/reader
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: apps/reader
+        run: pnpm build
+
+      - name: Deploy to Vercel
+        working-directory: apps/reader
+        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
