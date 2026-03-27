@@ -86,13 +86,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: vercel-build-output
-          path: apps/reader/.vercel/output
+          path: .vercel/output
 
       - name: Install Vercel CLI
         run: npm install -g vercel@39
 
       - name: Deploy to Vercel
-        working-directory: apps/reader
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
