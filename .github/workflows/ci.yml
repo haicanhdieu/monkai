@@ -48,15 +48,23 @@ jobs:
       - name: Build EPUBs
         run: pnpm run build:epubs
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          SHELL: /bin/bash
+        run: pnpm build
+
+      - name: Create Vercel output
+        run: |
+          mkdir -p .vercel/output/static
+          cp -r dist/. .vercel/output/static/
+          cat > .vercel/output/config.json << 'EOF'
+          {
+            "version": 3,
+            "routes": [
+              { "src": "/book-data/(.*)", "dest": "https://pub-f372aac7cb1749f3927f74f6375153b5.r2.dev/book-data/$1" },
+              { "handle": "filesystem" },
+              { "src": "/(.*)", "dest": "/index.html" }
+            ]
+          }
+          EOF
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
