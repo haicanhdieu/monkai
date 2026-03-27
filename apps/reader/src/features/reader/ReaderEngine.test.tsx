@@ -390,4 +390,119 @@ describe('ReaderEngine — progress persistence (Story 3.2)', () => {
       expect(mockDisplay).toHaveBeenCalledWith()
     })
   })
+
+  describe('ReaderEngine — chapter title resolution', () => {
+    beforeEach(() => {
+      useReaderStore.getState().reset()
+      mockSetItem.mockClear()
+      mockGetItem.mockResolvedValue(null)
+    })
+
+    it('calls setProgress with resolved chapter title when book has matching TOC entry', async () => {
+      const mockBook = {
+        navigation: { toc: [{ label: 'Tâm Kinh', href: 'chapter1.xhtml' }] },
+        packaging: { navPath: 'OEBPS/nav.xhtml' },
+      }
+      let relocatedHandler: ((loc: unknown) => void) | null = null
+      const mockRendition = {
+        on: vi.fn((event: string, fn: (loc: unknown) => void) => {
+          if (event === 'relocated') relocatedHandler = fn
+        }),
+        off: vi.fn(),
+        display: vi.fn().mockResolvedValue(undefined),
+        themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
+      }
+      render(
+        <ReaderEngine
+          containerRef={{ current: null }}
+          rendition={mockRendition as never}
+          book={mockBook as never}
+          isReady={true}
+          error={null}
+          bookId="book-1"
+          bookTitle="My Book"
+        />,
+      )
+      await act(() => {
+        relocatedHandler!({
+          start: {
+            cfi: 'epubcfi(/6/2!/4/2/1:0)',
+            href: 'OEBPS/chapter1.xhtml',
+            displayed: { page: 3, total: 12 },
+          },
+        })
+      })
+      expect(useReaderStore.getState().currentChapterTitle).toBe('Tâm Kinh')
+    })
+
+    it('resolves to empty string when href does not match any TOC entry', async () => {
+      const mockBook = {
+        navigation: { toc: [{ label: 'Tâm Kinh', href: 'chapter1.xhtml' }] },
+        packaging: { navPath: 'OEBPS/nav.xhtml' },
+      }
+      let relocatedHandler: ((loc: unknown) => void) | null = null
+      const mockRendition = {
+        on: vi.fn((event: string, fn: (loc: unknown) => void) => {
+          if (event === 'relocated') relocatedHandler = fn
+        }),
+        off: vi.fn(),
+        display: vi.fn().mockResolvedValue(undefined),
+        themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
+      }
+      render(
+        <ReaderEngine
+          containerRef={{ current: null }}
+          rendition={mockRendition as never}
+          book={mockBook as never}
+          isReady={true}
+          error={null}
+          bookId="book-1"
+          bookTitle="My Book"
+        />,
+      )
+      await act(() => {
+        relocatedHandler!({
+          start: {
+            cfi: 'epubcfi(/6/4!/4/2/1:0)',
+            href: 'OEBPS/chapter99.xhtml',
+            displayed: { page: 1, total: 5 },
+          },
+        })
+      })
+      expect(useReaderStore.getState().currentChapterTitle).toBe('')
+    })
+
+    it('resolves to empty string when book is null', async () => {
+      let relocatedHandler: ((loc: unknown) => void) | null = null
+      const mockRendition = {
+        on: vi.fn((event: string, fn: (loc: unknown) => void) => {
+          if (event === 'relocated') relocatedHandler = fn
+        }),
+        off: vi.fn(),
+        display: vi.fn().mockResolvedValue(undefined),
+        themes: { select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
+      }
+      render(
+        <ReaderEngine
+          containerRef={{ current: null }}
+          rendition={mockRendition as never}
+          book={null}
+          isReady={true}
+          error={null}
+          bookId="book-1"
+          bookTitle="My Book"
+        />,
+      )
+      await act(() => {
+        relocatedHandler!({
+          start: {
+            cfi: 'epubcfi(/6/2!/4/2/1:0)',
+            href: 'OEBPS/chapter1.xhtml',
+            displayed: { page: 1, total: 5 },
+          },
+        })
+      })
+      expect(useReaderStore.getState().currentChapterTitle).toBe('')
+    })
+  })
 })

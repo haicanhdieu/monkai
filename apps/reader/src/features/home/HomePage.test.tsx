@@ -22,6 +22,7 @@ beforeEach(() => {
     lastReadBookTitle: '',
     lastReadPage: 0,
     lastReadTotalPages: 0,
+    lastReadChapterTitle: '',
   })
 })
 
@@ -63,5 +64,30 @@ describe('HomePage', () => {
     renderHomePage()
 
     expect(screen.queryByRole('button', { name: 'Thông báo' })).not.toBeInTheDocument()
+  })
+
+  it('shows chapter title before page count in Continue Reading card when lastReadChapterTitle is set', () => {
+    useReaderStore.setState({
+      lastReadBookId: 'kinh-phap-hoa',
+      lastReadBookTitle: 'Kinh Pháp Hoa',
+      lastReadPage: 15,
+      lastReadTotalPages: 99,
+      lastReadChapterTitle: 'Phẩm Tựa',
+    })
+    renderHomePage()
+    expect(screen.getByText('Phẩm Tựa')).toBeInTheDocument()
+    expect(screen.getByText('|')).toBeInTheDocument()
+  })
+
+  it('does not show chapter title or separator when lastReadChapterTitle is empty', () => {
+    useReaderStore.setState({
+      lastReadBookId: 'kinh-phap-hoa',
+      lastReadBookTitle: 'Kinh Pháp Hoa',
+      lastReadPage: 15,
+      lastReadTotalPages: 99,
+      lastReadChapterTitle: '',
+    })
+    renderHomePage()
+    expect(screen.queryByText('|')).not.toBeInTheDocument()
   })
 })

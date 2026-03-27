@@ -46,7 +46,7 @@ export function ChromelessLayout({
   isReady = true,
 }: ChromelessLayoutProps) {
   const navigate = useNavigate()
-  const { isChromeVisible, toggleChrome, currentPage, totalPages, currentCfi } = useReaderStore()
+  const { isChromeVisible, toggleChrome, currentPage, totalPages, currentCfi, currentChapterTitle } = useReaderStore()
   const { bookmarks, addManualBookmark, removeManualBookmark } = useBookmarksStore()
 
   // Hint state: resets on every book open (local state, not persisted)
@@ -89,7 +89,7 @@ export function ChromelessLayout({
     if (isManuallyBookmarked) {
       removeManualBookmark(book.id, currentCfi)
     } else {
-      addManualBookmark({ bookId: book.id, bookTitle: book.title, cfi: currentCfi, type: 'manual', timestamp: Date.now(), page: currentPage, total: totalPagesDisplay })
+      addManualBookmark({ bookId: book.id, bookTitle: book.title, cfi: currentCfi, type: 'manual', timestamp: Date.now(), page: currentPage, total: totalPagesDisplay, ...(currentChapterTitle ? { chapterTitle: currentChapterTitle } : {}) })
     }
     // Save immediately — Zustand set() is synchronous so getState() already reflects the toggle
     void storageService.setItem(STORAGE_KEYS.BOOKMARKS, useBookmarksStore.getState().bookmarks)
@@ -305,12 +305,32 @@ export function ChromelessLayout({
         }}
         data-testid="chrome-bottom-bar"
       >
-        <span
-          className="text-xs"
-          style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
-        >
-          {totalPagesDisplay > 0 ? `${currentPage} / ${totalPagesDisplay}` : ''}
-        </span>
+        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+          {currentChapterTitle && (
+            <>
+              <span
+                className="truncate min-w-0 text-xs"
+                style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
+                data-testid="chapter-title"
+              >
+                {currentChapterTitle}
+              </span>
+              <span
+                className="text-xs shrink-0"
+                style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
+                aria-hidden="true"
+              >
+                |
+              </span>
+            </>
+          )}
+          <span
+            className="text-xs shrink-0"
+            style={{ color: 'var(--color-text-muted)', fontFamily: 'Inter, sans-serif' }}
+          >
+            {totalPagesDisplay > 0 ? `${currentPage} / ${totalPagesDisplay}` : ''}
+          </span>
+        </div>
         <button
           ref={settingsTriggerRef}
           type="button"

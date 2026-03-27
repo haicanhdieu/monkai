@@ -12,6 +12,8 @@ export interface Bookmark {
   page?: number
   /** Total pages from epub.js (location.start.displayed.total). */
   total?: number
+  /** Chapter title resolved from epub TOC at time of bookmark creation. Optional for backward compat. */
+  chapterTitle?: string
 }
 
 interface BookmarksState {

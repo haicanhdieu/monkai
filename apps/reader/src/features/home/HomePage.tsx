@@ -28,6 +28,7 @@ function ContinueReadingCard() {
     lastReadBookTitle,
     lastReadPage,
     lastReadTotalPages,
+    lastReadChapterTitle,
   } = useReaderStore()
   const hasLastRead = lastReadBookId !== ''
   const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '')
@@ -58,7 +59,7 @@ function ContinueReadingCard() {
           backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
         }}
-        aria-label={`Tiếp tục đọc ${displayTitle}, trang ${currentPage}/${totalPages}`}
+        aria-label={`Tiếp tục đọc ${displayTitle}${lastReadChapterTitle ? `, ${lastReadChapterTitle}` : ''}, trang ${currentPage}/${totalPages}`}
       >
         {/* Cover: fixed 38% of card width, 2:3 aspect ratio. self-start prevents stretching to content height.
             Flexbox % resolves against the card's definite inline size — no circular grid-auto dependency. */}
@@ -109,12 +110,19 @@ function ContinueReadingCard() {
             </span>
           </div>
           <div className="mt-3">
-            <div className="mb-2 flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              <span>Tiến độ: {progressPercent}%</span>
-              <span>Trang {currentPage} / {totalPages}</span>
+            <div className="mb-2 flex justify-end text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              <span className="flex items-center gap-1 min-w-0">
+                {lastReadChapterTitle && (
+                  <>
+                    <span className="truncate min-w-0">{lastReadChapterTitle}</span>
+                    <span aria-hidden="true" className="shrink-0">|</span>
+                  </>
+                )}
+                <span className="shrink-0">Trang {currentPage} / {totalPages}</span>
+              </span>
             </div>
             <div
-              className="h-2 w-full overflow-hidden rounded-full"
+              className="relative h-4 w-full overflow-hidden rounded-full"
               style={{ backgroundColor: 'var(--color-border)' }}
             >
               <div
@@ -124,6 +132,13 @@ function ContinueReadingCard() {
                   backgroundColor: 'var(--color-accent)',
                 }}
               />
+              <span
+                className="absolute inset-0 flex items-center justify-center text-xs font-semibold"
+                style={{ color: '#ffffff' }}
+                aria-hidden="true"
+              >
+                {progressPercent}%
+              </span>
             </div>
           </div>
         </div>

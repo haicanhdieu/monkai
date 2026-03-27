@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { useBook } from '@/shared/hooks/useBook'
+import { useReaderStore } from '@/stores/reader.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { SkeletonText } from '@/shared/components/SkeletonText'
@@ -14,6 +16,13 @@ import { useEpubReader } from './useEpubReader'
 export default function ReaderPage() {
   const { bookId = '' } = useParams<{ bookId: string }>()
   const location = useLocation()
+
+  // Clear stale chapter/page context immediately when navigating to a different book.
+  // Without this, currentChapterTitle (and page counts) from the previous book remain
+  // visible in the bottom bar until the first 'relocated' event fires on the new book.
+  useEffect(() => {
+    useReaderStore.getState().setProgress(0, 0, '')
+  }, [bookId])
   const { data: book, isLoading, error } = useBook(bookId)
   const { data: catalog } = useCatalogIndex()
   const isOnline = useOnlineStatus()

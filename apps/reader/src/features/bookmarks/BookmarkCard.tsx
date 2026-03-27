@@ -119,12 +119,20 @@ export function BookmarkCard({ bookmark, onDelete }: BookmarkCardProps) {
               aria-hidden="true"
             />
           )}
-          <span className="flex-1">
-            {bookmark.page != null && bookmark.total != null && bookmark.total > 0
-              ? `Trang ${bookmark.page} / ${bookmark.total}`
-              : isManual
-                ? 'Vị trí đã lưu'
-                : 'Đang đọc'}
+          <span className="flex-1 flex items-center gap-1 min-w-0">
+            {bookmark.page != null && bookmark.total != null && bookmark.total > 0 ? (
+              <>
+                {bookmark.chapterTitle && (
+                  <>
+                    <span className="truncate min-w-0">{bookmark.chapterTitle}</span>
+                    <span aria-hidden="true" className="shrink-0">|</span>
+                  </>
+                )}
+                <span className="shrink-0">Trang {bookmark.page} / {bookmark.total}</span>
+              </>
+            ) : (
+              isManual ? 'Vị trí đã lưu' : 'Đang đọc'
+            )}
           </span>
           <span className="shrink-0">{formatRelativeTime(bookmark.timestamp)}</span>
         </div>

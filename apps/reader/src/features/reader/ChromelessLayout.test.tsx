@@ -1,4 +1,4 @@
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, screen, act, waitFor, within, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChromelessLayout, CHROME_AUTOHIDE_MS } from '@/features/reader/ChromelessLayout'
@@ -420,5 +420,52 @@ describe('ChromelessLayout', () => {
     // Chrome hides at 4000ms
     act(() => { vi.advanceTimersByTime(1000) })
     expect(useReaderStore.getState().isChromeVisible).toBe(false)
+  })
+})
+
+describe('ChromelessLayout — chapter title display', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    useReaderStore.setState({
+      currentPage: 3,
+      totalPages: 12,
+      currentChapterTitle: '',
+      isChromeVisible: true,
+      currentCfi: null,
+    })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows chapter title and separator when currentChapterTitle is set', () => {
+    useReaderStore.setState({ currentChapterTitle: 'Tâm Kinh' })
+    renderLayout()
+    const bottomBar = screen.getByTestId('chrome-bottom-bar')
+    expect(screen.getByTestId('chapter-title')).toHaveTextContent('Tâm Kinh')
+    within(bottomBar).getByText('|')
+  })
+
+  it('does not show chapter title or separator when currentChapterTitle is empty', () => {
+    useReaderStore.setState({ currentChapterTitle: '' })
+    renderLayout()
+    expect(screen.queryByTestId('chapter-title')).not.toBeInTheDocument()
+    expect(screen.queryByText('|')).not.toBeInTheDocument()
+  })
+
+  it('passes chapterTitle to addManualBookmark when bookmark toggle is clicked (AC 4)', () => {
+    useReaderStore.setState({
+      currentChapterTitle: 'Tâm Kinh',
+      currentCfi: 'epubcfi(/6/2!/4/2/1:0)',
+      currentPage: 3,
+      totalPages: 12,
+      isChromeVisible: true,
+    })
+    renderLayout()
+    fireEvent.click(screen.getByTestId('bookmark-toggle'))
+    expect(mockAddManualBookmark).toHaveBeenCalledWith(
+      expect.objectContaining({ chapterTitle: 'Tâm Kinh' })
+    )
   })
 })

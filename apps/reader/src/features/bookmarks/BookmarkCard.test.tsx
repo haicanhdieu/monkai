@@ -22,6 +22,11 @@ const MANUAL_BOOKMARK: Bookmark = {
   total: 100,
 }
 
+const MANUAL_BOOKMARK_WITH_CHAPTER: Bookmark = {
+  ...MANUAL_BOOKMARK,
+  chapterTitle: 'Tâm Kinh',
+}
+
 function renderCard(bookmark: Bookmark, onDelete?: () => void) {
   return render(
     <MemoryRouter>
@@ -139,5 +144,26 @@ describe('BookmarkCard', () => {
       fireEvent.click(card) // triggers onClickCapture which stops propagation
       expect(linkClickSpy).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('BookmarkCard — chapter title display', () => {
+  it('shows chapter title before page count when chapterTitle is set', () => {
+    renderCard(MANUAL_BOOKMARK_WITH_CHAPTER)
+    expect(screen.getByText('Tâm Kinh')).toBeInTheDocument()
+    expect(screen.getByText('|')).toBeInTheDocument()
+    expect(screen.getByText('Trang 5 / 100')).toBeInTheDocument()
+  })
+
+  it('does not show chapter title or separator when chapterTitle is absent', () => {
+    renderCard(MANUAL_BOOKMARK)
+    expect(screen.queryByText('|')).not.toBeInTheDocument()
+    expect(screen.getByText('Trang 5 / 100')).toBeInTheDocument()
+  })
+
+  it('does not show chapter title on auto bookmark without page data', () => {
+    renderCard(AUTO_BOOKMARK)
+    expect(screen.queryByText('|')).not.toBeInTheDocument()
+    expect(screen.getByText('Đang đọc')).toBeInTheDocument()
   })
 })

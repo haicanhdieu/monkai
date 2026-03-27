@@ -14,6 +14,7 @@ import ReaderErrorPage from './ReaderErrorPage'
 interface RelocatedLocation {
   start?: {
     cfi?: string
+    href?: string
     percentage?: number
     displayed?: { page: number; total: number }
   }
@@ -26,6 +27,70 @@ interface LastReadPosition {
   bookTitle?: string
   page?: number
   total?: number
+  chapterTitle?: string
+}
+
+type TocItem = { label?: string; href?: string; subitems?: TocItem[] }
+
+/** Resolve the chapter title for the current position from epub.js book navigation.
+ *  Matches location.start.href against the flattened TOC using path-boundary-safe comparison.
+ *  Returns '' on any failure — the UI falls back to showing only the page count.
+ *
+ *  Normalization mirrors useEpubReader.normalizeHref (prepend baseDir, guard absolute paths),
+ *  plus fragment-stripping on both sides so "#section" suffixes don't break matching.
+ */
+function resolveChapterTitle(book: Book | null, href: string | undefined): string {
+  if (!book || !href) return ''
+  try {
+    const anyBook = book as unknown as {
+      navigation?: { toc?: TocItem[] }
+      packaging?: { navPath?: string; ncxPath?: string }
+    }
+    const toc = anyBook.navigation?.toc ?? []
+    if (!Array.isArray(toc) || toc.length === 0) return ''
+    const basePath =
+      typeof anyBook.packaging?.navPath === 'string'
+        ? anyBook.packaging.navPath
+        : typeof anyBook.packaging?.ncxPath === 'string'
+          ? anyBook.packaging.ncxPath
+          : ''
+    const baseDir =
+      basePath && basePath.includes('/')
+        ? basePath.slice(0, basePath.lastIndexOf('/') + 1)
+        : ''
+    const cleanHref = href.split('#')[0]
+    const findLabel = (items: TocItem[]): string => {
+      for (const item of items) {
+        if (typeof item.label === 'string' && item.label.trim() && typeof item.href === 'string') {
+          // Prepend baseDir only when: baseDir exists, href is relative, and not already prefixed.
+          // This guards against double-prefixing when TOC hrefs already contain the full path.
+          const normalized =
+            baseDir && !item.href.startsWith('/') && !item.href.startsWith(baseDir)
+              ? `${baseDir}${item.href}`.split('#')[0]
+              : item.href.split('#')[0]
+          // Path-boundary-safe matching: require '/' boundary on endsWith checks so that a bare
+          // filename like "chapter1.xhtml" does not spuriously match "part2/chapter1.xhtml".
+          if (
+            cleanHref === normalized ||
+            (normalized.includes('/') && (
+              cleanHref.endsWith('/' + normalized) ||
+              normalized.endsWith('/' + cleanHref)
+            ))
+          ) {
+            return item.label.trim()
+          }
+        }
+        if (Array.isArray(item.subitems) && item.subitems.length > 0) {
+          const found = findLabel(item.subitems)
+          if (found) return found
+        }
+      }
+      return ''
+    }
+    return findLabel(toc)
+  } catch {
+    return ''
+  }
 }
 
 export interface ReaderEngineProps {
@@ -43,6 +108,7 @@ export interface ReaderEngineProps {
 export function ReaderEngine({
   containerRef,
   rendition,
+  book,
   isReady,
   error,
   bookId,
@@ -54,6 +120,9 @@ export function ReaderEngine({
   const [locationAnnouncement, setLocationAnnouncement] = useState('')
   const [resumeAttempted, setResumeAttempted] = useState(false)
   const bookmarkSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Ref keeps the latest book available inside handleRelocated without adding book to effect deps
+  const bookRef = useRef<Book | null>(book)
+  bookRef.current = book
 
   useEffect(() => {
     if (!rendition) return
@@ -90,6 +159,7 @@ export function ReaderEngine({
     const handleRelocated = (location: RelocatedLocation) => {
       const displayed = location?.start?.displayed
       const pct = location?.start?.percentage
+      const href = location?.start?.href
       const text =
         displayed && displayed.total > 0
           ? `Trang ${displayed.page} / ${displayed.total}`
@@ -98,9 +168,11 @@ export function ReaderEngine({
             : ''
       setLocationAnnouncement(text)
 
+      const chapterTitle = resolveChapterTitle(bookRef.current, href)
+
       if (displayed && displayed.total > 0) {
-        setProgress(displayed.page, displayed.total)
-        setLastRead(bookId, bookTitle, displayed.page, displayed.total)
+        setProgress(displayed.page, displayed.total, chapterTitle)
+        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle)
       }
 
       const cfi = location?.start?.cfi
@@ -111,6 +183,7 @@ export function ReaderEngine({
           cfi,
           bookTitle,
           ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
+          ...(chapterTitle ? { chapterTitle } : {}),
         }
         void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, payload)
         useBookmarksStore.getState().upsertBookmark({
@@ -120,6 +193,7 @@ export function ReaderEngine({
           type: 'auto',
           timestamp: Date.now(),
           ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
+          ...(chapterTitle ? { chapterTitle } : {}),
         })
         if (bookmarkSaveTimeoutRef.current) clearTimeout(bookmarkSaveTimeoutRef.current)
         bookmarkSaveTimeoutRef.current = setTimeout(() => {

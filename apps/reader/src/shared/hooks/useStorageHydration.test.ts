@@ -134,6 +134,34 @@ describe('useStorageHydration', () => {
     unmount()
   })
 
+  it('hydrates lastReadChapterTitle when LAST_READ_POSITION contains chapterTitle (AC 9)', async () => {
+    const lastRead = { bookId: UUID_BOOK_ID, cfi: SAMPLE_CFI, bookTitle: 'Kinh Pháp Hoa', page: 15, total: 99, chapterTitle: 'Tâm Kinh' }
+    mockStorageService.getItem
+      .mockResolvedValueOnce(lastRead)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useReaderStore.getState().lastReadChapterTitle).toBe('Tâm Kinh')
+    })
+    unmount()
+  })
+
+  it('defaults lastReadChapterTitle to empty string when LAST_READ_POSITION has no chapterTitle field (AC 10)', async () => {
+    const lastRead = { bookId: UUID_BOOK_ID, cfi: SAMPLE_CFI, bookTitle: 'Kinh Pháp Hoa', page: 15, total: 99 }
+    mockStorageService.getItem
+      .mockResolvedValueOnce(lastRead)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useReaderStore.getState().lastReadChapterTitle).toBe('')
+    })
+    unmount()
+  })
+
   it('does not hydrate bookmarks store when all persisted bookmarks are legacy SEO slugs', async () => {
     const bookmarks = [
       { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', cfi: 'epubcfi(/6/2!/4/2/1:0)', timestamp: 1000 },
