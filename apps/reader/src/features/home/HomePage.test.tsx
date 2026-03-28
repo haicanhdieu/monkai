@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it, beforeEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import HomePage from '@/features/home/HomePage'
 import { useReaderStore } from '@/stores/reader.store'
 
@@ -27,7 +27,22 @@ beforeEach(() => {
   })
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('HomePage', () => {
+  it('shows daily teaching section picking first item when random is zero', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    renderHomePage()
+
+    expect(screen.getByRole('region', { name: 'Lời Phật dạy hôm nay' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Trích Kinh Di Giáo/)).toBeInTheDocument()
+  })
+
   it('renders page heading and quick links', () => {
     renderHomePage()
 

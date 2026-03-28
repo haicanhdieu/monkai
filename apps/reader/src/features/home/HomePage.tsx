@@ -8,6 +8,14 @@ import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
+import dailyDharmaTeachings from './daily-dharma-teachings.json'
+
+type DailyTeaching = { text: string; source: string }
+
+function pickDailyTeaching(items: readonly DailyTeaching[]): DailyTeaching {
+  const i = Math.floor(Math.random() * items.length)
+  return items[i] ?? items[0]!
+}
 
 const quickActions = [
   {
@@ -162,6 +170,8 @@ function ContinueReadingCard() {
 }
 
 export default function HomePage() {
+  const [dailyTeaching] = useState(() => pickDailyTeaching(dailyDharmaTeachings.items))
+
   return (
     <div className="pb-24">
       <AppBar
@@ -215,9 +225,9 @@ export default function HomePage() {
               backgroundColor: 'var(--color-surface)',
             }}
           >
-            Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ.
+            {dailyTeaching.text}
             <footer className="mt-3 text-xs not-italic font-semibold text-[var(--color-accent)]">
-              — Trích Kinh Di Giáo
+              — {dailyTeaching.source}
             </footer>
           </blockquote>
         </section>
