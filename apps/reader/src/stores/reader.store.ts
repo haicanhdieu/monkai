@@ -21,14 +21,30 @@ interface ReaderState {
   lastReadTotalPages: number
   /** Chapter title at last-read position, for home card display. */
   lastReadChapterTitle: string
+  /** ~Whole-book progress [0,1] from linear spine + in-chapter page/total; null if unknown. */
+  lastReadBookProgressApprox: number | null
   setCurrentCfi: (cfi: string) => void
   toggleChrome: () => void
   /** Set page progress from epub.js relocated (bottom bar). */
   setProgress: (page: number, total: number, chapterTitle?: string) => void
   /** Set last-read for home card and persist; called from ReaderEngine on relocate. */
-  setLastRead: (bookId: string, bookTitle: string, page: number, total: number, chapterTitle?: string) => void
+  setLastRead: (
+    bookId: string,
+    bookTitle: string,
+    page: number,
+    total: number,
+    chapterTitle?: string,
+    bookProgressApprox?: number | null,
+  ) => void
   /** Hydrate last-read from storage (useStorageHydration). */
-  hydrateLastRead: (bookId: string, bookTitle: string, page: number, total: number, chapterTitle?: string) => void
+  hydrateLastRead: (
+    bookId: string,
+    bookTitle: string,
+    page: number,
+    total: number,
+    chapterTitle?: string,
+    bookProgressApprox?: number | null,
+  ) => void
   reset: () => void
 }
 
@@ -43,6 +59,7 @@ const initialState = {
   lastReadPage: 0,
   lastReadTotalPages: 0,
   lastReadChapterTitle: '',
+  lastReadBookProgressApprox: null as number | null,
 }
 
 export const useReaderStore = create<ReaderState>((set) => ({
@@ -50,9 +67,37 @@ export const useReaderStore = create<ReaderState>((set) => ({
   setCurrentCfi: (currentCfi) => set({ currentCfi }),
   toggleChrome: () => set((state) => ({ isChromeVisible: !state.isChromeVisible })),
   setProgress: (currentPage, totalPages, currentChapterTitle = '') => set({ currentPage, totalPages, currentChapterTitle }),
-  setLastRead: (lastReadBookId, lastReadBookTitle, lastReadPage, lastReadTotalPages, lastReadChapterTitle = '') =>
-    set({ lastReadBookId, lastReadBookTitle, lastReadPage, lastReadTotalPages, lastReadChapterTitle }),
-  hydrateLastRead: (lastReadBookId, lastReadBookTitle, lastReadPage, lastReadTotalPages, lastReadChapterTitle = '') =>
-    set({ lastReadBookId, lastReadBookTitle, lastReadPage, lastReadTotalPages, lastReadChapterTitle }),
+  setLastRead: (
+    lastReadBookId,
+    lastReadBookTitle,
+    lastReadPage,
+    lastReadTotalPages,
+    lastReadChapterTitle = '',
+    lastReadBookProgressApprox = null,
+  ) =>
+    set({
+      lastReadBookId,
+      lastReadBookTitle,
+      lastReadPage,
+      lastReadTotalPages,
+      lastReadChapterTitle,
+      lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
+    }),
+  hydrateLastRead: (
+    lastReadBookId,
+    lastReadBookTitle,
+    lastReadPage,
+    lastReadTotalPages,
+    lastReadChapterTitle = '',
+    lastReadBookProgressApprox = null,
+  ) =>
+    set({
+      lastReadBookId,
+      lastReadBookTitle,
+      lastReadPage,
+      lastReadTotalPages,
+      lastReadChapterTitle,
+      lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
+    }),
   reset: () => set(initialState),
 }))

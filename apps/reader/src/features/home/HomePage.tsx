@@ -29,6 +29,7 @@ function ContinueReadingCard() {
     lastReadPage,
     lastReadTotalPages,
     lastReadChapterTitle,
+    lastReadBookProgressApprox,
   } = useReaderStore()
   const hasLastRead = lastReadBookId !== ''
   const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '')
@@ -42,7 +43,16 @@ function ContinueReadingCard() {
   const coverUrl = bookData?.coverImageUrl ? resolveCoverUrl(bookData.coverImageUrl) : null
   const totalPages = lastReadTotalPages > 0 ? lastReadTotalPages : 1
   const currentPage = lastReadPage > 0 ? lastReadPage : 1
-  const progressPercent = totalPages > 0 ? Math.round((currentPage / totalPages) * 100) : 0
+  const useApproxWholeBook =
+    lastReadBookProgressApprox != null &&
+    Number.isFinite(lastReadBookProgressApprox) &&
+    lastReadBookProgressApprox >= 0 &&
+    lastReadBookProgressApprox <= 1
+  const progressPercent = useApproxWholeBook
+    ? Math.round(lastReadBookProgressApprox * 100)
+    : totalPages > 0
+      ? Math.round((currentPage / totalPages) * 100)
+      : 0
 
   return (
     <section className="mb-8 mt-6" aria-label="Tiếp tục đọc">
@@ -59,7 +69,11 @@ function ContinueReadingCard() {
           backgroundColor: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
         }}
-        aria-label={`Tiếp tục đọc ${displayTitle}${lastReadChapterTitle ? `, ${lastReadChapterTitle}` : ''}, trang ${currentPage}/${totalPages}`}
+        aria-label={
+          useApproxWholeBook
+            ? `Tiếp tục đọc ${displayTitle}${lastReadChapterTitle ? `, ${lastReadChapterTitle}` : ''}, khoảng ${progressPercent}% qua sách, trang trong chương ${currentPage}/${totalPages}`
+            : `Tiếp tục đọc ${displayTitle}${lastReadChapterTitle ? `, ${lastReadChapterTitle}` : ''}, trang ${currentPage}/${totalPages}`
+        }
       >
         {/* Cover: fixed 38% of card width, 2:3 aspect ratio. self-start prevents stretching to content height.
             Flexbox % resolves against the card's definite inline size — no circular grid-auto dependency. */}
@@ -137,7 +151,7 @@ function ContinueReadingCard() {
                 style={{ color: '#ffffff' }}
                 aria-hidden="true"
               >
-                {progressPercent}%
+                {useApproxWholeBook ? `~${progressPercent}%` : `${progressPercent}%`}
               </span>
             </div>
           </div>

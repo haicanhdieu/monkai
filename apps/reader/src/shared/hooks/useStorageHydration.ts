@@ -24,6 +24,7 @@ export function useStorageHydration() {
         page?: number
         total?: number
         chapterTitle?: string
+        bookProgressApprox?: number
       }>(STORAGE_KEYS.LAST_READ_POSITION),
       storageService.getItem<UserSettings>(STORAGE_KEYS.USER_SETTINGS),
       storageService.getItem<Bookmark[]>(STORAGE_KEYS.BOOKMARKS),
@@ -39,6 +40,9 @@ export function useStorageHydration() {
             lastRead.page ?? 0,
             lastRead.total ?? 0,
             lastRead.chapterTitle,
+            typeof lastRead.bookProgressApprox === 'number' && Number.isFinite(lastRead.bookProgressApprox)
+              ? lastRead.bookProgressApprox
+              : null,
           )
         }
         if (settings) useSettingsStore.getState().hydrate(settings)

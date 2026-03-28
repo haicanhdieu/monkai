@@ -23,6 +23,7 @@ beforeEach(() => {
     lastReadPage: 0,
     lastReadTotalPages: 0,
     lastReadChapterTitle: '',
+    lastReadBookProgressApprox: null,
   })
 })
 
@@ -89,5 +90,17 @@ describe('HomePage', () => {
     })
     renderHomePage()
     expect(screen.queryByText('|')).not.toBeInTheDocument()
+  })
+
+  it('shows approximate whole-book percent on progress bar when lastReadBookProgressApprox is set', () => {
+    useReaderStore.setState({
+      lastReadBookId: 'kinh-phap-hoa',
+      lastReadBookTitle: 'Kinh Pháp Hoa',
+      lastReadPage: 2,
+      lastReadTotalPages: 10,
+      lastReadBookProgressApprox: 0.42,
+    })
+    renderHomePage()
+    expect(screen.getByText('~42%')).toBeInTheDocument()
   })
 })

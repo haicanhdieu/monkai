@@ -162,6 +162,27 @@ describe('useStorageHydration', () => {
     unmount()
   })
 
+  it('hydrates lastReadBookProgressApprox when LAST_READ_POSITION includes bookProgressApprox', async () => {
+    const lastRead = {
+      bookId: UUID_BOOK_ID,
+      cfi: SAMPLE_CFI,
+      bookTitle: 'Kinh Pháp Hoa',
+      page: 15,
+      total: 99,
+      bookProgressApprox: 0.37,
+    }
+    mockStorageService.getItem
+      .mockResolvedValueOnce(lastRead)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useReaderStore.getState().lastReadBookProgressApprox).toBe(0.37)
+    })
+    unmount()
+  })
+
   it('does not hydrate bookmarks store when all persisted bookmarks are legacy SEO slugs', async () => {
     const bookmarks = [
       { bookId: SEO_SLUG_BOOK_ID, bookTitle: 'Stale', cfi: 'epubcfi(/6/2!/4/2/1:0)', timestamp: 1000 },

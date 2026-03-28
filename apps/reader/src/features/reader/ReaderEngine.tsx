@@ -9,6 +9,7 @@ import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import ReaderErrorPage from './ReaderErrorPage'
+import { approxWholeBookProgressFromSpine } from '@/shared/lib/approxWholeBookProgress'
 
 /** Shape passed by epub.js rendition.on('relocated') — matches epub.js Location.start. */
 interface RelocatedLocation {
@@ -28,6 +29,8 @@ interface LastReadPosition {
   page?: number
   total?: number
   chapterTitle?: string
+  /** Linear-spine approximation of whole-book progress [0, 1]. */
+  bookProgressApprox?: number
 }
 
 type TocItem = { label?: string; href?: string; subitems?: TocItem[] }
@@ -170,9 +173,12 @@ export function ReaderEngine({
 
       const chapterTitle = resolveChapterTitle(bookRef.current, href)
 
+      let bookProgressApprox: number | null = null
       if (displayed && displayed.total > 0) {
+        bookProgressApprox =
+          approxWholeBookProgressFromSpine(bookRef.current, href, displayed.page, displayed.total) ?? null
         setProgress(displayed.page, displayed.total, chapterTitle)
-        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle)
+        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle, bookProgressApprox)
       }
 
       const cfi = location?.start?.cfi
@@ -184,6 +190,7 @@ export function ReaderEngine({
           bookTitle,
           ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
           ...(chapterTitle ? { chapterTitle } : {}),
+          ...(bookProgressApprox != null ? { bookProgressApprox } : {}),
         }
         void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, payload)
         useBookmarksStore.getState().upsertBookmark({
