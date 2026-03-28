@@ -134,7 +134,7 @@ describe('useEpubFromBook', () => {
     })
 
     expect(bookToEpubBuffer).not.toHaveBeenCalled()
-    expect(storageService.getItem).toHaveBeenCalledWith(expect.stringMatching(/^epub_blob_v3_/))
+    expect(storageService.getItem).toHaveBeenCalledWith(expect.stringMatching(/^epub_blob_v4_/))
     expect(result.current.epubUrl).toBe('blob:mock-url')
 
     unmount()

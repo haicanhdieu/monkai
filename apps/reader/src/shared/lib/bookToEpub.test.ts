@@ -75,6 +75,58 @@ describe('bookToEpubBuffer – multi-chapter structure', () => {
     expect(tocNcx).not.toContain('navpoint-2')
   })
 
+  it('uses chapter.title as the <h1> and <title> in each chapter XHTML', async () => {
+    const book: Book = {
+      id: 'named-chapters',
+      title: 'Trang Rời Rừng Thiền',
+      category: 'Thiền',
+      subcategory: 'test',
+      translator: 'Tester',
+      coverImageUrl: null,
+      content: [],
+      chaptersForEpub: [
+        { title: 'Vào Rừng', paragraphs: ['Đoạn 1'] },
+        { title: 'Ra Rừng', paragraphs: ['Đoạn 2'] },
+      ],
+    }
+    const buffer = await bookToEpubBuffer(book)
+    const { readFile } = await unzip(buffer)
+
+    const ch1 = await readFile('OEBPS/content-1.xhtml')
+    expect(ch1).toContain('<h1>Vào Rừng</h1>')
+    expect(ch1).toContain('<title>Vào Rừng</title>')
+
+    const ch2 = await readFile('OEBPS/content-2.xhtml')
+    expect(ch2).toContain('<h1>Ra Rừng</h1>')
+    expect(ch2).toContain('<title>Ra Rừng</title>')
+  })
+
+  it('XML-escapes chapter title in <h1> and <title> when it contains special chars', async () => {
+    const book: Book = {
+      id: 'special-chars',
+      title: 'Tuyển Tập',
+      category: 'Thiền',
+      subcategory: 'test',
+      translator: 'Tester',
+      coverImageUrl: null,
+      content: [],
+      chaptersForEpub: [
+        { title: 'Phật & Người', paragraphs: ['Đoạn 1'] },
+        { title: 'Chân <Lý>', paragraphs: ['Đoạn 2'] },
+      ],
+    }
+    const buffer = await bookToEpubBuffer(book)
+    const { readFile } = await unzip(buffer)
+
+    const ch1 = await readFile('OEBPS/content-1.xhtml')
+    expect(ch1).toContain('<h1>Phật &amp; Người</h1>')
+    expect(ch1).toContain('<title>Phật &amp; Người</title>')
+
+    const ch2 = await readFile('OEBPS/content-2.xhtml')
+    expect(ch2).toContain('<h1>Chân &lt;Lý&gt;</h1>')
+    expect(ch2).toContain('<title>Chân &lt;Lý&gt;</title>')
+  })
+
   it('keeps mimetype file uncompressed (STORE method)', async () => {
     const book: Book = {
       id: 'test-id',

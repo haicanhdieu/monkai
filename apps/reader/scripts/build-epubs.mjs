@@ -156,8 +156,9 @@ ${spineItems}
         ? chapter.paragraphs.map((p) => `    <p>${xmlEscape(p)}</p>`).join('\n')
         : `    <p></p>`
 
+    const rawChapterName = (rawChapters[chapter.index]?.chapter_name ?? '').trim()
     const chapterTitle =
-      effectiveChapters.length === 1 ? title : `${title} – Chương ${chapter.index + 1}`
+      effectiveChapters.length === 1 ? title : xmlEscape(rawChapterName || `Chương ${chapter.index + 1}`)
 
     const xhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -178,8 +179,9 @@ ${chapterBody}
   const navPoints = effectiveChapters
     .map((chapter, i) => {
       const playOrder = i + 1
+      const rawChapterName = (rawChapters[chapter.index]?.chapter_name ?? '').trim()
       const labelText =
-        effectiveChapters.length === 1 ? title : `Chương ${chapter.index + 1}`
+        effectiveChapters.length === 1 ? title : xmlEscape(rawChapterName || `Chương ${chapter.index + 1}`)
       const src = `content-${i + 1}.xhtml`
       return `    <navPoint id="navpoint-${playOrder}" playOrder="${playOrder}">
       <navLabel><text>${labelText}</text></navLabel>

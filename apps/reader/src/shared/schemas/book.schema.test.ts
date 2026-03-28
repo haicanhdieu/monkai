@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { bookSchema } from './book.schema'
 
-function makeRawBook(chapters: { pages: { html_content?: string | null; original_html_content?: string | null }[] }[]) {
+function makeRawBook(chapters: { chapter_name?: string; pages: { html_content?: string | null; original_html_content?: string | null }[] }[]) {
   return {
     id: 'test-id',
     book_name: 'Test Book',
@@ -253,9 +253,11 @@ describe('bookSchema – chaptersForEpub', () => {
   it('creates one EpubChapter per non-empty chapter in order', () => {
     const raw = makeRawBook([
       {
+        chapter_name: 'Chương Một',
         pages: [{ html_content: '<p>Chap1 Page1</p>' }],
       },
       {
+        chapter_name: 'Chương Hai',
         pages: [{ html_content: '<p>Chap2 Page1</p>' }],
       },
     ])
@@ -264,8 +266,8 @@ describe('bookSchema – chaptersForEpub', () => {
 
     expect(book.chaptersForEpub).toBeDefined()
     expect(book.chaptersForEpub).toHaveLength(2)
-    expect(book.chaptersForEpub?.[0].title).toBe('Chương 1')
-    expect(book.chaptersForEpub?.[1].title).toBe('Chương 2')
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương Một')
+    expect(book.chaptersForEpub?.[1].title).toBe('Chương Hai')
     expect(book.chaptersForEpub?.[0].paragraphs).toContain('Chap1 Page1')
     expect(book.chaptersForEpub?.[1].paragraphs).toContain('Chap2 Page1')
   })
@@ -276,6 +278,7 @@ describe('bookSchema – chaptersForEpub', () => {
         pages: [],
       },
       {
+        chapter_name: 'Thật Sự',
         pages: [{ html_content: '<p>Non-empty</p>' }],
       },
     ])
@@ -284,7 +287,41 @@ describe('bookSchema – chaptersForEpub', () => {
 
     expect(book.chaptersForEpub).toBeDefined()
     expect(book.chaptersForEpub).toHaveLength(1)
+    expect(book.chaptersForEpub?.[0].title).toBe('Thật Sự')
+  })
+
+  it('falls back to Chương N when chapter_name is absent', () => {
+    const raw = makeRawBook([
+      { pages: [{ html_content: '<p>Content</p>' }] },
+    ])
+    const book = bookSchema.parse(raw)
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương 1')
+  })
+
+  it('falls back using original array index when earlier chapters are empty', () => {
+    const raw = makeRawBook([
+      { pages: [] },
+      { pages: [{ html_content: '<p>Non-empty</p>' }] },
+    ])
+    const book = bookSchema.parse(raw)
+    expect(book.chaptersForEpub).toHaveLength(1)
     expect(book.chaptersForEpub?.[0].title).toBe('Chương 2')
+  })
+
+  it('falls back to Chương N when chapter_name is empty string', () => {
+    const raw = makeRawBook([
+      { chapter_name: '', pages: [{ html_content: '<p>Content</p>' }] },
+    ])
+    const book = bookSchema.parse(raw)
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương 1')
+  })
+
+  it('falls back to Chương N when chapter_name is whitespace only', () => {
+    const raw = makeRawBook([
+      { chapter_name: '   ', pages: [{ html_content: '<p>Content</p>' }] },
+    ])
+    const book = bookSchema.parse(raw)
+    expect(book.chaptersForEpub?.[0].title).toBe('Chương 1')
   })
 })
 

@@ -7,6 +7,7 @@ const pageSchema = z.object({
 })
 
 const chapterSchema = z.object({
+  chapter_name: z.string().optional(),
   pages: z.array(pageSchema),
 })
 
@@ -117,7 +118,7 @@ function buildChaptersForEpub(chapters: z.infer<typeof chapterSchema>[]): EpubCh
     }
 
     result.push({
-      title: `Chương ${chapterIndex + 1}`,
+      title: chapter.chapter_name?.trim() || `Chương ${chapterIndex + 1}`,
       paragraphs,
     })
   })

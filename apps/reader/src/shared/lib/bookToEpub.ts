@@ -92,7 +92,7 @@ ${spineItems}
         : `    <p></p>`
 
     const chapterTitle =
-      effectiveChapters.length === 1 ? title : `${title} – Chương ${index + 1}`
+      effectiveChapters.length === 1 ? title : xmlEscape(sanitizeXml(chapter.title || `Chương ${index + 1}`))
 
     const contentXhtml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
