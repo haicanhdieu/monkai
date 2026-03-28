@@ -42,21 +42,18 @@ describe('BookmarkCard', () => {
       expect(screen.getByText('Đang đọc')).toBeInTheDocument()
     })
 
-    it('does NOT render BookmarkFilledIcon for auto bookmark', () => {
-      renderCard(AUTO_BOOKMARK)
-      // No bookmark delete button means no filled icon specific to manual
-      expect(screen.queryByTestId('bookmark-delete-btn')).not.toBeInTheDocument()
-      // No swipe delete zone
-      expect(screen.queryByLabelText('Xóa dấu trang')).not.toBeInTheDocument()
+    it('renders delete button for auto bookmark (swipe to delete is allowed)', () => {
+      renderCard(AUTO_BOOKMARK, vi.fn())
+      expect(screen.getByTestId('bookmark-delete-btn')).toBeInTheDocument()
     })
 
-    it('does not reveal delete button after swipe on auto bookmark', () => {
-      renderCard(AUTO_BOOKMARK)
+    it('swipe left ≥ 60px reveals delete button on auto bookmark', () => {
+      renderCard(AUTO_BOOKMARK, vi.fn())
       const card = screen.getByTestId('bookmark-card')
       fireEvent.pointerDown(card, { clientX: 200 })
-      fireEvent.pointerMove(card, { clientX: 100 }) // 100px delta
-      fireEvent.pointerUp(card)
-      expect(screen.queryByTestId('bookmark-delete-btn')).not.toBeInTheDocument()
+      fireEvent.pointerMove(card, { clientX: 130 }) // 70px delta
+      const deleteZone = screen.getByTestId('bookmark-delete-btn').parentElement!
+      expect(deleteZone).toHaveAttribute('aria-hidden', 'false')
     })
   })
 
@@ -126,6 +123,12 @@ describe('BookmarkCard', () => {
       // Tap outside the card
       fireEvent.pointerDown(document.body)
       expect(deleteZone).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('outer wrapper does not have border class (border is now on the parent card)', () => {
+      renderCard(MANUAL_BOOKMARK)
+      const card = screen.getByTestId('bookmark-card')
+      expect(card).not.toHaveClass('border')
     })
 
     it('navigation is prevented after swipe (onClickCapture stops propagation)', () => {

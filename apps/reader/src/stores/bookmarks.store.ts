@@ -21,6 +21,7 @@ interface BookmarksState {
   upsertBookmark: (bookmark: Bookmark) => void
   addManualBookmark: (bookmark: Bookmark) => void
   removeManualBookmark: (bookId: string, cfi: string) => void
+  removeBookmark: (bookId: string, cfi: string) => void
   hydrate: (bookmarks: Bookmark[]) => void
   clear: () => void
 }
@@ -52,6 +53,12 @@ export const useBookmarksStore = create<BookmarksState>()(
       set((state) => {
         state.bookmarks = state.bookmarks.filter(
           (b) => !(b.bookId === bookId && b.cfi === cfi && b.type === 'manual')
+        )
+      }),
+    removeBookmark: (bookId, cfi) =>
+      set((state) => {
+        state.bookmarks = state.bookmarks.filter(
+          (b) => !(b.bookId === bookId && b.cfi === cfi)
         )
       }),
     hydrate: (bookmarks) =>

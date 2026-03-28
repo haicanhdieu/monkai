@@ -1,3 +1,6 @@
+# Claude Code local settings (personal overrides)
+.claude/settings.local.json
+
 # Generated artifacts - never commit
 book-data/
 apps/crawler/data/

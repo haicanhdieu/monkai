@@ -37,6 +37,8 @@
   --color-surface: #EDE0C4;
   --color-border: #D4C4A0;
   --color-app-bar-border: #B8A9C9;
+  --color-error: #dc2626;
+  --color-on-error: #ffffff;
 }
 
 .theme-light {
@@ -47,6 +49,8 @@
   --color-surface: #F5F5F5;
   --color-border: #E0E0E0;
   --color-app-bar-border: #B8A9C9;
+  --color-error: #dc2626;
+  --color-on-error: #ffffff;
 }
 
 .theme-dark {
@@ -57,6 +61,8 @@
   --color-surface: #2A1E0F;
   --color-border: #3D2B1F;
   --color-app-bar-border: #5A4D6B;
+  --color-error: #ef4444;
+  --color-on-error: #ffffff;
 }
 
 body {

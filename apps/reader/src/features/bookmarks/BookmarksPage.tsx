@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { PersonIcon } from '@radix-ui/react-icons'
 import { AppLogo } from '@/shared/components/AppLogo'
@@ -10,9 +10,11 @@ import { resolveCoverUrl } from '@/shared/services/data.service'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { BookmarkCard } from './BookmarkCard'
+import { BookmarkSearchBar } from './BookmarkSearchBar'
 
 export default function BookmarksPage() {
-  const { bookmarks, removeManualBookmark } = useBookmarksStore()
+  const { bookmarks, removeBookmark } = useBookmarksStore()
+  const [searchQuery, setSearchQuery] = useState('')
   const { data: catalog } = useCatalogIndex()
 
   const coverUrlMap = useMemo(() => {
@@ -50,6 +52,26 @@ export default function BookmarksPage() {
       ],
     })), [bookmarks])
 
+  // Reset search when all bookmarks are removed
+  useEffect(() => {
+    if (bookmarks.length === 0) setSearchQuery('')
+  }, [bookmarks.length])
+
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery.trim()) return groups
+    const q = searchQuery.toLowerCase()
+    return groups
+      .map((g) => ({
+        ...g,
+        items: g.items.filter(
+          (b) =>
+            g.bookTitle.toLowerCase().includes(q) ||
+            (b.chapterTitle?.toLowerCase().includes(q) ?? false)
+        ),
+      }))
+      .filter((g) => g.items.length > 0)
+  }, [groups, searchQuery])
+
   return (
     <div className="pb-24">
       <AppBar
@@ -66,8 +88,6 @@ export default function BookmarksPage() {
         }
       />
       <div className="px-6">
-        <div className="mb-6" />
-
         {groups.length === 0 ? (
           <div
             className="flex flex-col items-center justify-center gap-6 px-8 py-20 text-center"
@@ -78,58 +98,76 @@ export default function BookmarksPage() {
             </p>
             <Link
               to={ROUTES.LIBRARY}
-              className="rounded-full px-6 py-3 text-sm font-semibold text-white"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              className="rounded-full px-6 py-3 text-sm font-semibold"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-on-error)' }}
             >
               Khám phá Thư Viện
             </Link>
           </div>
         ) : (
-          <div className="space-y-8">
-            {groups.map((group) => (
-              <section key={group.bookId} data-testid="bookmark-group">
-                <div className="flex items-center gap-3 mb-3" data-testid="bookmark-group-header">
-                  <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded">
-                    {coverUrlMap[group.bookId] ? (
-                      <img
-                        src={coverUrlMap[group.bookId]!}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div
-                        className="h-full w-full rounded"
-                        style={{ backgroundColor: 'var(--color-border)' }}
-                      />
-                    )}
-                  </div>
-                  <span className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>
-                    {group.bookTitle}
-                  </span>
-                </div>
-                <ul className="space-y-3">
-                  {group.items.map((b) => (
-                    <li key={`${b.bookId}-${b.cfi}-${b.type}`}>
-                      <BookmarkCard
-                        bookmark={b}
-                        onDelete={
-                          b.type === 'manual'
-                            ? () => {
-                                removeManualBookmark(b.bookId, b.cfi)
-                                void storageService.setItem(
-                                  STORAGE_KEYS.BOOKMARKS,
-                                  useBookmarksStore.getState().bookmarks
-                                )
-                              }
-                            : undefined
-                        }
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+          <>
+            <BookmarkSearchBar value={searchQuery} onChange={setSearchQuery} onClear={() => setSearchQuery('')} />
+            <span className="sr-only" aria-live="polite" aria-atomic="true">
+              {filteredGroups.length === 0
+                ? 'Không có kết quả tìm kiếm'
+                : `Đang hiển thị ${filteredGroups.length} nhóm dấu trang`}
+            </span>
+            {filteredGroups.length === 0 ? (
+              <p className="py-12 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Không tìm thấy dấu trang nào.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {filteredGroups.map((group) => (
+                  <section
+                    key={group.bookId}
+                    data-testid="bookmark-group"
+                    className="overflow-hidden rounded-2xl border"
+                    style={{
+                      backgroundColor: 'var(--color-surface)',
+                      borderColor: 'var(--color-border)',
+                    }}
+                  >
+                    <div className="flex items-center gap-4 px-3 pt-3 pb-3" data-testid="bookmark-group-header">
+                      <div className="relative h-[88px] w-[70px] shrink-0 overflow-hidden rounded">
+                        {coverUrlMap[group.bookId] ? (
+                          <img
+                            src={coverUrlMap[group.bookId]!}
+                            alt={group.bookTitle}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="h-full w-full rounded"
+                            style={{ backgroundColor: 'var(--color-border)' }}
+                          />
+                        )}
+                      </div>
+                      <span className="text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
+                        {group.bookTitle}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-[var(--color-border)]">
+                      {group.items.map((b) => (
+                        <li key={`${b.bookId}-${b.cfi}-${b.type}`}>
+                          <BookmarkCard
+                            bookmark={b}
+                            onDelete={() => {
+                              removeBookmark(b.bookId, b.cfi)
+                              void storageService.setItem(
+                                STORAGE_KEYS.BOOKMARKS,
+                                useBookmarksStore.getState().bookmarks
+                              )
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

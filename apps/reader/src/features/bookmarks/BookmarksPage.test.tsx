@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -53,6 +54,7 @@ describe('BookmarksPage', () => {
     expect(screen.getByTestId('bookmarks-empty-state')).toBeInTheDocument()
     within(screen.getByTestId('bookmarks-empty-state')).getByText(/Chưa có dấu trang nào/)
     expect(screen.getByRole('link', { name: 'Khám phá Thư Viện' })).toHaveAttribute('href', '/library')
+    expect(screen.queryByTestId('bookmark-search-input')).not.toBeInTheDocument()
   })
 
   it('renders bookmark-group sections for each bookmark', () => {
@@ -128,11 +130,91 @@ describe('BookmarksPage', () => {
     expect(screen.getByTestId('bookmark-delete-btn')).toBeInTheDocument()
   })
 
-  it('auto bookmark card has no bookmark-delete-btn', () => {
+  it('auto bookmark card has a bookmark-delete-btn (swipe to delete allowed)', () => {
     useBookmarksStore.setState({ bookmarks: [bookmark1] })
     renderPage()
 
-    expect(screen.queryByTestId('bookmark-delete-btn')).not.toBeInTheDocument()
+    expect(screen.getByTestId('bookmark-delete-btn')).toBeInTheDocument()
+  })
+})
+
+describe('BookmarksPage — search', () => {
+  it('search input is rendered', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    expect(screen.getByTestId('bookmark-search-input')).toBeInTheDocument()
+  })
+
+  it('typing filters groups by book title', async () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1, bookmark2] })
+    renderPage()
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'Pháp Hoa')
+    const groups = screen.getAllByTestId('bookmark-group')
+    expect(groups).toHaveLength(1)
+    expect(within(groups[0]).getByTestId('bookmark-group-header')).toHaveTextContent('Kinh Pháp Hoa')
+  })
+
+  it('typing filters groups by chapter title', async () => {
+    const bookmarkWithChapter: Bookmark = {
+      bookId: 'kinh-phap-hoa',
+      bookTitle: 'Kinh Pháp Hoa',
+      cfi: 'epubcfi(/6/6!/4/2/1:0)',
+      timestamp: 1000000,
+      type: 'manual',
+      chapterTitle: 'Phẩm Phương Tiện',
+    }
+    useBookmarksStore.setState({ bookmarks: [bookmarkWithChapter, bookmark2] })
+    renderPage()
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'Phương Tiện')
+    const groups = screen.getAllByTestId('bookmark-group')
+    expect(groups).toHaveLength(1)
+    expect(within(groups[0]).getByTestId('bookmark-group-header')).toHaveTextContent('Kinh Pháp Hoa')
+  })
+
+  it('clearing search restores all groups', async () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1, bookmark2] })
+    renderPage()
+    const input = screen.getByTestId('bookmark-search-input')
+    await userEvent.type(input, 'Pháp Hoa')
+    expect(screen.getAllByTestId('bookmark-group')).toHaveLength(1)
+    await userEvent.clear(input)
+    expect(screen.getAllByTestId('bookmark-group')).toHaveLength(2)
+  })
+
+  it('search with no match shows no-results message, not empty state', async () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'xyznotfound')
+    expect(screen.queryByTestId('bookmarks-empty-state')).not.toBeInTheDocument()
+    expect(screen.getByText('Không tìm thấy dấu trang nào.')).toBeInTheDocument()
+  })
+
+  it('group section has card styling', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    const group = screen.getByTestId('bookmark-group')
+    expect(group).toHaveClass('rounded-2xl')
+    expect(group).toHaveClass('overflow-hidden')
+  })
+
+  it('book title match shows all items in the group regardless of individual chapter titles', async () => {
+    const b1: Bookmark = { ...bookmark1, type: 'manual', chapterTitle: 'Phẩm Tựa' }
+    const b2: Bookmark = { ...bookmark1, cfi: 'epubcfi(/6/8!/4/2/1:0)', type: 'manual' }
+    useBookmarksStore.setState({ bookmarks: [b1, b2] })
+    renderPage()
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'Pháp Hoa')
+    const groups = screen.getAllByTestId('bookmark-group')
+    expect(groups).toHaveLength(1)
+    expect(within(groups[0]).getAllByTestId('bookmark-card')).toHaveLength(2)
+  })
+
+  it('bookmark list uses divide-y not space-y-3', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    const group = screen.getByTestId('bookmark-group')
+    const ul = within(group).getByRole('list')
+    expect(ul).toHaveClass('divide-y')
+    expect(ul).not.toHaveClass('space-y-3')
   })
 })
 
