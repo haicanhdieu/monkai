@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { toRead } from '@/shared/constants/routes'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
+import { stripVietnamese } from '@/features/library/library.utils'
 import type { SearchDocument } from '@/features/library/library.types'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 
@@ -17,26 +18,44 @@ function escapeRegExp(input: string): string {
 }
 
 function highlightText(text: string, query: string): React.ReactNode {
-  if (!query.trim()) {
-    return text
-  }
+  if (!query.trim()) return text
 
-  const matcher = new RegExp(`(${escapeRegExp(query.trim())})`, 'ig')
-  const parts = text.split(matcher)
+  // Normalise both sides so plain-ASCII input (e.g. "dia tang") matches
+  // accented Vietnamese text ("Địa Tạng"). stripVietnamese preserves a 1-to-1
+  // character correspondence with the original NFC string, so match indices
+  // from normalisedText can be used directly to slice the original text —
+  // keeping the real Vietnamese characters in the highlighted output.
+  const normalisedText = stripVietnamese(text.toLocaleLowerCase('vi'))
+  const normalisedQuery = stripVietnamese(query.trim().toLocaleLowerCase('vi'))
 
-  return parts.map((part, index) =>
-    matcher.test(part) ? (
+  if (!normalisedQuery) return text
+
+  const matcher = new RegExp(escapeRegExp(normalisedQuery), 'g')
+  const nodes: React.ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = matcher.exec(normalisedText)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(<span key={`pre-${match.index}`}>{text.slice(lastIndex, match.index)}</span>)
+    }
+    nodes.push(
       <mark
-        key={`${part}-${index}`}
+        key={`mark-${match.index}`}
         className="rounded px-1 py-0.5 text-[var(--color-background)]"
         style={{ backgroundColor: 'var(--color-accent)' }}
       >
-        {part}
-      </mark>
-    ) : (
-      <span key={`${part}-${index}`}>{part}</span>
-    ),
-  )
+        {text.slice(match.index, match.index + match[0].length)}
+      </mark>,
+    )
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(<span key="tail">{text.slice(lastIndex)}</span>)
+  }
+
+  return nodes.length > 0 ? <>{nodes}</> : text
 }
 
 const getMain = () => document.querySelector('main') as HTMLElement | null

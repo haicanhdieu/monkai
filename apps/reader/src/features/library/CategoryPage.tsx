@@ -4,6 +4,9 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { SutraListCard } from '@/features/library/SutraListCard'
 import type { LibraryCategory } from '@/features/library/library.types'
 import { getCategoryBySlug } from '@/features/library/library.utils'
+import { useLibrarySearch } from '@/features/library/useLibrarySearch'
+import { LibrarySearchBar } from '@/features/library/LibrarySearchBar'
+import { SearchResults } from '@/features/library/SearchResults'
 import { AppBar } from '@/shared/components/AppBar'
 import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
@@ -96,6 +99,14 @@ export default function CategoryPage() {
   const catalogQuery = useCatalogIndex()
   const isOnline = useOnlineStatus()
 
+  // Hoist before all early-return guards to satisfy React hook rules
+  const selectedCategory = catalogQuery.data && category
+    ? getCategoryBySlug(catalogQuery.data, category) ?? null
+    : null
+
+  const { query, setQuery, clearQuery, debouncedQuery, normalizedQuery, results } =
+    useLibrarySearch(selectedCategory?.books ?? [])
+
   if (catalogQuery.isLoading) {
     return (
       <div className="space-y-2 p-4">
@@ -136,7 +147,6 @@ export default function CategoryPage() {
     )
   }
 
-  const selectedCategory = getCategoryBySlug(catalogQuery.data, category)
   if (!selectedCategory) {
     return (
       <div className="p-4">
@@ -154,13 +164,22 @@ export default function CategoryPage() {
         sticky
         title={selectedCategory.displayName}
         backTo={ROUTES.LIBRARY}
+        rightSlot={
+          <span className="text-sm font-medium text-[var(--color-accent)]">
+            {selectedCategory.count} kinh sách
+          </span>
+        }
       >
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {selectedCategory.count} kinh sách
-        </p>
+        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} />
       </AppBar>
 
-      <VirtualBookList books={selectedCategory.books} categorySlug={category} />
+      {normalizedQuery ? (
+        <div className="px-4 pt-2">
+          <SearchResults query={debouncedQuery} results={results} />
+        </div>
+      ) : (
+        <VirtualBookList books={selectedCategory.books} categorySlug={category} />
+      )}
     </div>
   )
 }

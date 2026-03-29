@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -147,5 +148,46 @@ describe('CategoryPage', () => {
     mockUseParams.mockReturnValue({ category: '' })
     renderPage()
     expect(screen.getByText('Không tìm thấy thể loại')).toBeInTheDocument()
+  })
+
+  it('renders search bar when catalog loads', () => {
+    mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
+    renderPage()
+    expect(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' })).toBeInTheDocument()
+  })
+
+  it('shows book count in title row', () => {
+    mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
+    renderPage()
+    expect(screen.getByText('1 kinh sách')).toBeInTheDocument()
+  })
+
+  it('filters results when user types a query', async () => {
+    mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
+    const user = userEvent.setup()
+    renderPage()
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
+    expect(screen.getByRole('link', { name: 'Đọc Kinh Bát Nhã' })).toBeInTheDocument()
+  })
+
+  it('restores book list when query is cleared', async () => {
+    mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
+    const user = userEvent.setup()
+    renderPage()
+    const input = screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' })
+    await user.type(input, 'Bát Nhã')
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: 'Xóa từ khóa' }))
+    expect(screen.getByRole('link', { name: 'Đọc Kinh Bát Nhã' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Kết quả tìm kiếm' })).not.toBeInTheDocument()
+  })
+
+  it('shows no results message for unmatched query', async () => {
+    mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
+    const user = userEvent.setup()
+    renderPage()
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'xyz không có')
+    await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả')).toBeInTheDocument())
   })
 })

@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import MiniSearch from 'minisearch'
 import type { SearchDocument } from '@/features/library/library.types'
 import type { CatalogBook } from '@/shared/types/global.types'
-import { toSearchDocuments } from '@/features/library/library.utils'
+import { toSearchDocuments, stripVietnamese } from '@/features/library/library.utils'
 
+// Normalise a raw query for conditional-rendering checks and MiniSearch calls.
+// Stripping diacritics here ensures "dia tang" is treated as non-empty (truthy)
+// and is consistent with how processTerm normalises each indexed/query token.
 function normalizeQuery(value: string): string {
-  return value.trim().toLocaleLowerCase('vi')
+  return stripVietnamese(value.trim().toLocaleLowerCase('vi'))
 }
 
 export interface LibrarySearchState {
@@ -33,6 +36,9 @@ export function useLibrarySearch(books: CatalogBook[]): LibrarySearchState {
       fields: ['title', 'category', 'subcategory'],
       storeFields: ['id', 'bookId', 'title', 'category', 'subcategory', 'translator', 'coverImageUrl'],
       searchOptions: { boost: { title: 3 }, prefix: true },
+      // Applied to every token at both index time and query time.
+      // Ensures "dia tang" matches "Địa Tạng" and vice-versa.
+      processTerm: (term) => stripVietnamese(term.toLowerCase()),
     })
     engine.addAll(documents)
     return engine
