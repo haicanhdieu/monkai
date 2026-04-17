@@ -1,0 +1,7 @@
+<div id="hinhanh" style="background-image:url('http://example.com/images/covers/33201.jpg')">
+<img src="cover.jpg" />
+</div>--!!tach_noi_dung!!--Chuyến Du Hành Ngược Thời Gian
+ nhiều tác giả--!!tach_noi_dung!!--<p>Ng&agrave;y xưa, c&oacute; một người t&ecirc;n l&agrave; B&aacute;t Nh&atilde; đ&atilde; đi t&igrave;m ch&acirc;n l&yacute;.</p>
+<p>Đường xưa mây trắng &aacute;nh trăng soi.</p>
+<p>HTML entities must be preserved: &aacute; stays as &aacute; (no decoding).</p>--!!tach_noi_dung!!--Lời Giới Thiệu
+ Tiến >>

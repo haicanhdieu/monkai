@@ -1,0 +1,3 @@
+<div id="hinhanh" style="background-image:url('http://example.com/images/covers/33201.jpg')">
+</div>--!!tach_noi_dung!!--Book Title
+ Author Name--!!tach_noi_dung!!--   --!!tach_noi_dung!!--Nav text here

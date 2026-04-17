@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>VNThuQuan Listing</title></head>
+<body>
+
+<!-- Book Row 1: Text format, full data, Vietnamese diacritics, with cover image -->
+<div class="row">
+<div class="col-xs-3">
+  <a href="truyen.aspx?tid=abc123" target="_self">
+    <img alt="bầu trời chung - trần hà yên" class="img-rounded" src="http://vietnamthuquan.eu/userfiles/images/covers/bau-troi-chung.jpg"/>
+  </a>
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>9.4.2026</span>
+  <span class='label-title label-scan'>Text</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <a href='truyen.aspx?tid=abc123'>bầu trời chung</a>
+    </span>
+  </div>
+  <span class='author viethoachu' itemprop='author'>
+    <a href='tacpham.aspx?tacgiaid=9936'>trần hà yên</a>
+  </span>
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=1'>Truyện ngắn</a>
+  </span>
+  <span class='totalchuong'>1 Chương</span>
+</div>
+</div>
+
+<!-- Book Row 2: PDF format, with cover image -->
+<div class="row">
+<div class="col-xs-3">
+  <a href="truyen.aspx?tid=def456" target="_self">
+    <img alt="Kinh Pháp Hoa" class="img-rounded" src="http://vietnamthuquan.eu/userfiles/images/covers/kinh-phap-hoa.jpg"/>
+  </a>
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>15.3.2026</span>
+  <span class='label-title label-scan'>PDF</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <a href='truyen.aspx?tid=def456'>Kinh Pháp Hoa</a>
+    </span>
+  </div>
+  <span class='author viethoachu' itemprop='author'>
+    <a href='tacpham.aspx?tacgiaid=100'>Thích Trí Tịnh</a>
+  </span>
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=5'>Kinh điển</a>
+  </span>
+  <span class='totalchuong'>28 Chương</span>
+</div>
+</div>
+
+<!-- Book Row 3: Audio format, with cover image -->
+<div class="row">
+<div class="col-xs-3">
+  <a href="truyen.aspx?tid=ghi789" target="_self">
+    <img alt="Đường xưa mây trắng" class="img-rounded" src="http://vietnamthuquan.eu/userfiles/images/covers/duong-xua-may-trang.jpg"/>
+  </a>
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>1.1.2026</span>
+  <span class='label-title label-scan'>Audio</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <a href='truyen.aspx?tid=ghi789'>Đường xưa mây trắng</a>
+    </span>
+  </div>
+  <span class='author viethoachu' itemprop='author'>
+    <a href='tacpham.aspx?tacgiaid=200'>Thích Nhất Hạnh</a>
+  </span>
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=3'>Phật giáo</a>
+  </span>
+  <span class='totalchuong'>45 Chương</span>
+</div>
+</div>
+
+<!-- Book Row 4: Epub format, with cover image -->
+<div class="row">
+<div class="col-xs-3">
+  <a href="truyen.aspx?tid=jkl012" target="_self">
+    <img alt="Tâm kinh bát nhã" class="img-rounded" src="http://vietnamthuquan.eu/userfiles/images/covers/tam-kinh-bat-nha.jpg"/>
+  </a>
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>20.2.2026</span>
+  <span class='label-title label-scan'>Epub</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <a href='truyen.aspx?tid=jkl012'>Tâm kinh bát nhã</a>
+    </span>
+  </div>
+  <span class='author viethoachu' itemprop='author'>
+    <a href='tacpham.aspx?tacgiaid=300'>Nhiều tác giả</a>
+  </span>
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=5'>Kinh điển</a>
+  </span>
+  <span class='totalchuong'>3 Chương</span>
+</div>
+</div>
+
+<!-- Book Row 5: Malformed — missing author link (no author element), no cover image -->
+<div class="row">
+<div class="col-xs-3">
+  <!-- No image in this row -->
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>5.4.2026</span>
+  <span class='label-title label-scan'>Text</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <a href='truyen.aspx?tid=mno345'>Sách không tác giả</a>
+    </span>
+  </div>
+  <!-- No author span -->
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=2'>Tiểu thuyết</a>
+  </span>
+  <span class='totalchuong'>10 Chương</span>
+</div>
+</div>
+
+<!-- Book Row 6: Malformed — missing title link entirely (should be skipped) -->
+<div class="row">
+<div class="col-xs-3">
+  <a href="truyen.aspx?tid=pqr678" target="_self">
+    <img alt="malformed" class="img-rounded" src="http://vietnamthuquan.eu/userfiles/images/covers/malformed.jpg"/>
+  </a>
+</div>
+<div class="col-xs-7">
+  <span class='label-title label-time'>1.4.2026</span>
+  <span class='label-title label-scan'>Text</span>
+  <div class='truyen-title' itemprop='name'>
+    <span class='viethoachu'>
+      <!-- No anchor tag — malformed -->
+    </span>
+  </div>
+  <span class='author viethoachu' itemprop='author'>
+    <a href='tacpham.aspx?tacgiaid=999'>Some Author</a>
+  </span>
+  <span class='label-title label-theloai'>
+    <a href='theloai.aspx?theloaiid=2'>Tiểu thuyết</a>
+  </span>
+  <span class='totalchuong'>5 Chương</span>
+</div>
+</div>
+
+<!-- Pagination links -->
+<div class="pagination">
+  <a href='?tranghientai=1'>1</a>
+  <a href='?tranghientai=2'>2</a>
+  <a href='?tranghientai=3'>3</a>
+  <a href='?tranghientai=7'>7</a>
+</div>
+
+</body>
+</html>

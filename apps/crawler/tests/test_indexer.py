@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from models import BookIndexRecord, CrawlerConfig, SourceConfig
+from models import BookData, BookIndexRecord, CrawlerConfig, SourceConfig
 from indexer import (
     build_index,
     build_book_data_index,
@@ -611,3 +611,173 @@ def test_build_book_data_index_with_folder_structure(tmp_path: Path, mock_logger
     json_artifact = next(a for a in book["artifacts"] if a["format"] == "json")
     assert json_artifact["path"].endswith("book.json"), \
         f"Expected path ending book.json, got: {json_artifact['path']}"
+
+
+# ===========================================================================
+# Story 4.2: VNThuQuan index integration
+# ===========================================================================
+
+
+def make_vnthuquan_book_json(
+    book_data_dir: Path,
+    cat_seo: str,
+    book_seo: str,
+    book_id: int,
+    num_chapters: int = 2,
+) -> Path:
+    """Write a minimal valid BookData (schema v2.0, source=vnthuquan) at
+    book_data_dir/vnthuquan/{cat_seo}/{book_seo}/book.json.
+    """
+    book_folder = book_data_dir / "vnthuquan" / cat_seo / book_seo
+    book_folder.mkdir(parents=True, exist_ok=True)
+
+    chapters = [
+        {
+            "chapter_id": i + 1,
+            "chapter_name": f"Chuong {i + 1}",
+            "chapter_seo_name": f"chuong-{i + 1}",
+            "chapter_view_count": 0,
+            "page_count": 1,
+            "pages": [
+                {
+                    "sort_number": 1,
+                    "page_number": None,
+                    "html_content": f"<p>Noi dung chuong {i + 1}</p>",
+                    "original_html_content": None,
+                }
+            ],
+        }
+        for i in range(num_chapters)
+    ]
+
+    book_data = {
+        "_meta": {
+            "source": "vnthuquan",
+            "schema_version": "2.0",
+            "built_at": "2026-04-15T00:00:00+00:00",
+        },
+        "id": f"vnthuquan__{book_seo}",
+        "book_id": book_id,
+        "book_name": book_seo.replace("-", " ").title(),
+        "book_seo_name": book_seo,
+        "cover_image_url": None,
+        "cover_image_local_path": None,
+        "author": "Tac Gia Test",
+        "author_id": None,
+        "publisher": None,
+        "publication_year": None,
+        "category_id": 1,
+        "category_name": cat_seo.replace("-", " ").title(),
+        "category_seo_name": cat_seo,
+        "total_chapters": num_chapters,
+        "chapters": chapters,
+    }
+
+    out_path = book_folder / "book.json"
+    out_path.write_text(json.dumps(book_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return out_path
+
+
+def test_build_book_data_index_discovers_vnthuquan_books(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """build_book_data_index auto-discovers vnthuquan books via rglob."""
+    book_data_dir = tmp_path / "book-data"
+    make_vnthuquan_book_json(book_data_dir, "phat-giao", "bat-nha-kinh", book_id=1001)
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    index_path = book_data_dir / "index.json"
+    assert index_path.exists()
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+    assert data["books"][0]["artifacts"][0]["source"] == "vnthuquan"
+    artifact_path = data["books"][0]["artifacts"][0]["path"]
+    assert "vnthuquan/" in artifact_path
+    assert artifact_path.endswith("book.json")
+
+
+def test_build_book_data_index_vnthuquan_source_field(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Vnthuquan books have source='vnthuquan' in their artifact entries."""
+    book_data_dir = tmp_path / "book-data"
+    make_vnthuquan_book_json(book_data_dir, "phat-giao", "bat-nha-kinh", book_id=1001)
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    data = json.loads((book_data_dir / "index.json").read_text(encoding="utf-8"))
+    book = data["books"][0]
+    assert book["artifacts"][0]["source"] == "vnthuquan"
+    assert book["book_seo_name"] == "bat-nha-kinh"
+
+
+def test_build_book_data_index_mixed_sources_preserved(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Both vbeta and vnthuquan books are present in mixed-source index."""
+    book_data_dir = tmp_path / "book-data"
+    make_book_data_folder(book_data_dir, "vbeta", "kinh", "bo-trung-quan", book_id=512)
+    make_vnthuquan_book_json(book_data_dir, "phat-giao", "bat-nha-kinh", book_id=1001)
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    data = json.loads((book_data_dir / "index.json").read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 2
+    sources = {b["artifacts"][0]["source"] for b in data["books"]}
+    assert sources == {"vbeta", "vnthuquan"}
+    seo_names = {b["book_seo_name"] for b in data["books"]}
+    assert "bo-trung-quan" in seo_names
+    assert "bat-nha-kinh" in seo_names
+
+
+def test_build_book_data_index_vnthuquan_uuid_stability(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """UUID is stable across two builds for vnthuquan books."""
+    book_data_dir = tmp_path / "book-data"
+    make_vnthuquan_book_json(book_data_dir, "phat-giao", "bat-nha-kinh", book_id=1001)
+
+    build_book_data_index(tmp_path, mock_logger)
+    data1 = json.loads((book_data_dir / "index.json").read_text(encoding="utf-8"))
+    uuid1 = data1["books"][0]["id"]
+
+    build_book_data_index(tmp_path, mock_logger)
+    data2 = json.loads((book_data_dir / "index.json").read_text(encoding="utf-8"))
+    uuid2 = data2["books"][0]["id"]
+
+    assert uuid1 == uuid2, "UUID must be stable across rebuilds"
+
+
+def test_build_book_data_index_vnthuquan_book_data_schema_validates(
+    tmp_path: Path,
+) -> None:
+    """Vnthuquan book.json passes BookData schema validation."""
+    book_data_dir = tmp_path / "book-data"
+    out_path = make_vnthuquan_book_json(book_data_dir, "phat-giao", "bat-nha-kinh", book_id=1001, num_chapters=2)
+
+    data = json.loads(out_path.read_text(encoding="utf-8"))
+    book = BookData(**data)
+
+    assert book.meta.source == "vnthuquan"
+    assert book.meta.schema_version == "2.0"
+    assert len(book.chapters) > 0
+    assert book.chapters[0].page_count == 1
+    assert len(book.chapters[0].pages) == 1
+    assert book.book_id == 1001
+
+
+def test_build_book_data_index_vnthuquan_multi_category(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Vnthuquan books in multiple categories are all discovered."""
+    book_data_dir = tmp_path / "book-data"
+    make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=2001)
+    make_vnthuquan_book_json(book_data_dir, "thien-tong", "book-b", book_id=2002)
+
+    build_book_data_index(tmp_path, mock_logger)
+
+    data = json.loads((book_data_dir / "index.json").read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 2
+    sources = {b["artifacts"][0]["source"] for b in data["books"]}
+    assert sources == {"vnthuquan"}

@@ -53,3 +53,14 @@ sources:
       book: "/search/get-books-selectlist-by-categoryId"
       toc: "/search/get-tableofcontents-by-bookId"
       chapter: "/search/get-pages-by-tableofcontentid"
+
+  - name: vnthuquan
+    source_type: html
+    enabled: true
+    seed_url: "http://vietnamthuquan.eu/truyen/?tranghientai=1"
+    rate_limit_seconds: 1.5
+    output_folder: vnthuquan
+    css_selectors:  # documentation only — hardcoded in vnthuquan_parser.py
+      listing_row: "table.forum tr"
+      book_title: "a.normal8"
+      chapter_link: "a.normal8"

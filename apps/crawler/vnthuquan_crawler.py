@@ -13,7 +13,8 @@ import json
 import logging
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from urllib.parse import urljoin
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -171,19 +172,11 @@ class VnthuquanAdapter:
         self.rate_limit_seconds: float = source_config.rate_limit_seconds
         self._session_refresh_count: int = 0
         self._done: bool = False
+        self._shutdown_event = asyncio.Event()
         self._abort: bool = False
         self._stall_count: int = 0
         self._completed_timestamps: list[float] = []
         self._books_remaining: int = 0
-
-    @property
-    def session(self) -> aiohttp.ClientSession:
-        """Public alias for _session (backward compatibility)."""
-        return self._session
-
-    @session.setter
-    def session(self, value: aiohttp.ClientSession) -> None:
-        self._session = value
 
     async def _rate_limited_request(self, method: str, url: str, **kwargs) -> RequestResult:
         """Rate-limited entry point for all outbound HTTP requests.
@@ -275,6 +268,12 @@ class VnthuquanAdapter:
         base = self._source_config.seed_url.rsplit("?", 1)[0]
         return f"{base}?tranghientai={page_num}"
 
+    def _resolve_entry_urls(
+        self, listing_page_url: str, entries: list[BookListingEntry]
+    ) -> list[BookListingEntry]:
+        """Join relative book hrefs to the listing URL (site uses relative truyen.aspx links)."""
+        return [replace(e, url=urljoin(listing_page_url, e.url)) for e in entries]
+
     async def fetch_listing_page(self, page_num: int) -> list[BookListingEntry]:
         """Fetch and parse a single listing page. Returns [] on any error."""
         url = self._listing_url(page_num)
@@ -285,7 +284,7 @@ class VnthuquanAdapter:
             logger.warning(f"[vnthuquan] Failed listing page {page_num}: {result.error_detail}")
             return []
         html = await result.response.text(encoding="utf-8")
-        return parse_listing_page(html)
+        return self._resolve_entry_urls(url, parse_listing_page(html))
 
     async def fetch_all_listings(
         self, start_page: int = 1, end_page: int = 0
@@ -301,13 +300,16 @@ class VnthuquanAdapter:
             "GET", self._listing_url(start_page)
         )
         if first_page_result.error_type or not first_page_result.response:
+            if first_page_result.response is not None:
+                await first_page_result.response.release()
             logger.error(
                 f"[vnthuquan] Failed to fetch first listing page: {first_page_result.error_detail}"
             )
             return []
 
         first_html = await first_page_result.response.text(encoding="utf-8")
-        first_entries = parse_listing_page(first_html)
+        first_listing_url = self._listing_url(start_page)
+        first_entries = self._resolve_entry_urls(first_listing_url, parse_listing_page(first_html))
 
         if end_page == 0:
             end_page = extract_last_page_number(first_html)
@@ -362,6 +364,43 @@ class VnthuquanAdapter:
         raw = await result.response.text(encoding="utf-8")
         return parse_chapter_response(raw)
 
+    async def _download_cover(self, cover_url: str | None, book_data: "BookData") -> str | None:
+        """Download cover image and save next to book.json. Returns relative local path or None."""
+        if not cover_url:
+            return None
+        result = await self._rate_limited_request("GET", cover_url)
+        if result.error_type or not result.response:
+            if result.response is not None:
+                await result.response.release()
+            logger.warning(f"[vnthuquan] Failed to download cover {cover_url}")
+            return None
+        try:
+            img_bytes = await result.response.read()
+        except Exception as exc:
+            logger.warning(f"[vnthuquan] Error reading cover bytes {cover_url}: {exc}")
+            return None
+
+        # Derive extension from URL; default to .jpg
+        ext = Path(cover_url.split("?")[0]).suffix.lower() or ".jpg"
+        if ext not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+            ext = ".jpg"
+
+        target_dir = (
+            self.output_dir
+            / "book-data"
+            / "vnthuquan"
+            / book_data.category_seo_name
+            / book_data.book_seo_name
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        cover_file = target_dir / f"cover{ext}"
+        cover_file.write_bytes(img_bytes)
+
+        # Return path relative to output_dir/book-data
+        rel = cover_file.relative_to(self.output_dir / "book-data")
+        logger.info(f"[vnthuquan] Cover saved: {rel}")
+        return str(rel)
+
     async def crawl_book(self, entry: BookListingEntry) -> bool:
         """Process one book: fetch detail, chapters, assemble, write, update state."""
         # AC #6: early-exit if already downloaded
@@ -378,7 +417,8 @@ class VnthuquanAdapter:
             return False
 
         chapters_html: list[str] = []
-        cover_url: str | None = None
+        # Prefer listing-page cover; fall back to first-chapter AJAX cover
+        cover_url: str | None = entry.cover_image_url
 
         for i, (chuongid, _) in enumerate(detail.chapter_list):
             result = await self.fetch_chapter(detail.tuaid, chuongid)
@@ -387,12 +427,15 @@ class VnthuquanAdapter:
                 logger.warning(f"[vnthuquan] Empty chapter {chuongid} in book {detail.tuaid}")
                 html = ""
             chapters_html.append(html)
-            if i == 0 and result:
+            if i == 0 and result and cover_url is None:
                 cover_url = result.cover_image_url
 
         # AC #2 and #4: assemble, write, then update state
         try:
             book_data = assemble_book_data(entry, detail, chapters_html, cover_url)
+            cover_local_path = await self._download_cover(cover_url, book_data)
+            if cover_local_path:
+                book_data.cover_image_local_path = cover_local_path
             write_book_json(book_data, self.output_dir)  # write FIRST
             async with self._state_lock:
                 self.state.mark_downloaded(entry.url)    # only after successful write
@@ -417,11 +460,18 @@ class VnthuquanAdapter:
 
     async def _monitor_health(self) -> None:
         """Stall detection monitor: aborts crawl after 30min of zero throughput."""
-        while not self._done:
-            await asyncio.sleep(600)  # 10-minute window
+        window_sec = 600
+        while True:
             if self._done:
                 return
-            recent = self._books_completed_since(time.time() - 600)
+            try:
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=window_sec)
+                return
+            except asyncio.TimeoutError:
+                pass
+            if self._done:
+                return
+            recent = self._books_completed_since(time.time() - window_sec)
             if recent == 0 and self._books_remaining > 0:
                 self._stall_count += 1
                 logger.warning(
@@ -448,7 +498,10 @@ class VnthuquanAdapter:
         if dry_run:
             typer.echo("[vnthuquan] DRY RUN — listing books only (no download)")
             for entry in all_entries:
-                typer.echo(f"[dry-run] [vnthuquan] book: {entry.title} | {entry.author_name} | {entry.format_type} | {entry.url}")
+                typer.echo(
+                    f"[vnthuquan] DRY RUN book: {entry.title} | {entry.author_name} | "
+                    f"{entry.format_type} | {entry.url}"
+                )
             typer.echo(f"[vnthuquan] DRY RUN complete. {len(all_entries)} books found.")
             return
 
@@ -477,11 +530,8 @@ class VnthuquanAdapter:
             await asyncio.gather(*[process_book(e) for e in pending])
         finally:
             self._done = True
-            monitor_task.cancel()
-            try:
-                await monitor_task
-            except asyncio.CancelledError:
-                pass
+            self._shutdown_event.set()
+            await monitor_task
 
 
 # ---------------------------------------------------------------------------
@@ -551,6 +601,97 @@ def _print_summary(state: CrawlState) -> None:
     total = len(state._state)
     remaining = total - completed - errors
     typer.echo(f"Summary — completed: {completed}, errors: {errors}, remaining: {remaining}")
+
+
+@app.command()
+def backfill_covers(
+    start_page: int = typer.Option(1, "--start-page", help="First listing page to scan"),
+    end_page: int = typer.Option(0, "--end-page", help="Last page (0 = auto-detect)"),
+    rate_limit: float = typer.Option(0.0, "--rate-limit", help="Rate limit override in seconds (0 = use config)"),
+    concurrency: int = typer.Option(3, "--concurrency", help="Number of concurrent cover downloads"),
+) -> None:
+    """Download missing cover images for already-crawled books without re-downloading chapters."""
+    asyncio.run(_run_backfill_covers(start_page, end_page, rate_limit, concurrency))
+
+
+async def _run_backfill_covers(
+    start_page: int,
+    end_page: int,
+    rate_limit: float,
+    concurrency: int,
+) -> None:
+    cfg = load_config("config.yaml")
+    try:
+        vnthuquan_src = next(s for s in cfg.sources if s.name == "vnthuquan")
+    except StopIteration:
+        raise typer.BadParameter("No 'vnthuquan' source found in config.yaml")
+
+    if rate_limit > 0:
+        vnthuquan_src.rate_limit_seconds = rate_limit
+
+    state = CrawlState(state_file="data/crawl-state-vnthuquan.json")
+    output_dir = Path("data")
+    session = await create_session()
+
+    try:
+        adapter = VnthuquanAdapter(vnthuquan_src, session, state, output_dir=output_dir)
+        all_entries = await adapter.fetch_all_listings(start_page, end_page)
+        text_entries = [e for e in all_entries if e.format_type.strip() == "Text"]
+
+        semaphore = asyncio.Semaphore(concurrency)
+        updated = 0
+        skipped = 0
+
+        async def backfill_one(entry: BookListingEntry) -> None:
+            nonlocal updated, skipped
+            if not entry.cover_image_url:
+                skipped += 1
+                return
+
+            from utils.slugify import slugify_title
+            import json as _json
+            cat = slugify_title(entry.category_name)
+            book = slugify_title(entry.title)
+            book_dir = output_dir / "book-data" / "vnthuquan" / cat / book
+            book_json_path = book_dir / "book.json"
+
+            if not book_json_path.exists():
+                skipped += 1
+                return  # not yet crawled
+
+            data = _json.loads(book_json_path.read_text(encoding="utf-8"))
+            if data.get("cover_image_local_path"):
+                skipped += 1
+                return  # already has local cover
+
+            async with semaphore:
+                # Build minimal stub with correct seo names from existing book.json
+                from models import BookData
+                stub_seo_name = data.get("book_seo_name") or book
+                stub_cat_seo = data.get("category_seo_name") or cat
+                # Temporarily override to match actual book dir
+                import types
+                stub = types.SimpleNamespace(
+                    category_seo_name=stub_cat_seo,
+                    book_seo_name=stub_seo_name,
+                )
+                local_path = await adapter._download_cover(entry.cover_image_url, stub)  # type: ignore[arg-type]
+
+            if local_path:
+                data["cover_image_url"] = entry.cover_image_url
+                data["cover_image_local_path"] = local_path
+                book_json_path.write_text(
+                    _json.dumps(data, ensure_ascii=False, indent=None), encoding="utf-8"
+                )
+                updated += 1
+                logger.info(f"[vnthuquan] Backfilled cover: {entry.title} → {local_path}")
+            else:
+                skipped += 1
+
+        await asyncio.gather(*[backfill_one(e) for e in text_entries])
+        typer.echo(f"Backfill done — updated: {updated}, skipped: {skipped}")
+    finally:
+        await session.close()
 
 
 if __name__ == "__main__":
