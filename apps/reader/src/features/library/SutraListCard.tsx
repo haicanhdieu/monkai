@@ -4,6 +4,7 @@ import type { CatalogBook } from '@/shared/types/global.types'
 import { toRead } from '@/shared/constants/routes'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
+import { SOURCES } from '@/shared/constants/sources'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 
 interface SutraListCardProps {
@@ -14,6 +15,10 @@ export function SutraListCard({ book }: SutraListCardProps) {
   const [coverError, setCoverError] = useState(false)
   const [coverLoaded, setCoverLoaded] = useState(false)
   const coverUrl = book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null
+  const sourceConfig = SOURCES.find((s) => s.id === book.source)
+  if (import.meta.env.DEV && !sourceConfig && book.source) {
+    console.warn(`[SutraListCard] Unknown source: "${book.source}" for book ${book.id}`)
+  }
 
   return (
     <Link
@@ -50,6 +55,11 @@ export function SutraListCard({ book }: SutraListCardProps) {
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {book.translator}
           </p>
+          {sourceConfig && (
+            <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${sourceConfig.badgeClass}`}>
+              {sourceConfig.label}
+            </span>
+          )}
         </div>
         <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" aria-hidden="true" />
       </div>

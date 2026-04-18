@@ -42,7 +42,7 @@ describe('StaticJsonDataService', () => {
     } satisfies Partial<Response>)
 
     const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
-    const catalog = await service.getCatalog()
+    const catalog = await service.getCatalog('vbeta')
 
     expect(catalog.books).toHaveLength(1)
     expect(catalog.books[0]?.title).toBe('Kinh Bát Nhã')
@@ -58,7 +58,7 @@ describe('StaticJsonDataService', () => {
 
     const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
 
-    await expect(service.getCatalog()).rejects.toMatchObject({
+    await expect(service.getCatalog('vbeta')).rejects.toMatchObject({
       name: 'DataError',
       category: 'parse',
     } satisfies Partial<DataError>)
@@ -84,7 +84,7 @@ describe('StaticJsonDataService', () => {
 
     const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
 
-    await expect(service.getBook('missing')).rejects.toMatchObject({
+    await expect(service.getBook('missing', 'vbeta')).rejects.toMatchObject({
       name: 'DataError',
       category: 'not_found',
     } satisfies Partial<DataError>)
@@ -109,9 +109,10 @@ describe('StaticJsonDataService', () => {
     })
 
     const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
-    const book = await service.getBook('book-1')
+    const book = await service.getBook('book-1', 'vbeta')
 
     expect(book.id).toBe('book-1')
+    expect(book.source).toBe('vbeta')
     expect(book.coverImageUrl).toBeNull()
     expect(book.content[0]).toContain('Bát Nhã')
     expect(book.content[1]).toBe('A & B <C> "D" \'E\' &')
@@ -152,7 +153,7 @@ describe('StaticJsonDataService', () => {
     })
 
     const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001')
-    const book = await service.getBook(catalogUuid)
+    const book = await service.getBook(catalogUuid, 'vbeta')
 
     // book.id must be the catalog UUID so bookmarks survive storage hydration
     // (hydration filter rejects slugs — only UUIDs pass isValidBookId)

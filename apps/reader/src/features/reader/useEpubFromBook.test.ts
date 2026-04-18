@@ -29,6 +29,7 @@ const bookFixture: Book = {
   subcategory: 'Test',
   translator: 'Tester',
   coverImageUrl: null,
+  source: 'vbeta',
   content: ['Paragraph one'],
 }
 

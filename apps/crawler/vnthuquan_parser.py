@@ -223,11 +223,14 @@ def parse_book_detail(html: str) -> BookDetail | None:
     m = _NOIDUNG_RE.search(full_text)
     if m:
         tuaid = int(m.group(1))
+        # Preserve the raw chuongid string (may be "" for single-chapter books).
+        # The AJAX endpoint requires empty string when the JS call has chuongid=.
+        chuongid_str = m.group(2)
         return BookDetail(
             title=title,
             category_label=category_label,
             tuaid=tuaid,
-            chapter_list=[(0, title)],
+            chapter_list=[(chuongid_str, title)],
             cover_image_url=None,
             is_single_chapter=True,
         )

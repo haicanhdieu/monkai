@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest'
 import type { Book } from '@/shared/types/global.types'
 import { bookToEpubBuffer } from './bookToEpub'
 
+const BASE_BOOK: Pick<Book, 'source'> = { source: 'vbeta' }
+
 async function unzip(buffer: ArrayBuffer) {
   const zip = await JSZip.loadAsync(buffer)
   const fileNames = Object.keys(zip.files).sort()
@@ -13,6 +15,7 @@ async function unzip(buffer: ArrayBuffer) {
 describe('bookToEpubBuffer – multi-chapter structure', () => {
   it('emits one content-*.xhtml and navPoint per chapter when chaptersForEpub is present', async () => {
     const book: Book = {
+      ...BASE_BOOK,
       id: 'multi-chapter-book',
       title: 'Multi Chapter Book',
       category: 'Kinh',
@@ -54,6 +57,7 @@ describe('bookToEpubBuffer – multi-chapter structure', () => {
 
   it('falls back to a single synthetic chapter when chaptersForEpub is missing', async () => {
     const book: Book = {
+      ...BASE_BOOK,
       id: 'single-chapter-book',
       title: 'Single Chapter Book',
       category: 'Kinh',
@@ -77,6 +81,7 @@ describe('bookToEpubBuffer – multi-chapter structure', () => {
 
   it('uses chapter.title as the <h1> and <title> in each chapter XHTML', async () => {
     const book: Book = {
+      ...BASE_BOOK,
       id: 'named-chapters',
       title: 'Trang Rời Rừng Thiền',
       category: 'Thiền',
@@ -103,6 +108,7 @@ describe('bookToEpubBuffer – multi-chapter structure', () => {
 
   it('XML-escapes chapter title in <h1> and <title> when it contains special chars', async () => {
     const book: Book = {
+      ...BASE_BOOK,
       id: 'special-chars',
       title: 'Tuyển Tập',
       category: 'Thiền',
@@ -129,6 +135,7 @@ describe('bookToEpubBuffer – multi-chapter structure', () => {
 
   it('keeps mimetype file uncompressed (STORE method)', async () => {
     const book: Book = {
+      ...BASE_BOOK,
       id: 'test-id',
       title: 'Test Title',
       category: 'Đại Thừa',

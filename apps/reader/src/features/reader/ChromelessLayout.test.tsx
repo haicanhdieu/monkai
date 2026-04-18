@@ -59,6 +59,7 @@ const bookFixture: Book = {
   subcategory: 'bat-nha',
   translator: 'HT. A',
   coverImageUrl: null,
+  source: 'vbeta',
   content: ['Đoạn 1.'],
 }
 

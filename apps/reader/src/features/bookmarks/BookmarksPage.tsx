@@ -7,6 +7,7 @@ import { AppBar } from '@/shared/components/AppBar'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { resolveCoverUrl } from '@/shared/services/data.service'
+import { SOURCES } from '@/shared/constants/sources'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { BookmarkCard } from './BookmarkCard'
@@ -15,17 +16,25 @@ import { BookmarkSearchBar } from './BookmarkSearchBar'
 export default function BookmarksPage() {
   const { bookmarks, removeBookmark } = useBookmarksStore()
   const [searchQuery, setSearchQuery] = useState('')
-  const { data: catalog } = useCatalogIndex()
+  const { data: vbetaCatalog } = useCatalogIndex('vbeta')
+  const { data: vnthuquanCatalog } = useCatalogIndex('vnthuquan')
 
-  const coverUrlMap = useMemo(() => {
-    const map: Record<string, string | null> = {}
-    if (catalog) {
+  const bookMap = useMemo(() => {
+    const map: Record<string, { coverUrl: string | null; source: string }> = {}
+    for (const catalog of [vbetaCatalog, vnthuquanCatalog]) {
+      if (!catalog) continue
       for (const book of catalog.books) {
-        map[book.id] = book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null
+        if (import.meta.env.DEV && map[book.id] !== undefined) {
+          console.warn(`[BookmarksPage] Duplicate book id across sources: ${book.id}`)
+        }
+        map[book.id] = {
+          coverUrl: book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null,
+          source: book.source,
+        }
       }
     }
     return map
-  }, [catalog])
+  }, [vbetaCatalog, vnthuquanCatalog])
 
   const groups = useMemo(() => Object.values(
     bookmarks.reduce<Record<string, { bookId: string; bookTitle: string; items: typeof bookmarks }>>(
@@ -130,9 +139,9 @@ export default function BookmarksPage() {
                   >
                     <div className="flex items-center gap-4 px-3 pt-3 pb-3" data-testid="bookmark-group-header">
                       <div className="relative h-[88px] w-[70px] shrink-0 overflow-hidden rounded">
-                        {coverUrlMap[group.bookId] ? (
+                        {bookMap[group.bookId]?.coverUrl ? (
                           <img
-                            src={coverUrlMap[group.bookId]!}
+                            src={bookMap[group.bookId]!.coverUrl!}
                             alt={group.bookTitle}
                             className="h-full w-full object-cover"
                           />
@@ -143,9 +152,20 @@ export default function BookmarksPage() {
                           />
                         )}
                       </div>
-                      <span className="text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
-                        {group.bookTitle}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
+                          {group.bookTitle}
+                        </span>
+                        {(() => {
+                          const src = bookMap[group.bookId]?.source
+                          const cfg = src ? SOURCES.find((s) => s.id === src) : undefined
+                          return cfg ? (
+                            <span className={`mt-1 inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.badgeClass}`}>
+                              {cfg.label}
+                            </span>
+                          ) : null
+                        })()}
+                      </div>
                     </div>
                     <ul className="divide-y divide-[var(--color-border)]">
                       {group.items.map((b) => (

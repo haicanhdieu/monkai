@@ -138,30 +138,37 @@ def build_index(cfg: CrawlerConfig, logger) -> None:
     )
 
 
-def build_book_data_index(output_dir: Path, logger) -> None:
+def build_book_data_index(output_dir: Path, logger, source: str | None = None) -> None:
     """Scan data/book-data/ for BookData (schema v2.0) JSON files and build
     a central data/book-data/index.json manifest.
 
     UUID stability: UUIDs are only generated once on first encounter of a book
     (matched by source + source_book_id). Subsequent rebuilds reuse the existing UUID.
+
+    If `source` is provided, only books under book-data/{source}/ are scanned and the
+    index is written to book-data/{source}/index.json.
     """
     book_data_dir = output_dir / "book-data"
-    index_path = book_data_dir / "index.json"
+    scan_root = book_data_dir / source if source else book_data_dir
+    index_path = scan_root / "index.json"
 
     # Load existing index to preserve UUIDs across rebuilds.
-    # existing_uuid_map: {(source, source_book_id_str) -> uuid_str}
+    # existing_uuid_map: {(derived_source, source_book_id_str) -> uuid_str}
     existing_uuid_map: dict[tuple[str, str], str] = {}
     if index_path.exists():
         try:
             raw = json.loads(index_path.read_text(encoding="utf-8"))
             for entry in raw.get("books", []):
-                # Determine source from the first artifact entry
-                artifacts = entry.get("artifacts", [])
-                if artifacts:
-                    src = artifacts[0].get("source", "")
-                    src_book_id = str(entry.get("source_book_id", ""))
-                    if src and src_book_id:
-                        existing_uuid_map[(src, src_book_id)] = entry["id"]
+                # Prefer the top-level source field; fall back to artifacts[0] for
+                # legacy indexes written before the source field was added.
+                src = entry.get("source", "")
+                if not src:
+                    artifacts = entry.get("artifacts", [])
+                    if artifacts:
+                        src = artifacts[0].get("source", "")
+                src_book_id = str(entry.get("source_book_id", ""))
+                if src and src_book_id:
+                    existing_uuid_map[(src, src_book_id)] = entry["id"]
         except Exception as e:
             logger.warning(f"[indexer] Could not load existing index for UUID preservation: {e}")
 
@@ -171,7 +178,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
         return
 
     json_files = sorted(
-        p for p in book_data_dir.rglob("*.json") if p.name != "index.json"
+        p for p in scan_root.rglob("*.json") if p.name != "index.json"
     )
 
     # book_key → BookIndexEntry (merge artifacts for same book)
@@ -192,9 +199,13 @@ def build_book_data_index(output_dir: Path, logger) -> None:
             logger.error(f"[indexer] Cannot compute relative path for {file_path}")
             continue
 
-        source = rel.parts[0]  # e.g. "vbeta"
+        # Use the explicit source param if provided; otherwise derive from the first path
+        # component relative to book_data_dir (e.g. "vbeta" or "vnthuquan").
+        # Note: rel is intentionally relative to book_data_dir (not scan_root) so that
+        # artifact paths in the index are always rooted at book_data_dir.
+        derived_source = source if source else rel.parts[0]
         source_book_id = str(book_data.book_id)
-        book_key = (source, source_book_id)
+        book_key = (derived_source, source_book_id)
 
         # Resolve or generate UUID (stable across rebuilds)
         book_uuid = existing_uuid_map.get(book_key) or str(uuid.uuid4())
@@ -204,7 +215,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
         # Build artifact entry (path relative to book_data_dir)
         artifact_path = str(rel)  # e.g. "vbeta/kinh/bo-trung-quan.json"
         artifact = BookArtifact(
-            source=source,
+            source=derived_source,
             format="json",
             path=artifact_path,
             built_at=book_data.meta.built_at,
@@ -231,6 +242,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
                 category_seo_name=book_data.category_seo_name,
                 total_chapters=book_data.total_chapters,
                 artifacts=[artifact],
+                source=derived_source,
             )
 
         # Add image artifacts from images/ subfolder alongside book.json
@@ -240,7 +252,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
                 if img_file.is_file():
                     img_rel = str(img_file.relative_to(book_data_dir))
                     img_artifact = BookArtifact(
-                        source=source,
+                        source=derived_source,
                         format="image",
                         path=img_rel,
                         built_at=book_data.meta.built_at,
@@ -262,6 +274,7 @@ def build_book_data_index(output_dir: Path, logger) -> None:
         books=books,
     )
 
+    index_path.parent.mkdir(parents=True, exist_ok=True)
     index_path.write_text(
         index.model_dump_json(by_alias=True, indent=2),
         encoding="utf-8",
@@ -284,10 +297,11 @@ def index(
 @app.command(name="build-index")
 def build_index_cmd(
     config: str = typer.Option("config.yaml", help="Config file path"),
+    source: str = typer.Option(None, help="Source name to index (e.g. vnthuquan). Omit for default full scan."),
 ) -> None:
     cfg = load_config(config)
     logger = setup_logger("indexer")
-    build_book_data_index(Path(cfg.output_dir), logger)
+    build_book_data_index(Path(cfg.output_dir), logger, source=source)
 
 
 if __name__ == "__main__":

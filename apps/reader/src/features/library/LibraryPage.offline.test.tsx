@@ -7,6 +7,14 @@ import LibraryPage from '@/features/library/LibraryPage'
 import { queryKeys } from '@/shared/constants/query.keys'
 import type { CatalogIndex } from '@/shared/types/global.types'
 
+vi.mock('@/shared/stores/useActiveSource', () => ({
+  useActiveSource: () => ({ activeSource: 'vbeta', setActiveSource: vi.fn() }),
+}))
+
+vi.mock('@/features/library/SourceSelectorPill', () => ({
+  SourceSelectorPill: () => null,
+}))
+
 const cachedCatalogFixture: CatalogIndex = {
   books: [
     {
@@ -18,6 +26,7 @@ const cachedCatalogFixture: CatalogIndex = {
       translator: 'HT. A',
       coverImageUrl: null,
       artifacts: [],
+      source: 'vbeta',
     },
   ],
   categories: [
@@ -47,7 +56,7 @@ describe('LibraryPage offline parity', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
     try {
       const queryClient = createQueryClient()
-      queryClient.setQueryData(queryKeys.catalog(), cachedCatalogFixture)
+      queryClient.setQueryData(queryKeys.catalog('vbeta'), cachedCatalogFixture)
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -58,7 +67,7 @@ describe('LibraryPage offline parity', () => {
       )
 
       const user = userEvent.setup()
-      await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+      await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh điển...' }), 'Bát Nhã')
 
       await waitFor(() => expect(screen.getByLabelText('Kết quả tìm kiếm')).toBeInTheDocument())
       expect(screen.getByRole('link', { name: /Đọc Kinh Bát Nhã/i })).toBeInTheDocument()

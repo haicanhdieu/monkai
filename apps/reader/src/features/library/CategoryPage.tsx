@@ -11,6 +11,7 @@ import { AppBar } from '@/shared/components/AppBar'
 import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
+import { useActiveSource } from '@/shared/stores/useActiveSource'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { DataError } from '@/shared/services/data.service'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
@@ -96,7 +97,8 @@ function VirtualBookList({ books, categorySlug }: { books: LibraryCategory['book
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>()
-  const catalogQuery = useCatalogIndex()
+  const { activeSource } = useActiveSource()
+  const catalogQuery = useCatalogIndex(activeSource)
   const isOnline = useOnlineStatus()
 
   // Hoist before all early-return guards to satisfy React hook rules

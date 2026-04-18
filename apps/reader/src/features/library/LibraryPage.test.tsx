@@ -10,7 +10,16 @@ const mockUseCatalogIndex = vi.fn()
 const mockUseOnlineStatus = vi.fn()
 
 vi.mock('@/shared/hooks/useCatalogIndex', () => ({
-  useCatalogIndex: () => mockUseCatalogIndex(),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useCatalogIndex: (_source: string) => mockUseCatalogIndex(),
+}))
+
+vi.mock('@/shared/stores/useActiveSource', () => ({
+  useActiveSource: () => ({ activeSource: 'vbeta', setActiveSource: vi.fn() }),
+}))
+
+vi.mock('@/features/library/SourceSelectorPill', () => ({
+  SourceSelectorPill: () => null,
 }))
 
 vi.mock('@/shared/hooks/useOnlineStatus', () => ({
@@ -39,6 +48,7 @@ const catalogFixture: CatalogIndex = {
       translator: 'HT. A',
       coverImageUrl: null,
       artifacts: [],
+      source: 'vbeta',
     },
   ],
   categories: [

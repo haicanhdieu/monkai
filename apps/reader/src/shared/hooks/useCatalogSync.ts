@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '@/shared/constants/query.keys'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 
 /**
@@ -18,7 +17,8 @@ export function useCatalogSync() {
 
     const channel = new BroadcastChannel('catalog-updates')
     channel.addEventListener('message', () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.catalog() })
+      // Invalidate all catalog queries (both sources) using the base key prefix
+      void queryClient.invalidateQueries({ queryKey: ['catalog'] })
     })
     return () => channel.close()
   }, [isOnline, queryClient])

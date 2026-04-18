@@ -3,7 +3,9 @@ import { useParams, useLocation } from 'react-router-dom'
 import { useBook } from '@/shared/hooks/useBook'
 import { useReaderStore } from '@/stores/reader.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
+import { useActiveSource } from '@/shared/stores/useActiveSource'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
+import type { SourceId } from '@/shared/constants/sources'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { DataError } from '@/shared/services/data.service'
 import type { DataErrorCategory } from '@/shared/types/global.types'
@@ -23,8 +25,12 @@ export default function ReaderPage() {
   useEffect(() => {
     useReaderStore.getState().setProgress(0, 0, '')
   }, [bookId])
+  const { activeSource } = useActiveSource()
   const { data: book, isLoading, error } = useBook(bookId)
-  const { data: catalog } = useCatalogIndex()
+  // Prefer the book's own source once loaded; fall back to activeSource while loading.
+  // This ensures catalog lookup is correct even if the user switched sources after bookmarking.
+  const catalogSource = (book?.source as SourceId | undefined) ?? activeSource
+  const { data: catalog } = useCatalogIndex(catalogSource)
   const isOnline = useOnlineStatus()
 
   const catalogBook = catalog?.books.find((b) => b.id === bookId)

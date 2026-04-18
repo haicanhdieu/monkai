@@ -17,7 +17,12 @@ vi.mock('@/shared/hooks/useBook', () => ({
   useBook: (id: string) => mockUseBook(id),
 }))
 vi.mock('@/shared/hooks/useCatalogIndex', () => ({
-  useCatalogIndex: () => mockUseCatalogIndex(),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useCatalogIndex: (_source: string) => mockUseCatalogIndex(),
+}))
+
+vi.mock('@/shared/stores/useActiveSource', () => ({
+  useActiveSource: () => ({ activeSource: 'vbeta', setActiveSource: vi.fn() }),
 }))
 vi.mock('@/shared/hooks/useOnlineStatus', () => ({
   useOnlineStatus: () => mockUseOnlineStatus(),
@@ -79,6 +84,7 @@ const bookFixture: Book = {
   subcategory: 'bat-nha',
   translator: 'HT. A',
   coverImageUrl: null,
+  source: 'vbeta',
   content: ['Đoạn 1.', 'Đoạn 2.', 'Đoạn 3.'],
 }
 

@@ -2,7 +2,7 @@
 title: 'Phase A — Multi-Source Library UI + Reading'
 slug: 'phase-a-multi-source'
 created: '2026-04-18'
-status: 'ready-for-dev'
+status: 'implementation-complete'
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   - 'Python 3.11 / Pydantic v2 / Typer (crawler)'
@@ -153,12 +153,12 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Crawler
 
-- [ ] **Task 1: Add `source` field to `BookIndexEntry`**
+- [x] **Task 1: Add `source` field to `BookIndexEntry`**
   - File: `apps/crawler/models.py`
   - Action: Add `source: str` field to `BookIndexEntry` model after `artifacts: list[BookArtifact]`.
   - Notes: No default value — always explicitly set by the indexer. Full model at line 270.
 
-- [ ] **Task 2: Add `--source` option and per-source scoping to `build_book_data_index`**
+- [x] **Task 2: Add `--source` option and per-source scoping to `build_book_data_index`**
   - File: `apps/crawler/indexer.py`
   - Action (function signature): Change `def build_book_data_index(output_dir: Path, logger) -> None:` to `def build_book_data_index(output_dir: Path, logger, source: str | None = None) -> None:`
   - Action (scan root): After `book_data_dir = output_dir / "book-data"`, add:
@@ -177,7 +177,7 @@ Tasks are ordered by dependency (data layer first, UI last).
   - Action (existing UUID map loading): When loading existing `index_path`, if it doesn't exist yet (new vnthuquan scan), gracefully return empty dict — already handled.
   - Notes: Variable name collision: the function param `source` and the derived `source = rel.parts[0]` clash. The fix is to rename the derived variable to `derived_source` throughout the function body.
 
-- [ ] **Task 3: Add `--source` option to `build-index` CLI command**
+- [x] **Task 3: Add `--source` option to `build-index` CLI command**
   - File: `apps/crawler/indexer.py`
   - Action: Update `build_index_cmd` function (line 284):
     ```python
@@ -195,7 +195,7 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Reader — Constants & Store (new files)
 
-- [ ] **Task 4: Create `sources.ts` constants file**
+- [x] **Task 4: Create `sources.ts` constants file**
   - File: `apps/reader/src/shared/constants/sources.ts` *(new file)*
   - Action: Create with the following content:
     ```typescript
@@ -232,7 +232,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     export const DEFAULT_SOURCE: SourceId = 'vbeta'
     ```
 
-- [ ] **Task 5: Create `useActiveSource` Zustand store**
+- [x] **Task 5: Create `useActiveSource` Zustand store**
   - File: `apps/reader/src/shared/stores/useActiveSource.ts` *(new file, new directory)*
   - Action: Create with the following content:
     ```typescript
@@ -262,18 +262,18 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Reader — Type system
 
-- [ ] **Task 6: Add `source` to `CatalogBook` and `Book` interfaces**
+- [x] **Task 6: Add `source` to `CatalogBook` and `Book` interfaces**
   - File: `apps/reader/src/shared/types/global.types.ts`
   - Action: In `CatalogBook` interface, add `source: string` after `artifacts: CatalogArtifact[]`.
   - Action: In `Book` interface, add `source: string` after `coverImageUrl: string | null`.
 
-- [ ] **Task 7: Update `catalog.schema.ts` to parse and map `source`**
+- [x] **Task 7: Update `catalog.schema.ts` to parse and map `source`**
   - File: `apps/reader/src/shared/schemas/catalog.schema.ts`
   - Action: In `rawCatalogBookSchema`, add `source: z.string().optional().default('vbeta')` after the `epubUrl` field.
   - Action: In `toCatalogBook(raw)` mapper, add `source: raw.source` to the returned object.
   - Notes: `.default('vbeta')` ensures old index files without the field still parse successfully. In production, the indexer always populates `source`.
 
-- [ ] **Task 8: Update `data.service.ts` — interface, getCatalog, getBook**
+- [x] **Task 8: Update `data.service.ts` — interface, getCatalog, getBook**
   - File: `apps/reader/src/shared/services/data.service.ts`
   - Action (imports): Add `import type { SourceId } from '@/shared/constants/sources'`
   - Action (interface): Update `DataService` interface:
@@ -313,7 +313,7 @@ Tasks are ordered by dependency (data layer first, UI last).
   - Action (`getBook`): Change signature to `async getBook(id: string, source: SourceId): Promise<Book>`. Change `const catalog = await this.getCatalog()` to `const catalog = await this.getCatalog(source)`. After `return { ...parsed.data, id }`, change to `return { ...parsed.data, id, source }`.
   - Notes: The `source` injection into the Book object (like `id`) requires `Book` to have the `source` field (Task 6). `book.json` files do NOT have a `source` field — it is always injected here.
 
-- [ ] **Task 9: Update `query.keys.ts` — source-parameterized catalog key**
+- [x] **Task 9: Update `query.keys.ts` — source-parameterized catalog key**
   - File: `apps/reader/src/shared/constants/query.keys.ts`
   - Action: Import `SourceId` and update `catalog` key:
     ```typescript
@@ -326,7 +326,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     }
     ```
 
-- [ ] **Task 10: Update `useCatalogIndex.ts` — accept source param**
+- [x] **Task 10: Update `useCatalogIndex.ts` — accept source param**
   - File: `apps/reader/src/shared/hooks/useCatalogIndex.ts`
   - Action: Replace entire file content:
     ```typescript
@@ -343,7 +343,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     }
     ```
 
-- [ ] **Task 11: Update `useBook.ts` — read active source, pass to getBook**
+- [x] **Task 11: Update `useBook.ts` — read active source, pass to getBook**
   - File: `apps/reader/src/shared/hooks/useBook.ts`
   - Action: Replace entire file content:
     ```typescript
@@ -366,7 +366,7 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Reader — New component
 
-- [ ] **Task 12: Create `SourceSelectorPill` component**
+- [x] **Task 12: Create `SourceSelectorPill` component**
   - File: `apps/reader/src/features/library/SourceSelectorPill.tsx` *(new file)*
   - Action: Create with the following content:
     ```typescript
@@ -422,13 +422,13 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Reader — Wire existing components
 
-- [ ] **Task 13: Add `placeholder` prop to `LibrarySearchBar`**
+- [x] **Task 13: Add `placeholder` prop to `LibrarySearchBar`**
   - File: `apps/reader/src/features/library/LibrarySearchBar.tsx`
   - Action: Add `placeholder?: string` to `LibrarySearchBarProps` interface.
   - Action: Change the `<input>` placeholder attribute from the hardcoded string to `{placeholder ?? 'Tìm kiếm kinh điển...'}`.
   - Action: Change the `aria-label` on the `<input>` from the hardcoded `"Tìm kiếm kinh sách"` to a dynamic value: use the same `placeholder` prop value or a default. Update to `aria-label={placeholder ?? 'Tìm kiếm kinh sách'}`.
 
-- [ ] **Task 14: Add source badge to `SutraListCard`**
+- [x] **Task 14: Add source badge to `SutraListCard`**
   - File: `apps/reader/src/features/library/SutraListCard.tsx`
   - Action: Add import: `import { SOURCES } from '@/shared/constants/sources'`
   - Action: Inside the component, before the return, derive badge config:
@@ -444,7 +444,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     )}
     ```
 
-- [ ] **Task 15: Wire `LibraryPage` with source selector and adaptive UI**
+- [x] **Task 15: Wire `LibraryPage` with source selector and adaptive UI**
   - File: `apps/reader/src/features/library/LibraryPage.tsx`
   - Action (imports): Add:
     ```typescript
@@ -478,7 +478,7 @@ Tasks are ordered by dependency (data layer first, UI last).
   - Action (category count suffix): Replace `{categories.length} nhóm` count label area — keep `{categories.length} nhóm` for the count (the count of groups is always "nhóm"); the `countSuffix` from `sourceConfig` is used on individual `CategoryGrid` cards. Pass `countSuffix={sourceConfig.countSuffix}` as a prop to `<CategoryGrid>`.
   - Notes: `CategoryGrid` may need a `countSuffix` prop added. See Task 16.
 
-- [ ] **Task 16: Add `countSuffix` prop to `CategoryGrid`**
+- [x] **Task 16: Add `countSuffix` prop to `CategoryGrid`**
   - File: `apps/reader/src/features/library/CategoryGrid.tsx`
   - Action: Add `countSuffix?: string` to `CategoryGridProps` interface (default: `'kinh sách'`).
   - Action: Replace the hardcoded `"kinh sách"` string in two places:
@@ -486,7 +486,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     2. Count `<p>` text: change `{category.count} kinh sách` to `{category.count} {countSuffix ?? 'kinh sách'}`
   - Notes: `CategoryGrid` is a pure rendering component. Both the aria-label and visible text must use the prop.
 
-- [ ] **Task 17: Update `BookmarksPage` — load both catalogs, add source badges**
+- [x] **Task 17: Update `BookmarksPage` — load both catalogs, add source badges**
   - File: `apps/reader/src/features/bookmarks/BookmarksPage.tsx`
   - Action (imports): Add `import { SOURCES } from '@/shared/constants/sources'`
   - Action (catalog loading): Replace the single `const { data: catalog } = useCatalogIndex()` with:
@@ -525,7 +525,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     ```
     Place this span after the book title `<span>` inside the flex header div, and ensure the header div has `flex-wrap` or constrains truncation correctly.
 
-- [ ] **Task 18: Update `ReaderPage` — source-aware catalog lookup**
+- [x] **Task 18: Update `ReaderPage` — source-aware catalog lookup**
   - File: `apps/reader/src/features/reader/ReaderPage.tsx`
   - Action (imports): Add `import { useActiveSource } from '@/shared/stores/useActiveSource'`
   - Action (inside component): Add `const { activeSource } = useActiveSource()` before the `useCatalogIndex` call.
@@ -535,12 +535,12 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 #### Tests
 
-- [ ] **Task 19: Update `data.service.test.ts`**
+- [x] **Task 19: Update `data.service.test.ts`**
   - File: `apps/reader/src/shared/services/data.service.test.ts`
   - Action: Update all `service.getCatalog()` calls to `service.getCatalog('vbeta')`. Update all `service.getBook(id)` calls to `service.getBook(id, 'vbeta')`. Update expected `Book` objects to include `source: 'vbeta'`. Update `validCatalogPayload.books[0]` to include `source: 'vbeta'` (or rely on `.default('vbeta')` in schema).
   - Notes: `StaticJsonDataService` constructor signature is unchanged.
 
-- [ ] **Task 20: Update `LibraryPage.test.tsx` mock**
+- [x] **Task 20: Update `LibraryPage.test.tsx` mock**
   - File: `apps/reader/src/features/library/LibraryPage.test.tsx`
   - Action: Update `vi.mock` for `useCatalogIndex` to accept a source param:
     ```typescript
@@ -552,7 +552,7 @@ Tasks are ordered by dependency (data layer first, UI last).
   - Action: Add `vi.mock('@/shared/stores/useActiveSource', () => ({ useActiveSource: () => ({ activeSource: 'vbeta', setActiveSource: vi.fn() }) }))` to prevent Zustand persist from affecting test behavior.
   - Action: Add `vi.mock('@/features/library/SourceSelectorPill', () => ({ SourceSelectorPill: () => null }))` to stub the new pill component.
 
-- [ ] **Task 21: Update `BookmarksPage.test.tsx` mock**
+- [x] **Task 21: Update `BookmarksPage.test.tsx` mock**
   - File: `apps/reader/src/features/bookmarks/BookmarksPage.test.tsx`
   - Action: Update `vi.mock` for `useCatalogIndex` to handle two source calls:
     ```typescript
@@ -564,7 +564,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     ```
   - This works for existing tests since empty books means empty `bookMap`.
 
-- [ ] **Task 22: Write tests for `useActiveSource` store**
+- [x] **Task 22: Write tests for `useActiveSource` store**
   - File: `apps/reader/src/shared/stores/useActiveSource.test.ts` *(new file)*
   - Action: Write tests covering:
     - Default active source is `'vbeta'`
@@ -572,7 +572,7 @@ Tasks are ordered by dependency (data layer first, UI last).
     - State is of type `SourceId`
   - Pattern: `useActiveSource.setState({ activeSource: 'vbeta' })` in `beforeEach` to reset. Use `useActiveSource.getState()` for assertions.
 
-- [ ] **Task 23: Write tests for `SourceSelectorPill` component**
+- [x] **Task 23: Write tests for `SourceSelectorPill` component**
   - File: `apps/reader/src/features/library/SourceSelectorPill.test.tsx` *(new file)*
   - Action: Write tests covering:
     - Renders two pill buttons (Kinh Phật, Sách & Truyện)
@@ -586,39 +586,39 @@ Tasks are ordered by dependency (data layer first, UI last).
 
 ### Acceptance Criteria
 
-- [ ] **AC 1:** Given the app is opened for the first time, when the Library page loads, then the active source is `vbeta` (Kinh Phật) and the source selector pill shows `Kinh Phật` as pressed.
+- [x] **AC 1:** Given the app is opened for the first time, when the Library page loads, then the active source is `vbeta` (Kinh Phật) and the source selector pill shows `Kinh Phật` as pressed.
 
-- [ ] **AC 2:** Given the Library page is visible, when the user taps the `Sách & Truyện` pill, then the catalog query switches to vnthuquan, the subtitle changes to "Khám phá kho sách truyện tổng hợp", and the search placeholder changes to "Tìm kiếm sách & truyện...".
+- [x] **AC 2:** Given the Library page is visible, when the user taps the `Sách & Truyện` pill, then the catalog query switches to vnthuquan, the subtitle changes to "Khám phá kho sách truyện tổng hợp", and the search placeholder changes to "Tìm kiếm sách & truyện...".
 
-- [ ] **AC 3:** Given the user has `Sách & Truyện` selected and a search query active, when the user taps `Kinh Phật`, then the search query is cleared and the category grid is shown.
+- [x] **AC 3:** Given the user has `Sách & Truyện` selected and a search query active, when the user taps `Kinh Phật`, then the search query is cleared and the category grid is shown.
 
-- [ ] **AC 4:** Given the user selects `Sách & Truyện` and closes the app, when the app is reopened and navigates to Library, then `Sách & Truyện` is still the active source (persisted via localStorage key `active-source`).
+- [x] **AC 4:** Given the user selects `Sách & Truyện` and closes the app, when the app is reopened and navigates to Library, then `Sách & Truyện` is still the active source (persisted via localStorage key `active-source`).
 
-- [ ] **AC 5:** Given the Library page loads with vbeta active, when the catalog is fetched and rendered, then `useCatalogIndex` is called with `'vbeta'` and the TanStack Query cache key is `['catalog', 'vbeta']`.
+- [x] **AC 5:** Given the Library page loads with vbeta active, when the catalog is fetched and rendered, then `useCatalogIndex` is called with `'vbeta'` and the TanStack Query cache key is `['catalog', 'vbeta']`.
 
-- [ ] **AC 6:** Given the user switches from vbeta to vnthuquan and back to vbeta, when the vbeta catalog is re-displayed, then no new network request is made (served from TanStack Query in-memory cache).
+- [x] **AC 6:** Given the user switches from vbeta to vnthuquan and back to vbeta, when the vbeta catalog is re-displayed, then no new network request is made (served from TanStack Query in-memory cache).
 
-- [ ] **AC 7:** Given the vnthuquan catalog fetch fails (network error), when on the Library page with vnthuquan active, then the error state renders without affecting vbeta functionality.
+- [x] **AC 7:** Given the vnthuquan catalog fetch fails (network error), when on the Library page with vnthuquan active, then the error state renders without affecting vbeta functionality.
 
-- [ ] **AC 8:** Given a book card (`SutraListCard`) for a vbeta book, when rendered in a category list, then a small indigo badge chip with label "Kinh Phật" is visible on the card.
+- [x] **AC 8:** Given a book card (`SutraListCard`) for a vbeta book, when rendered in a category list, then a small indigo badge chip with label "Kinh Phật" is visible on the card.
 
-- [ ] **AC 9:** Given a book card (`SutraListCard`) for a vnthuquan book, when rendered in a category list, then a small amber badge chip with label "Sách & Truyện" is visible on the card.
+- [x] **AC 9:** Given a book card (`SutraListCard`) for a vnthuquan book, when rendered in a category list, then a small amber badge chip with label "Sách & Truyện" is visible on the card.
 
-- [ ] **AC 10:** Given the BookmarksPage has bookmarks from both vbeta and vnthuquan, when rendered, then each group header shows a source badge matching the book's source, in the correct color (indigo for Kinh Phật, amber for Sách & Truyện).
+- [x] **AC 10:** Given the BookmarksPage has bookmarks from both vbeta and vnthuquan, when rendered, then each group header shows a source badge matching the book's source, in the correct color (indigo for Kinh Phật, amber for Sách & Truyện).
 
-- [ ] **AC 11:** Given the user taps a vnthuquan book with vnthuquan as active source, when the ReaderPage opens, then the book loads correctly via `getBook(id, 'vnthuquan')` and chapter content renders via the existing HTML-stripping pipeline.
+- [x] **AC 11:** Given the user taps a vnthuquan book with vnthuquan as active source, when the ReaderPage opens, then the book loads correctly via `getBook(id, 'vnthuquan')` and chapter content renders via the existing HTML-stripping pipeline.
 
-- [ ] **AC 12:** Given `getBook(id, source)` is called, when the book JSON is parsed, then the returned `Book` object has a `source` field matching the passed `source` parameter.
+- [x] **AC 12:** Given `getBook(id, source)` is called, when the book JSON is parsed, then the returned `Book` object has a `source` field matching the passed `source` parameter.
 
-- [ ] **AC 13:** Given `uv run python indexer.py build-index --source vnthuquan` is run, when the command completes, then `data/book-data/vnthuquan/index.json` is written and every `BookIndexEntry` in it has `source: "vnthuquan"`.
+- [x] **AC 13:** Given `uv run python indexer.py build-index --source vnthuquan` is run, when the command completes, then `data/book-data/vnthuquan/index.json` is written and every `BookIndexEntry` in it has `source: "vnthuquan"`.
 
-- [ ] **AC 14:** Given `uv run python indexer.py build-index` is run (no `--source`), when the command completes, then `data/book-data/index.json` is written (unchanged path) and vbeta entries have `source: "vbeta"`.
+- [x] **AC 14:** Given `uv run python indexer.py build-index` is run (no `--source`), when the command completes, then `data/book-data/index.json` is written (unchanged path) and vbeta entries have `source: "vbeta"`.
 
-- [ ] **AC 15:** Given the codebase after all changes, when `pnpm lint` is run in `apps/reader/`, then zero ESLint warnings are reported.
+- [x] **AC 15:** Given the codebase after all changes, when `pnpm lint` is run in `apps/reader/`, then zero ESLint warnings are reported.
 
-- [ ] **AC 16:** Given the codebase after all changes, when `pnpm test` is run in `apps/reader/`, then all tests pass.
+- [x] **AC 16:** Given the codebase after all changes, when `pnpm test` is run in `apps/reader/`, then all tests pass.
 
-- [ ] **AC 17:** Given the codebase after crawler changes, when `uv run pytest` is run in `apps/crawler/`, then all tests pass.
+- [x] **AC 17:** Given the codebase after crawler changes, when `uv run pytest` is run in `apps/crawler/`, then all tests pass.
 
 ---
 

@@ -16,6 +16,7 @@ const booksFixture: CatalogBook[] = [
     translator: 'HT. A',
     coverImageUrl: null,
     artifacts: [],
+    source: 'vbeta',
   },
   {
     id: 'book-category-hit',
@@ -26,6 +27,7 @@ const booksFixture: CatalogBook[] = [
     translator: 'HT. B',
     coverImageUrl: null,
     artifacts: [],
+    source: 'vbeta',
   },
 ]
 
@@ -67,7 +69,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), {
       target: { value: 'Bát Nhã' },
     })
 
@@ -92,7 +94,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'Bát Nhã')
     await waitFor(() => expect(screen.getByLabelText('Kết quả tìm kiếm')).toBeInTheDocument())
 
     const results = screen.getAllByRole('link', { name: /Đọc/i })
@@ -111,7 +113,7 @@ describe('LibrarySearchHub', () => {
       </MemoryRouter>,
     )
 
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'khong-ton-tai')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'khong-ton-tai')
     await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả')).toBeInTheDocument())
   })
 })

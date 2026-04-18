@@ -9,7 +9,8 @@ import { formatRelativeTime } from '@/shared/utils/time'
 import type { Bookmark } from '@/stores/bookmarks.store'
 
 vi.mock('@/shared/hooks/useCatalogIndex', () => ({
-  useCatalogIndex: () => ({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useCatalogIndex: (_source: string) => ({
     data: {
       books: [],
       categories: [],

@@ -205,7 +205,8 @@ def test_parse_book_detail_single_chapter():
     assert result.tuaid == 99999
     assert result.is_single_chapter is True
     assert len(result.chapter_list) == 1
-    assert result.chapter_list[0][0] == 0
+    # Single-chapter books have empty chuongid string (server requires chuongid= not chuongid=0)
+    assert result.chapter_list[0][0] == ""
 
 
 def test_parse_book_detail_single_chapter_title():

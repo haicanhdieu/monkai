@@ -4,9 +4,10 @@ interface LibrarySearchBarProps {
   query: string
   onQueryChange: (q: string) => void
   onClear: () => void
+  placeholder?: string
 }
 
-export function LibrarySearchBar({ query, onQueryChange, onClear }: LibrarySearchBarProps) {
+export function LibrarySearchBar({ query, onQueryChange, onClear, placeholder }: LibrarySearchBarProps) {
   return (
     <div
       className="flex h-12 items-center rounded-xl border px-3"
@@ -21,10 +22,10 @@ export function LibrarySearchBar({ query, onQueryChange, onClear }: LibrarySearc
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         onKeyDown={(event) => { if (event.key === 'Escape') onClear() }}
-        placeholder="Tìm kiếm kinh điển..."
+        placeholder={placeholder ?? 'Tìm kiếm kinh điển...'}
         enterKeyHint="search"
         className="h-full w-full border-none bg-transparent p-0 text-sm font-medium outline-none focus:ring-0"
-        aria-label="Tìm kiếm kinh sách"
+        aria-label={placeholder ?? 'Tìm kiếm sách'}
       />
       {query ? (
         <button

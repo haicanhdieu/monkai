@@ -28,6 +28,7 @@ export interface CatalogBook {
   coverImageUrl: string | null
   artifacts: CatalogArtifact[]
   epubUrl?: string
+  source: string
 }
 
 export interface CatalogIndex {
@@ -42,6 +43,7 @@ export interface Book {
   subcategory: string
   translator: string
   coverImageUrl: string | null
+  source: string
   content: BookParagraph[]
   /**
    * Optional chapter structure used by EPUB builders to generate multi-entry TOCs.

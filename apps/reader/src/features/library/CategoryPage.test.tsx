@@ -13,7 +13,12 @@ const mockUseOnlineStatus = vi.fn()
 const mockUseParams = vi.fn()
 
 vi.mock('@/shared/hooks/useCatalogIndex', () => ({
-  useCatalogIndex: () => mockUseCatalogIndex(),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useCatalogIndex: (_source: string) => mockUseCatalogIndex(),
+}))
+
+vi.mock('@/shared/stores/useActiveSource', () => ({
+  useActiveSource: () => ({ activeSource: 'vbeta', setActiveSource: vi.fn() }),
 }))
 
 vi.mock('@/shared/hooks/useOnlineStatus', () => ({
@@ -39,6 +44,7 @@ const catalogFixture: CatalogIndex = {
       translator: 'HT. A',
       coverImageUrl: null,
       artifacts: [],
+      source: 'vbeta',
     },
   ],
   categories: [
@@ -153,7 +159,7 @@ describe('CategoryPage', () => {
   it('renders search bar when catalog loads', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     renderPage()
-    expect(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Tìm kiếm sách' })).toBeInTheDocument()
   })
 
   it('shows book count in title row', () => {
@@ -166,7 +172,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'Bát Nhã')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'Bát Nhã')
     await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
     expect(screen.getByRole('link', { name: 'Đọc Kinh Bát Nhã' })).toBeInTheDocument()
   })
@@ -175,7 +181,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    const input = screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' })
+    const input = screen.getByRole('textbox', { name: 'Tìm kiếm sách' })
     await user.type(input, 'Bát Nhã')
     await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Xóa từ khóa' }))
@@ -187,7 +193,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh sách' }), 'xyz không có')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'xyz không có')
     await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả')).toBeInTheDocument())
   })
 })

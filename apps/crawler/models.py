@@ -282,6 +282,7 @@ class BookIndexEntry(BaseModel):
     category_seo_name: str
     total_chapters: int
     artifacts: list[BookArtifact]
+    source: str                    # e.g. "vbeta" or "vnthuquan"
 
 
 class BookIndexMeta(BaseModel):

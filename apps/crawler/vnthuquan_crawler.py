@@ -61,7 +61,7 @@ def assemble_book_data(
         html = chapters_html[i] if i < len(chapters_html) else ""
         chapters.append(
             ChapterEntry(
-                chapter_id=chuongid,
+                chapter_id=int(chuongid) if chuongid else 0,
                 chapter_name=chapter_name,
                 chapter_seo_name=slugify_title(chapter_name),
                 chapter_view_count=0,
