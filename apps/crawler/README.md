@@ -35,17 +35,40 @@ Monkai collects Buddhist scriptures from authoritative Vietnamese digital librar
 | Thiền | Thiền | Zen Buddhism |
 | Tịnh Độ | Tịnh Độ | Pure Land Buddhism |
 
+**Active sources:**
+
+| Source | Type | URL | Status |
+|--------|------|-----|--------|
+| `vbeta` | API | `api.phapbao.org` | Enabled |
+| `vnthuquan` | HTML | `vietnamthuquan.eu` | Enabled |
+| `thuvienhoasen` | HTML | `thuvienhoasen.org` | Disabled (robots.txt) |
+| `thuvienkinhphat` | HTML | `thuvienkinhphat.net` | Disabled |
+
 ## Architecture
 
 ```mermaid
 flowchart TD
     Config[config.yaml\nSingle source of truth] --> Crawler
-    Crawler[crawler.py + api_adapter.py\nAsync HTTP + deduplication] --> JsonFiles[data/book-data/vbeta/\nCanonical JSON]
+    Config --> VNTCrawler
+    Crawler[crawler.py + api_adapter.py\nAsync HTTP + deduplication\nvbeta source] --> JsonFiles[data/book-data/vbeta/\nCanonical JSON]
+    VNTCrawler[vnthuquan_crawler.py + vnthuquan_parser.py\nHTML scraper with chapter AJAX\nvnthuquan source] --> VNTFiles[data/book-data/vnthuquan/\nCanonical JSON]
     JsonFiles --> Indexer[indexer.py\nBuild index.json]
+    VNTFiles --> Indexer
     Indexer --> IndexFile[data/books/index.json\nPhase 2 contract]
     IndexFile --> Validator[validate.py\nQuality gates]
     Validator -->|Pass| Phase2[Phase 2\nAI Chat Interface]
 ```
+
+### VNThuQuan Crawler
+
+`vnthuquan_crawler.py` is a dedicated HTML scraper for `vietnamthuquan.eu` with its own architecture:
+
+- **`VnthuquanAdapter`** — async HTTP adapter with rate limiting, 4-attempt exponential backoff, and session health monitoring
+- **`vnthuquan_parser.py`** — pure parsing functions (no I/O): `parse_listing_page`, `parse_book_detail`, `parse_chapter_response`
+- **Chapter AJAX** — chapters fetched via `GET vietnamthuquan.eu/truyen/chuonghoi_moi.aspx?tid=…`
+- **Output format** — `BookData` v2.0 JSON written to `data/book-data/vnthuquan/{category}/{book}/book.json`
+- **Slug collision resolution** — if two books share a slug, `book_id` is appended automatically
+- **State persistence** — uses the shared `CrawlState` for resumable crawls
 
 ### Key Design Principles
 
@@ -63,7 +86,9 @@ flowchart TD
 | Data models (Pydantic API mappings) | ✅ Complete |
 | Utilities package | ✅ Complete |
 | API Web crawler (`crawler.py`) | ✅ Complete |
-| 148 tests passing | ✅ Complete |
+| VNThuQuan HTML crawler (`vnthuquan_crawler.py`) | ✅ Complete |
+| VNThuQuan parser (`vnthuquan_parser.py`) | ✅ Complete |
+| 271 tests passing | ✅ Complete |
 | Index builder (`indexer.py`) | ✅ Complete |
 | Validation utility (`validate.py`) | ✅ Complete |
 | Phase 2 — AI chat interface | 📋 Planned |
@@ -85,11 +110,14 @@ uv sync
 # 4. Verify everything works
 devbox run test
 
-# 5. Run the crawler (all 4 sources)
+# 5. Run the vbeta API crawler
 devbox run crawl
+
+# Or run the VNThuQuan HTML crawler
+devbox run crawl-vnthuquan
 ```
 
-You'll see 177 tests passing.
+You'll see 271 tests passing.
 
 ## Installation
 
@@ -119,7 +147,8 @@ uv sync        # reads pyproject.toml, creates .venv, installs all deps
 | Command | Description |
 |---------|-------------|
 | `devbox run test` | Run the full test suite with pytest |
-| `devbox run crawl` | Run the crawler across all 4 configured sources |
+| `devbox run crawl` | Run the vbeta API crawler |
+| `devbox run crawl-vnthuquan` | Run the VNThuQuan HTML crawler |
 | `devbox run parse` | Run the metadata parser |
 | `devbox run index` | Build the index manifest |
 | `devbox run build` | Build the e-book manifests and structures |
@@ -134,23 +163,28 @@ uv sync        # reads pyproject.toml, creates .venv, installs all deps
 output_dir: data          # Root directory for downloaded files
 log_file: logs/crawl.log  # Rotating log file path
 
-api_base_url: https://api.phapbao.org
-
-api_endpoints:
-  categories: /categories/get-selectlist-categories?hasAllOption=false
-  books: /search/get-books-selectlist-by-categoryId
-  toc: /search/get-tableofcontents-by-bookId
-  pages: /search/get-pages-by-tableofcontentid/{id}
-
 sources:
-  - name: vbeta
+  - name: vbeta            # API source — phapbao.org Vietnamese Tripitaka
+    source_type: api
+    enabled: true
+    ...
+
+  - name: vnthuquan        # HTML source — vietnamthuquan.eu
+    source_type: html
+    enabled: true
+    seed_url: "http://vietnamthuquan.eu/truyen/?tranghientai=1"
+    rate_limit_seconds: 1.5
+    ...
 ```
 
 ### Configured Sources
 
-| Source | Content |
-|--------|---------|
-| `vbeta.vn` | Comprehensive digitized Vietnamese Tripitaka API |
+| Source | Type | Content | Notes |
+|--------|------|---------|-------|
+| `vbeta` | API (`api_adapter.py`) | Comprehensive digitized Vietnamese Tripitaka | Enabled |
+| `vnthuquan` | HTML (`vnthuquan_crawler.py`) | Vietnamese literature and Buddhist texts from vietnamthuquan.eu | Enabled; dedicated crawler with chapter AJAX support |
+| `thuvienhoasen` | HTML (`crawler.py`) | Extensive Mahāyāna and Theravāda collection | Disabled — blocked by robots.txt |
+| `thuvienkinhphat` | HTML (`crawler.py`) | 2-level catalog with 950+ chapter URLs | Disabled |
 
 ## Data Models
 
@@ -193,31 +227,37 @@ class IndexRecord(BaseModel):
 ## Project Structure
 
 ```text
-monkai/
-├── crawler/                 # Phase 1 Crawler component
-│   ├── config.yaml          # All source configuration (4 sources)
-│   ├── crawler.py           # Async web crawler CLI entry point
-│   ├── parser.py            # Metadata extraction
-│   ├── indexer.py           # Index building
-│   ├── book_builder.py      # EPUB structure compilation
-│   ├── models.py            # Pydantic data models
-│   ├── utils/
-│   │   ├── config.py        # Load and validate config.yaml
-│   │   ├── dedup.py         # SHA-256 duplicate detection
-│   │   ├── logging.py       # Dual-output rotating logger
-│   │   ├── robots.py        # robots.txt caching and compliance
-│   │   ├── slugify.py       # Vietnamese ID generation
-│   │   └── state.py         # Crawl state persistence
-│   ├── tests/               # Test suite for Phase 1
-│   │   └── ...              # Test files
-│   ├── data/                # Created on first crawl run
-│   │   ├── raw/             # Downloaded files: source/category/filename
-│   │   ├── crawl-state.json # Per-URL download state (resumable)
-│   │   └── index.json       # Flat manifest for Phase 2
-│   └── logs/                # Rotating log files
-├── pyproject.toml           # Project manifest and dependencies
-└── docs/
-    └── ke-hoach-thu-vien-kinh-phat.md   # Full project plan (Vietnamese)
+apps/crawler/
+├── config.yaml              # All source configuration
+├── crawler.py               # Async web crawler CLI — vbeta + html sources
+├── api_adapter.py           # vbeta API HTTP adapter
+├── vnthuquan_crawler.py     # VNThuQuan HTML crawler + Typer CLI
+├── vnthuquan_parser.py      # Pure HTML parsers for VNThuQuan (no I/O)
+├── pipeline.py              # Pipeline orchestration
+├── indexer.py               # Index building
+├── validate.py              # Validation utility
+├── models.py                # Pydantic data models (BookData, ChapterEntry, …)
+├── utils/
+│   ├── api_adapter.py       # vbeta API client
+│   ├── config.py            # Load and validate config.yaml
+│   ├── dedup.py             # SHA-256 duplicate detection
+│   ├── logging.py           # Dual-output rotating logger
+│   ├── robots.py            # robots.txt caching and compliance
+│   ├── slugify.py           # Vietnamese ID generation
+│   └── state.py             # Crawl state persistence
+├── tests/                   # 271 tests across all modules
+│   ├── test_crawler.py
+│   ├── test_vnthuquan_crawler.py
+│   ├── test_vnthuquan_parser.py
+│   ├── test_vnthuquan_integration.py
+│   └── ...
+├── data/                    # Created on first crawl run
+│   ├── book-data/
+│   │   ├── vbeta/           # vbeta chapters: category/book/book.json
+│   │   └── vnthuquan/       # VNThuQuan books: category/book/book.json
+│   ├── crawl-state.json     # Per-URL download state (resumable)
+│   └── books/index.json     # Flat manifest for Phase 2
+└── logs/                    # Rotating log files
 ```
 
 ## Testing
@@ -239,7 +279,14 @@ devbox run test
 | `test_catalog_fetch.py` | Catalog fetch, URL extraction, pagination |
 | `test_download.py` | Format detection, filename derivation, async download, rate limiting |
 | `test_crawl_state_integration.py` | State tracking, incremental skip, KeyboardInterrupt handling |
-| `test_deduplication.py` | Cross-source SHA-256 dedup, all 4 sources config validation |
+| `test_deduplication.py` | Cross-source SHA-256 dedup, source config validation |
+| `test_vnthuquan_parser.py` | Listing page parsing, book detail extraction, chapter AJAX parsing |
+| `test_vnthuquan_crawler.py` | Session factory, rate limiting, retry/backoff, health monitoring |
+| `test_vnthuquan_integration.py` | End-to-end crawl flow, `assemble_book_data`, `write_book_json` |
+| `test_api_adapter.py` | vbeta API adapter, DTO mapping |
+| `test_api_models.py` | vbeta API Pydantic models |
+| `test_e2e_pipeline.py` | Full pipeline integration |
+| `test_indexer.py` | Index manifest generation |
 
 ## Roadmap
 
@@ -248,9 +295,10 @@ devbox run test
 Build a structured, validated corpus of Buddhist scriptures.
 
 - [x] Utility modules and data models
-- [x] Unit test coverage (148 tests)
-- [x] API Crawler mapping DTO responses incrementally
-- [x] Web APIs configured in `config.yaml`
+- [x] Unit test coverage (271 tests)
+- [x] API crawler for vbeta source (`crawler.py` + `api_adapter.py`)
+- [x] HTML crawler for VNThuQuan source (`vnthuquan_crawler.py` + `vnthuquan_parser.py`)
+- [x] Sources configured in `config.yaml`
 - [x] Index builder generating `data/books/index.json`
 - [x] Validation utility with strict Schema quality gate reporting
 

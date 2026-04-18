@@ -12,6 +12,7 @@
     ],
     "scripts": {
       "crawl": "cd apps/crawler && uv run python crawler.py",
+      "crawl-vnthuquan": "cd apps/crawler && uv run python vnthuquan_crawler.py crawl",
       "dev": "cd apps/reader && pnpm dev",
       "build": "cd apps/reader && pnpm build",
       "test": "cd apps/reader && pnpm test",

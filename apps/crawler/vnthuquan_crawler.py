@@ -23,6 +23,7 @@ import typer
 
 from models import BookData, BookMeta, ChapterEntry, PageEntry, SourceConfig
 from utils.config import load_config
+from utils.logging import setup_logger
 from utils.slugify import slugify_title
 from utils.state import CrawlState
 from vnthuquan_parser import (
@@ -35,7 +36,12 @@ from vnthuquan_parser import (
     parse_listing_page,
 )
 
-logger = logging.getLogger(__name__)
+# Stable name so logs work when this file is run as `python vnthuquan_crawler.py` (__name__ == "__main__").
+_LOGGER_NAME = "vnthuquan"
+logger = logging.getLogger(_LOGGER_NAME)
+
+# Log a progress line every N books finished in this run (plus first and last).
+_PROGRESS_LOG_INTERVAL = 10
 
 # Chapter AJAX endpoint
 CHAPTER_AJAX_URL = "http://vietnamthuquan.eu/truyen/chuonghoi_moi.aspx"
@@ -232,7 +238,7 @@ class VnthuquanAdapter:
             except (aiohttp.ServerTimeoutError, asyncio.TimeoutError) as exc:
                 last_error_type = "timeout"
                 last_error_detail = str(exc)
-            except aiohttp.ClientConnectorError as exc:
+            except (aiohttp.ClientConnectionError, ConnectionError, OSError) as exc:
                 exc_str = str(exc)
                 if "Name or service not known" in exc_str or "nodename nor servname" in exc_str:
                     last_error_type = "dns"
@@ -420,7 +426,10 @@ class VnthuquanAdapter:
         # Prefer listing-page cover; fall back to first-chapter AJAX cover
         cover_url: str | None = entry.cover_image_url
 
-        for i, (chuongid, _) in enumerate(detail.chapter_list):
+        for i, (chuongid, chapter_name) in enumerate(detail.chapter_list):
+            logger.info(
+                f"[vnthuquan]   Chapter {i + 1}/{len(detail.chapter_list)}: {chapter_name} (id={chuongid})"
+            )
             result = await self.fetch_chapter(detail.tuaid, chuongid)
             html = result.content_html if result else None
             if html is None:
@@ -458,6 +467,34 @@ class VnthuquanAdapter:
         """Count books completed at or after since_ts."""
         return sum(1 for ts in self._completed_timestamps if ts >= since_ts)
 
+    # -----------------------------------------------------------------------
+    # Page-level crash recovery
+    # -----------------------------------------------------------------------
+
+    @property
+    def _meta_file(self) -> Path:
+        """Sidecar JSON file that records the next listing page to process."""
+        state_path = Path(self.state._state_file)
+        return state_path.parent / (state_path.stem + "-meta.json")
+
+    def _load_page_progress(self) -> int:
+        """Return the next listing page number to process (1 if no saved progress)."""
+        if self._meta_file.exists():
+            try:
+                data = json.loads(self._meta_file.read_text(encoding="utf-8"))
+                return int(data.get("next_page", 1))
+            except Exception:
+                pass
+        return 1
+
+    def _save_page_progress(self, next_page: int) -> None:
+        """Persist the next listing page number so a crashed run can resume."""
+        self._meta_file.parent.mkdir(parents=True, exist_ok=True)
+        self._meta_file.write_text(
+            json.dumps({"next_page": next_page}, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
     async def _monitor_health(self) -> None:
         """Stall detection monitor: aborts crawl after 30min of zero throughput."""
         window_sec = 600
@@ -484,6 +521,25 @@ class VnthuquanAdapter:
             else:
                 self._stall_count = 0
 
+    async def _auto_detect_end_page(self, start_page: int) -> int:
+        """Fetch the first listing page to extract the last page number.
+
+        Falls back to start_page on any error (single-page crawl).
+        """
+        url = self._listing_url(start_page)
+        result = await self._rate_limited_request("GET", url)
+        if result.error_type or not result.response:
+            if result.response is not None:
+                await result.response.release()
+            logger.error(
+                f"[vnthuquan] Failed to fetch first listing page for pagination: {result.error_detail}"
+            )
+            return start_page
+        html = await result.response.text(encoding="utf-8")
+        last = extract_last_page_number(html)
+        logger.info(f"[vnthuquan] Auto-detected last page: {last}")
+        return last
+
     async def crawl_all(
         self,
         start_page: int = 1,
@@ -492,46 +548,129 @@ class VnthuquanAdapter:
         max_hours: float = 0.0,
         dry_run: bool = False,
     ) -> None:
-        """Discover all listings and concurrently crawl each book."""
-        all_entries = await self.fetch_all_listings(start_page, end_page)
+        """Fetch one listing page, crawl its books, then repeat until all pages done."""
+        if end_page == 0:
+            end_page = await self._auto_detect_end_page(start_page)
 
+        total_pages = end_page - start_page + 1
+
+        # Dry-run: list all books without downloading
         if dry_run:
-            typer.echo("[vnthuquan] DRY RUN — listing books only (no download)")
-            for entry in all_entries:
+            all_entries: list[BookListingEntry] = []
+            for page_num in range(start_page, end_page + 1):
+                all_entries.extend(await self.fetch_listing_page(page_num))
+            text_only = [e for e in all_entries if e.format_type == "Text"]
+            typer.echo(
+                f"[vnthuquan] DRY RUN — {len(text_only)} Text books across {total_pages} pages"
+            )
+            for entry in text_only:
                 typer.echo(
                     f"[vnthuquan] DRY RUN book: {entry.title} | {entry.author_name} | "
                     f"{entry.format_type} | {entry.url}"
                 )
-            typer.echo(f"[vnthuquan] DRY RUN complete. {len(all_entries)} books found.")
+            typer.echo(f"[vnthuquan] DRY RUN complete. {len(text_only)} books found.")
             return
 
-        # AC #5: skip downloaded, re-attempt errors
-        pending = [e for e in all_entries if not self.state.is_downloaded(e.url)]
-        total = len(all_entries)
-        done = total - len(pending)
-        logger.info(f"[vnthuquan] {total} books total, {len(pending)} pending, {done} already done")
+        # Page-level crash resume: skip listing pages already fully processed
+        resume_from = self._load_page_progress()
+        if resume_from > start_page:
+            logger.info(
+                f"[vnthuquan] Resuming from page {resume_from} "
+                f"(pages {start_page}–{resume_from - 1} already completed)"
+            )
 
-        self._books_remaining = len(pending)
         start_time = time.time()
         semaphore = asyncio.Semaphore(concurrency)
-
-        async def process_book(entry: BookListingEntry) -> bool:
-            if self._abort:
-                return False
-            if max_hours > 0 and (time.time() - start_time) / 3600 > max_hours:
-                return False
-            async with semaphore:
-                result = await self.crawl_book(entry)
-            self._books_remaining = max(0, self._books_remaining - 1)
-            return result
+        run_totals = {"ok": 0, "err": 0, "skipped": 0}
 
         monitor_task = asyncio.create_task(self._monitor_health())
         try:
-            await asyncio.gather(*[process_book(e) for e in pending])
+            for page_num in range(start_page, end_page + 1):
+                if self._abort:
+                    logger.warning("[vnthuquan] Aborting page loop (stall detected)")
+                    break
+                if max_hours > 0 and (time.time() - start_time) / 3600 > max_hours:
+                    logger.info(f"[vnthuquan] Max hours reached before page {page_num}")
+                    break
+
+                # Skip pages already completed in a prior (crashed) run
+                if page_num < resume_from:
+                    logger.info(
+                        f"[vnthuquan] Page {page_num}/{end_page} — already completed, skipping"
+                    )
+                    continue
+
+                logger.info(
+                    f"[vnthuquan] ── Page {page_num}/{end_page} "
+                    f"({page_num - start_page + 1}/{total_pages}) ──"
+                )
+
+                entries = await self.fetch_listing_page(page_num)
+                text_entries = [e for e in entries if e.format_type == "Text"]
+                pending = [e for e in text_entries if not self.state.is_downloaded(e.url)]
+                already_done = len(text_entries) - len(pending)
+
+                logger.info(
+                    f"[vnthuquan] Page {page_num}: {len(text_entries)} Text books, "
+                    f"{len(pending)} to fetch, {already_done} already done"
+                )
+
+                self._books_remaining = len(pending)
+                page_stats = {"ok": 0, "err": 0}
+                progress_lock = asyncio.Lock()
+
+                async def _process(
+                    entry: BookListingEntry,
+                    _pn: int = page_num,
+                    _total: int = len(pending),
+                ) -> None:
+                    if self._abort:
+                        return
+                    if max_hours > 0 and (time.time() - start_time) / 3600 > max_hours:
+                        return
+                    async with semaphore:
+                        ok = await self.crawl_book(entry)
+                    self._books_remaining = max(0, self._books_remaining - 1)
+                    async with progress_lock:
+                        page_stats["ok" if ok else "err"] += 1
+                        done_n = page_stats["ok"] + page_stats["err"]
+                        if (
+                            done_n == 1
+                            or done_n == _total
+                            or (_PROGRESS_LOG_INTERVAL > 0 and done_n % _PROGRESS_LOG_INTERVAL == 0)
+                        ):
+                            logger.info(
+                                f"[vnthuquan] Page {_pn} progress: {done_n}/{_total} "
+                                f"({page_stats['ok']} ok, {page_stats['err']} err)"
+                            )
+
+                if pending:
+                    await asyncio.gather(*[_process(e) for e in pending])
+
+                run_totals["ok"] += page_stats["ok"]
+                run_totals["err"] += page_stats["err"]
+                run_totals["skipped"] += already_done
+
+                logger.info(
+                    f"[vnthuquan] Page {page_num} complete — "
+                    f"{page_stats['ok']} ok, {page_stats['err']} err | "
+                    f"Run total: {run_totals['ok']} ok, {run_totals['err']} err, "
+                    f"{run_totals['skipped']} skipped"
+                )
+
+                # Persist page progress so a future run can skip this page
+                self._save_page_progress(page_num + 1)
+
         finally:
             self._done = True
             self._shutdown_event.set()
             await monitor_task
+
+        logger.info(
+            f"[vnthuquan] Crawl complete — "
+            f"{run_totals['ok']} ok, {run_totals['err']} err, "
+            f"{run_totals['skipped']} already done"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -565,6 +704,7 @@ async def _run_crawl(
     dry_run: bool,
 ) -> None:
     cfg = load_config("config.yaml")
+    setup_logger(_LOGGER_NAME, cfg.log_file)
     try:
         vnthuquan_src = next(s for s in cfg.sources if s.name == "vnthuquan")
     except StopIteration:
@@ -574,8 +714,6 @@ async def _run_crawl(
         vnthuquan_src.rate_limit_seconds = rate_limit
 
     state = CrawlState(state_file="data/crawl-state-vnthuquan.json")
-    if not resume:
-        state._state.clear()  # discard loaded state, start fresh
 
     session = await create_session()
     try:
@@ -585,6 +723,10 @@ async def _run_crawl(
             state,
             output_dir=Path("data"),
         )
+        if not resume:
+            state._state.clear()  # discard loaded state, start fresh
+            if adapter._meta_file.exists():
+                adapter._meta_file.unlink()  # reset page-level progress too
         try:
             await adapter.crawl_all(start_page, end_page, concurrency, max_hours, dry_run)
         except KeyboardInterrupt:
@@ -621,6 +763,7 @@ async def _run_backfill_covers(
     concurrency: int,
 ) -> None:
     cfg = load_config("config.yaml")
+    setup_logger(_LOGGER_NAME, cfg.log_file)
     try:
         vnthuquan_src = next(s for s in cfg.sources if s.name == "vnthuquan")
     except StopIteration:
@@ -666,7 +809,6 @@ async def _run_backfill_covers(
 
             async with semaphore:
                 # Build minimal stub with correct seo names from existing book.json
-                from models import BookData
                 stub_seo_name = data.get("book_seo_name") or book
                 stub_cat_seo = data.get("category_seo_name") or cat
                 # Temporarily override to match actual book dir

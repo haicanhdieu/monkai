@@ -757,9 +757,10 @@ async def test_crawl_all_semaphore_limits_concurrency():
         async with lock:
             current -= 1
 
-    with patch.object(adapter, "fetch_all_listings", return_value=entries):
-        with patch.object(adapter, "crawl_book", side_effect=fake_crawl_book):
-            await adapter.crawl_all(concurrency=3)
+    with patch.object(adapter, "_auto_detect_end_page", new=AsyncMock(return_value=1)):
+        with patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=entries)):
+            with patch.object(adapter, "crawl_book", side_effect=fake_crawl_book):
+                await adapter.crawl_all(concurrency=3)
 
     await session.close()
     assert peak <= 3
@@ -788,9 +789,10 @@ async def test_crawl_all_dry_run_no_crawl_book(capsys):
     ]
     mock_crawl_book = AsyncMock()
 
-    with patch.object(adapter, "fetch_all_listings", return_value=entries):
-        with patch.object(adapter, "crawl_book", mock_crawl_book):
-            await adapter.crawl_all(dry_run=True)
+    with patch.object(adapter, "_auto_detect_end_page", new=AsyncMock(return_value=1)):
+        with patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=entries)):
+            with patch.object(adapter, "crawl_book", mock_crawl_book):
+                await adapter.crawl_all(dry_run=True)
 
     await session.close()
     mock_crawl_book.assert_not_called()
@@ -806,7 +808,7 @@ async def test_crawl_all_max_hours_skips_all_pending(adapter_32):
     tick = iter([0.0] + [5000.0] * 200)
 
     with (
-        patch.object(adapter_32, "fetch_all_listings", new=AsyncMock(return_value=entries)),
+        patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=entries)),
         patch.object(adapter_32, "crawl_book", mock_crawl),
         patch("vnthuquan_crawler.time.time", side_effect=lambda: next(tick)),
     ):
@@ -1195,7 +1197,7 @@ async def test_crawl_book_marks_error_on_write_exception(adapter_32, tmp_path, c
     entry = _make_entry_32()
     detail = _make_detail_32()
 
-    with caplog.at_level(logging.ERROR, logger="vnthuquan_crawler"):
+    with caplog.at_level(logging.ERROR, logger="vnthuquan"):
         with (
             patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
             patch.object(adapter_32, "fetch_chapter", new=AsyncMock(return_value=_make_chapter_result_32())),
@@ -1220,7 +1222,7 @@ async def test_crawl_book_skips_downloaded_url(adapter_32, caplog):
     entry = _make_entry_32()
     adapter_32.state.mark_downloaded(entry.url)
 
-    with caplog.at_level(logging.INFO, logger="vnthuquan_crawler"):
+    with caplog.at_level(logging.INFO, logger="vnthuquan"):
         with patch.object(adapter_32, "fetch_book_detail", new=AsyncMock()) as mock_detail:
             result = await adapter_32.crawl_book(entry)
             mock_detail.assert_not_called()
@@ -1242,7 +1244,7 @@ async def test_crawl_all_skips_downloaded_entries(adapter_32):
     adapter_32.state.mark_downloaded(entry_done.url)
 
     with (
-        patch.object(adapter_32, "fetch_all_listings", new=AsyncMock(return_value=[entry_done, entry_todo])),
+        patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=[entry_done, entry_todo])),
         patch.object(adapter_32, "crawl_book", new=AsyncMock(return_value=True)) as mock_crawl,
     ):
         await adapter_32.crawl_all(start_page=1, end_page=1, concurrency=1, max_hours=0, dry_run=False)
@@ -1259,7 +1261,7 @@ async def test_crawl_all_reattempts_error_entries(adapter_32):
     adapter_32.state.mark_error(entry_error.url)
 
     with (
-        patch.object(adapter_32, "fetch_all_listings", new=AsyncMock(return_value=[entry_error])),
+        patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=[entry_error])),
         patch.object(adapter_32, "crawl_book", new=AsyncMock(return_value=True)) as mock_crawl,
     ):
         await adapter_32.crawl_all(start_page=1, end_page=1, concurrency=1, max_hours=0, dry_run=False)
@@ -1305,7 +1307,7 @@ def test_cli_crawl_default_options():
     runner = TyCliRunner()
 
     with patch("vnthuquan_crawler._run_crawl", new_callable=AsyncMock) as mock_run:
-        result = runner.invoke(app, [])
+        result = runner.invoke(app, ["crawl"])
 
     assert result.exit_code == 0, result.output
     mock_run.assert_called_once()
@@ -1325,6 +1327,7 @@ def test_cli_crawl_all_options():
 
     with patch("vnthuquan_crawler._run_crawl", new_callable=AsyncMock) as mock_run:
         result = runner.invoke(app, [
+            "crawl",
             "--start-page", "2",
             "--end-page", "10",
             "--no-resume",
@@ -1349,7 +1352,7 @@ def test_cli_crawl_rate_limit_override():
     """--rate-limit is forwarded as the rate_limit argument to _run_crawl."""
     runner = TyCliRunner()
     with patch("vnthuquan_crawler._run_crawl", new_callable=AsyncMock) as mock_run:
-        result = runner.invoke(app, ["--rate-limit", "3.0"])
+        result = runner.invoke(app, ["crawl", "--rate-limit", "3.0"])
     assert result.exit_code == 0, result.output
     assert mock_run.call_args.args[3] == 3.0
 
@@ -1556,7 +1559,7 @@ async def test_dry_run_prints_books_without_fetching_detail(adapter_32, capsys):
         e = e  # entries already have titles from _make_entry_32
 
     with (
-        patch.object(adapter_32, "fetch_all_listings", new=AsyncMock(return_value=entries)),
+        patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=entries)),
         patch.object(adapter_32, "fetch_book_detail", new=AsyncMock()) as mock_detail,
     ):
         await adapter_32.crawl_all(start_page=1, end_page=1, concurrency=1, max_hours=0, dry_run=True)
