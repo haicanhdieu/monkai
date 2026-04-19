@@ -17,8 +17,7 @@ export function SourceSelectorPill({ onSourceChange }: SourceSelectorPillProps) 
 
   return (
     <div
-      className="flex gap-1 rounded-full border p-1"
-      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+      className="grid grid-cols-2 gap-2"
       role="group"
       aria-label="Chọn thư viện"
     >
@@ -30,12 +29,16 @@ export function SourceSelectorPill({ onSourceChange }: SourceSelectorPillProps) 
             type="button"
             aria-pressed={isActive}
             onClick={() => handleSelect(source.id)}
-            className={`rounded-full px-4 py-1 text-sm font-semibold transition-colors ${
+            className={`rounded-full py-2 text-center text-sm font-semibold transition-colors ${
               isActive
                 ? 'text-[var(--color-background)]'
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
             }`}
-            style={isActive ? { backgroundColor: 'var(--color-accent)' } : {}}
+            style={
+              isActive
+                ? { backgroundColor: 'var(--color-accent)', borderColor: 'var(--color-accent)' }
+                : { border: '1.5px solid var(--color-border)' }
+            }
           >
             {source.label}
           </button>
