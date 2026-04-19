@@ -19,6 +19,7 @@ const rawBookSchema = z.object({
   author: z.string().nullable().optional(),
   cover_image_url: z.string().nullable().optional(),
   cover_image_local_path: z.string().nullable().optional(),
+  source: z.string().optional(),
   chapters: z.array(chapterSchema).default([]),
 })
 
@@ -138,6 +139,7 @@ export const bookSchema: z.ZodType<Book> = rawBookSchema.transform((raw) => {
     subcategory: raw.category_seo_name ?? 'general',
     translator: raw.author ?? 'Unknown translator',
     coverImageUrl: raw.cover_image_local_path ?? raw.cover_image_url ?? null,
+    source: raw.source ?? 'unknown',
     content,
     chaptersForEpub,
   }
