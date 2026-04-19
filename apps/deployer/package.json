@@ -8,6 +8,8 @@
     "delete-blob-store": "node scripts/delete-blob-store.mjs",
     "upload:book-data": "node scripts/upload-book-data-to-blob.mjs",
     "upload:book-data:r2": "node scripts/upload-book-data-to-r2.mjs",
+    "upload:book-data:r2:dry": "node scripts/upload-book-data-to-r2.mjs --dry-run",
+    "upload:book-data:r2:clean": "node scripts/upload-book-data-to-r2.mjs --delete-stale",
     "deploy:reader": "node scripts/deploy-reader-static.mjs",
     "deploy:all": "node scripts/upload-book-data-to-blob.mjs && node scripts/deploy-reader-static.mjs"
   },

@@ -20,6 +20,9 @@
       "lint": "cd apps/reader && pnpm lint",
       "build-books": "cd apps/crawler && uv run python book_builder.py",
       "pipeline": "cd apps/crawler && uv run python pipeline.py",
+      "sync:book-data": "cd apps/deployer && pnpm run upload:book-data:r2",
+      "sync:book-data:dry": "cd apps/deployer && pnpm run upload:book-data:r2:dry",
+      "sync:book-data:clean": "cd apps/deployer && pnpm run upload:book-data:r2:clean",
       "deploy:book-data": "cd apps/deployer && pnpm run upload:book-data",
       "deploy:reader": "cd apps/deployer && pnpm run deploy:reader",
       "deploy:all": "cd apps/deployer && pnpm run deploy:all"
