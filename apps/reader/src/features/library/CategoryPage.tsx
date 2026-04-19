@@ -12,6 +12,7 @@ import { ErrorPage } from '@/shared/components/ErrorPage'
 import { SkeletonText } from '@/shared/components/SkeletonText'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { useActiveSource } from '@/shared/stores/useActiveSource'
+import { SOURCES } from '@/shared/constants/sources'
 import { useOnlineStatus } from '@/shared/hooks/useOnlineStatus'
 import { DataError } from '@/shared/services/data.service'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
@@ -98,6 +99,7 @@ function VirtualBookList({ books, categorySlug }: { books: LibraryCategory['book
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>()
   const { activeSource } = useActiveSource()
+  const sourceConfig = SOURCES.find((s) => s.id === activeSource) ?? SOURCES[0]!
   const catalogQuery = useCatalogIndex(activeSource)
   const isOnline = useOnlineStatus()
 
@@ -168,11 +170,11 @@ export default function CategoryPage() {
         backTo={ROUTES.LIBRARY}
         rightSlot={
           <span className="text-sm font-medium text-[var(--color-accent)]">
-            {selectedCategory.count} kinh sách
+            {selectedCategory.count} {sourceConfig.countSuffix}
           </span>
         }
       >
-        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} />
+        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} placeholder={sourceConfig.searchPlaceholder} />
       </AppBar>
 
       {normalizedQuery ? (

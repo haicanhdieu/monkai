@@ -159,7 +159,7 @@ describe('CategoryPage', () => {
   it('renders search bar when catalog loads', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     renderPage()
-    expect(screen.getByRole('textbox', { name: 'Tìm kiếm sách' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Tìm kiếm kinh điển...' })).toBeInTheDocument()
   })
 
   it('shows book count in title row', () => {
@@ -172,7 +172,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'Bát Nhã')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh điển...' }), 'Bát Nhã')
     await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
     expect(screen.getByRole('link', { name: 'Đọc Kinh Bát Nhã' })).toBeInTheDocument()
   })
@@ -181,7 +181,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    const input = screen.getByRole('textbox', { name: 'Tìm kiếm sách' })
+    const input = screen.getByRole('textbox', { name: 'Tìm kiếm kinh điển...' })
     await user.type(input, 'Bát Nhã')
     await waitFor(() => expect(screen.getByRole('region', { name: 'Kết quả tìm kiếm' })).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Xóa từ khóa' }))
@@ -193,7 +193,7 @@ describe('CategoryPage', () => {
     mockUseCatalogIndex.mockReturnValue({ isLoading: false, data: catalogFixture, error: null })
     const user = userEvent.setup()
     renderPage()
-    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm sách' }), 'xyz không có')
+    await user.type(screen.getByRole('textbox', { name: 'Tìm kiếm kinh điển...' }), 'xyz không có')
     await waitFor(() => expect(screen.getByText('Không tìm thấy kết quả')).toBeInTheDocument())
   })
 })

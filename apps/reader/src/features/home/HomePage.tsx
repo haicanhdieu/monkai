@@ -8,18 +8,10 @@ import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
-import dailyDharmaTeachings from './daily-dharma-teachings.json'
-
-type DailyTeaching = { text: string; source: string }
-
-function pickDailyTeaching(items: readonly DailyTeaching[]): DailyTeaching {
-  const i = Math.floor(Math.random() * items.length)
-  return items[i] ?? items[0]!
-}
 
 const quickActions = [
   {
-    label: 'Kinh Điển',
+    label: 'Thư Viện',
     to: ROUTES.LIBRARY,
     icon: <ReaderIcon className="h-5 w-5" aria-hidden="true" />,
   },
@@ -170,8 +162,6 @@ function ContinueReadingCard() {
 }
 
 export default function HomePage() {
-  const [dailyTeaching] = useState(() => pickDailyTeaching(dailyDharmaTeachings.items))
-
   return (
     <div className="pb-24">
       <AppBar
@@ -216,21 +206,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section aria-label="Lời Phật dạy hôm nay">
-          <h2 className="mb-4 text-lg font-semibold">Lời Phật dạy hôm nay</h2>
-          <blockquote
-            className="rounded-r-xl border-l-4 px-5 py-4 text-sm leading-relaxed italic"
-            style={{
-              borderColor: 'var(--color-accent)',
-              backgroundColor: 'var(--color-surface)',
-            }}
-          >
-            {dailyTeaching.text}
-            <footer className="mt-3 text-xs not-italic font-semibold text-[var(--color-accent)]">
-              — {dailyTeaching.source}
-            </footer>
-          </blockquote>
-        </section>
       </div>
     </div>
   )

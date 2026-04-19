@@ -32,22 +32,11 @@ afterEach(() => {
 })
 
 describe('HomePage', () => {
-  it('shows daily teaching section picking first item when random is zero', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0)
-    renderHomePage()
-
-    expect(screen.getByRole('region', { name: 'Lời Phật dạy hôm nay' })).toBeInTheDocument()
-    expect(
-      screen.getByText('Giữ tâm thanh tịnh, lìa mọi vọng tưởng, ấy là con đường dẫn đến giác ngộ thực thụ.'),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/Trích Kinh Di Giáo/)).toBeInTheDocument()
-  })
-
   it('renders page heading and quick links', () => {
     renderHomePage()
 
     expect(screen.getByRole('heading', { name: 'Trang Chủ' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Kinh Điển' })).toHaveAttribute('href', '/library')
+    expect(screen.getByRole('link', { name: 'Thư Viện' })).toHaveAttribute('href', '/library')
     expect(screen.getByRole('link', { name: 'Dấu Trang' })).toHaveAttribute('href', '/bookmarks')
   })
 
