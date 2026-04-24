@@ -8,6 +8,7 @@ import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
+import { DiscoverStrip } from '@/features/home/DiscoverStrip'
 
 const quickActions = [
   {
@@ -181,6 +182,8 @@ export default function HomePage() {
         <div className="mb-8" />
 
         <ContinueReadingCard />
+
+        <DiscoverStrip />
 
         <section className="mb-8" aria-label="Truy cập nhanh">
           <div className="grid grid-cols-2 gap-4">

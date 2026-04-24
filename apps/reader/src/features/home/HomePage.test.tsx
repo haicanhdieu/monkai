@@ -5,6 +5,17 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import HomePage from '@/features/home/HomePage'
 import { useReaderStore } from '@/stores/reader.store'
 
+const mockUseCatalogIndex = vi.fn()
+const mockUseActiveSource = vi.fn()
+
+vi.mock('@/shared/hooks/useCatalogIndex', () => ({
+  useCatalogIndex: (source: string) => mockUseCatalogIndex(source),
+}))
+
+vi.mock('@/shared/stores/useActiveSource', () => ({
+  useActiveSource: () => mockUseActiveSource(),
+}))
+
 function renderHomePage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -25,6 +36,8 @@ beforeEach(() => {
     lastReadChapterTitle: '',
     lastReadBookProgressApprox: null,
   })
+  mockUseActiveSource.mockReturnValue({ activeSource: 'vbeta', setActiveSource: vi.fn() })
+  mockUseCatalogIndex.mockReturnValue({ data: { books: [], categories: [] }, isLoading: false, isError: false })
 })
 
 afterEach(() => {
@@ -106,5 +119,33 @@ describe('HomePage', () => {
     })
     renderHomePage()
     expect(screen.getByText('~42%')).toBeInTheDocument()
+  })
+
+  it('renders Discover Strip section when catalog has books', () => {
+    const books = Array.from({ length: 4 }, (_, i) => ({
+      id: `book-${i}`,
+      title: `Book ${i}`,
+      category: '',
+      categorySlug: '',
+      subcategory: '',
+      translator: '',
+      coverImageUrl: null,
+      artifacts: [],
+      source: 'vbeta',
+    }))
+    mockUseCatalogIndex.mockReturnValue({ data: { books, categories: [] }, isLoading: false, isError: false })
+
+    renderHomePage()
+
+    expect(screen.getByLabelText('Khám phá')).toBeInTheDocument()
+  })
+
+  it('does not render Discover Strip book links when catalog is loading', () => {
+    mockUseCatalogIndex.mockReturnValue({ data: undefined, isLoading: true, isError: false })
+
+    renderHomePage()
+
+    expect(screen.getByTestId('discover-strip-skeleton')).toBeInTheDocument()
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
   })
 })
