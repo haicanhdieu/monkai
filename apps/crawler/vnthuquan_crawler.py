@@ -180,8 +180,7 @@ class VnthuquanAdapter:
         self._done: bool = False
         self._shutdown_event = asyncio.Event()
         self._abort: bool = False
-        self._stall_count: int = 0
-        self._completed_timestamps: list[float] = []
+        self._last_activity: float = time.time()
         self._books_remaining: int = 0
 
     async def _rate_limited_request(self, method: str, url: str, **kwargs) -> RequestResult:
@@ -228,6 +227,7 @@ class VnthuquanAdapter:
                     last_error_type = "http_5xx"
                     last_error_detail = f"HTTP {status}"
                     continue  # retry
+                self._last_activity = time.time()
                 return RequestResult(
                     response=resp,
                     status=status,
@@ -460,12 +460,7 @@ class VnthuquanAdapter:
             return False
 
     def _record_book_completed(self) -> None:
-        """Record a successful book completion timestamp."""
-        self._completed_timestamps.append(time.time())
-
-    def _books_completed_since(self, since_ts: float) -> int:
-        """Count books completed at or after since_ts."""
-        return sum(1 for ts in self._completed_timestamps if ts >= since_ts)
+        self._last_activity = time.time()
 
     # -----------------------------------------------------------------------
     # Page-level crash recovery
@@ -496,30 +491,26 @@ class VnthuquanAdapter:
         )
 
     async def _monitor_health(self) -> None:
-        """Stall detection monitor: aborts crawl after 30min of zero throughput."""
-        window_sec = 600
+        """Stall detection: abort if no successful HTTP response for 30 minutes."""
+        check_interval = 60
+        stall_threshold = 1800  # 30 min
         while True:
             if self._done:
                 return
             try:
-                await asyncio.wait_for(self._shutdown_event.wait(), timeout=window_sec)
+                await asyncio.wait_for(self._shutdown_event.wait(), timeout=check_interval)
                 return
             except asyncio.TimeoutError:
                 pass
             if self._done:
                 return
-            recent = self._books_completed_since(time.time() - window_sec)
-            if recent == 0 and self._books_remaining > 0:
-                self._stall_count += 1
-                logger.warning(
-                    f"[vnthuquan] Stall detected: 0 books in last 10min (stall #{self._stall_count})"
+            idle_sec = time.time() - self._last_activity
+            if idle_sec > stall_threshold and self._books_remaining > 0:
+                logger.error(
+                    f"[vnthuquan] Aborting: no HTTP activity for {idle_sec / 60:.0f}min"
                 )
-                if self._stall_count >= 3:
-                    logger.error("[vnthuquan] Aborting: 30min with zero throughput")
-                    self._abort = True
-                    return
-            else:
-                self._stall_count = 0
+                self._abort = True
+                return
 
     async def _auto_detect_end_page(self, start_page: int) -> int:
         """Fetch the first listing page to extract the last page number.

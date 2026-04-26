@@ -1459,15 +1459,6 @@ async def test_run_crawl_no_resume_skips_state_load():
 # AC #5 — Stall detection unit tests
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
-async def test_books_completed_since(adapter_32):
-    """_books_completed_since returns correct count."""
-    now = time.time()
-    adapter_32._completed_timestamps = [now - 700, now - 300, now - 100]
-    count = adapter_32._books_completed_since(now - 600)
-    assert count == 2  # only the last two are within 600s
-
-
 def _close_coroutine_arg(aw) -> None:
     """Avoid RuntimeWarning when tests stub asyncio.wait_for without awaiting aw."""
     if asyncio.iscoroutine(aw):
@@ -1475,9 +1466,26 @@ def _close_coroutine_arg(aw) -> None:
 
 
 @pytest.mark.asyncio
-async def test_monitor_health_stall_increments_count(adapter_32):
-    """_monitor_health increments _stall_count when no progress."""
+async def test_monitor_health_aborts_when_idle_too_long(adapter_32):
+    """_monitor_health sets _abort=True when no HTTP activity for > 30min."""
     adapter_32._books_remaining = 5
+    adapter_32._last_activity = time.time() - 1801  # simulate 30min+ idle
+
+    async def fake_wait_for(aw, timeout):
+        _close_coroutine_arg(aw)
+        raise asyncio.TimeoutError()
+
+    with patch("asyncio.wait_for", side_effect=fake_wait_for):
+        await adapter_32._monitor_health()
+
+    assert adapter_32._abort is True
+
+
+@pytest.mark.asyncio
+async def test_monitor_health_no_abort_when_active(adapter_32):
+    """_monitor_health does not abort when HTTP activity is recent."""
+    adapter_32._books_remaining = 5
+    adapter_32._last_activity = time.time()  # activity just happened
     call_count = 0
 
     async def fake_wait_for(aw, timeout):
@@ -1485,57 +1493,30 @@ async def test_monitor_health_stall_increments_count(adapter_32):
         _close_coroutine_arg(aw)
         call_count += 1
         if call_count >= 2:
-            adapter_32._done = True  # safety exit after 2 windows
-        raise asyncio.TimeoutError()
-
-    with patch("asyncio.wait_for", side_effect=fake_wait_for):
-        await adapter_32._monitor_health()
-
-    assert adapter_32._stall_count >= 1
-
-
-@pytest.mark.asyncio
-async def test_monitor_health_abort_after_3_stalls(adapter_32):
-    """_monitor_health sets _abort=True after 3 consecutive stall windows."""
-    adapter_32._books_remaining = 10
-    call_count = 0
-
-    async def fake_wait_for(aw, timeout):
-        nonlocal call_count
-        _close_coroutine_arg(aw)
-        call_count += 1
-        if call_count > 10:
-            adapter_32._done = True  # safety exit if abort path not taken
-        raise asyncio.TimeoutError()
-
-    with patch("asyncio.wait_for", side_effect=fake_wait_for):
-        await adapter_32._monitor_health()
-
-    assert adapter_32._abort is True
-    assert adapter_32._stall_count == 3
-
-
-@pytest.mark.asyncio
-async def test_monitor_health_resets_stall_on_progress(adapter_32):
-    """_monitor_health resets _stall_count to 0 when progress is detected."""
-    adapter_32._books_remaining = 5
-    call_count = 0
-
-    async def fake_wait_for(aw, timeout):
-        nonlocal call_count
-        _close_coroutine_arg(aw)
-        call_count += 1
-        if call_count == 2:
-            adapter_32._record_book_completed()
-        elif call_count >= 4:
             adapter_32._done = True
         raise asyncio.TimeoutError()
 
     with patch("asyncio.wait_for", side_effect=fake_wait_for):
         await adapter_32._monitor_health()
 
-    # stall count should have been reset after progress was detected
-    assert adapter_32._stall_count == 0
+    assert adapter_32._abort is False
+
+
+@pytest.mark.asyncio
+async def test_monitor_health_no_abort_when_no_remaining(adapter_32):
+    """_monitor_health does not abort when _books_remaining is 0 (between pages)."""
+    adapter_32._books_remaining = 0
+    adapter_32._last_activity = time.time() - 1801  # idle, but no pending work
+
+    async def fake_wait_for(aw, timeout):
+        _close_coroutine_arg(aw)
+        adapter_32._done = True
+        raise asyncio.TimeoutError()
+
+    with patch("asyncio.wait_for", side_effect=fake_wait_for):
+        await adapter_32._monitor_health()
+
+    assert adapter_32._abort is False
 
 
 @pytest.mark.asyncio
