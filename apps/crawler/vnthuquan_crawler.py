@@ -13,7 +13,7 @@ import json
 import logging
 import random
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from urllib.parse import urljoin
 from datetime import datetime, timezone
 from pathlib import Path
@@ -127,6 +127,79 @@ def write_book_json(book_data: BookData, output_dir: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Chapter resume helpers (module-level pure functions)
+# ---------------------------------------------------------------------------
+
+def _load_existing_chapters(
+    entry: BookListingEntry,
+    detail: BookDetail,
+    output_dir: Path,
+) -> list[str | None]:
+    """Read existing book.json and return per-chapter HTML (None = missing/empty).
+
+    Checks both the base slug path and the collision-resolved slug-{book_id} path so
+    that crash-resume works correctly even for books that were disambiguated on a prior run.
+    """
+    book_seo = slugify_title(detail.title)
+    cat_seo = slugify_title(entry.category_name)
+    base_dir = output_dir / "book-data" / "vnthuquan" / cat_seo
+
+    # Candidate paths: base slug first, then collision-resolved slug
+    candidates = [
+        base_dir / book_seo / "book.json",
+        base_dir / f"{book_seo}-{detail.tuaid}" / "book.json",
+    ]
+
+    existing: dict | None = None
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        try:
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if data.get("book_id") == detail.tuaid:
+            existing = data
+            break
+
+    if existing is None:
+        return [None] * len(detail.chapter_list)
+
+    existing_by_id: dict[int, str] = {}
+    for ch in existing.get("chapters", []):
+        ch_id = ch.get("chapter_id", 0)
+        pages = ch.get("pages", [])
+        html = pages[0].get("html_content", "") if pages else ""
+        if html:
+            existing_by_id[ch_id] = html
+
+    result: list[str | None] = []
+    for chuongid, _ in detail.chapter_list:
+        cid = int(chuongid) if chuongid else 0
+        result.append(existing_by_id.get(cid))
+    return result
+
+
+def _write_partial_book_json(collector: BookCollector, output_dir: Path) -> None:
+    """Write partial book.json with chapters fetched so far for crash resilience."""
+    try:
+        chapters_html_so_far: list[str] = [
+            r.content_html if r is not None else ""
+            for r in collector.chapters_result
+        ]
+        cover_url = collector.cover_url
+        if cover_url is None:
+            for r in collector.chapters_result:
+                if r is not None and r.cover_image_url:
+                    cover_url = r.cover_image_url
+                    break
+        book_data = assemble_book_data(collector.entry, collector.detail, chapters_html_so_far, cover_url)
+        write_book_json(book_data, output_dir)
+    except Exception as exc:
+        logger.warning(f"[vnthuquan] Partial save failed for '{collector.detail.title}': {exc}")
+
+
+# ---------------------------------------------------------------------------
 # RequestResult dataclass
 # ---------------------------------------------------------------------------
 
@@ -136,6 +209,33 @@ class RequestResult:
     status: int | None
     error_type: str | None  # "timeout" | "connection" | "dns" | "http_4xx" | "http_5xx" | None
     error_detail: str | None
+
+
+# ---------------------------------------------------------------------------
+# Chapter-level concurrency dataclasses
+# ---------------------------------------------------------------------------
+
+@dataclass
+class BookCollector:
+    """Accumulates chapter results for one book during chapter-queue crawl."""
+    entry: BookListingEntry
+    detail: BookDetail
+    total_chapters: int
+    chapters_result: list[ChapterParseResult | None]  # pre-sized; None = not yet fetched
+    cover_url: str | None
+    completed: asyncio.Event   # set when all pending chapters received
+    pending_count: int         # chapters still to fetch (excludes pre-loaded from disk)
+    received_count: int = field(default=0)
+    has_error: bool = field(default=False)
+
+
+@dataclass
+class ChapterTask:
+    """A single chapter fetch to enqueue into the shared chapter queue."""
+    collector: BookCollector
+    chapter_index: int
+    chuongid: int | str
+    chapter_name: str
 
 
 # ---------------------------------------------------------------------------
@@ -539,7 +639,7 @@ class VnthuquanAdapter:
         max_hours: float = 0.0,
         dry_run: bool = False,
     ) -> None:
-        """Fetch one listing page, crawl its books, then repeat until all pages done."""
+        """Fetch one listing page, crawl its books via chapter-level concurrency, then repeat."""
         if end_page == 0:
             end_page = await self._auto_detect_end_page(start_page)
 
@@ -571,7 +671,6 @@ class VnthuquanAdapter:
             )
 
         start_time = time.time()
-        semaphore = asyncio.Semaphore(concurrency)
         run_totals = {"ok": 0, "err": 0, "skipped": 0}
 
         monitor_task = asyncio.create_task(self._monitor_health())
@@ -607,44 +706,21 @@ class VnthuquanAdapter:
                 )
 
                 self._books_remaining = len(pending)
-                page_stats = {"ok": 0, "err": 0}
-                progress_lock = asyncio.Lock()
-
-                async def _process(
-                    entry: BookListingEntry,
-                    _pn: int = page_num,
-                    _total: int = len(pending),
-                ) -> None:
-                    if self._abort:
-                        return
-                    if max_hours > 0 and (time.time() - start_time) / 3600 > max_hours:
-                        return
-                    async with semaphore:
-                        ok = await self.crawl_book(entry)
-                    self._books_remaining = max(0, self._books_remaining - 1)
-                    async with progress_lock:
-                        page_stats["ok" if ok else "err"] += 1
-                        done_n = page_stats["ok"] + page_stats["err"]
-                        if (
-                            done_n == 1
-                            or done_n == _total
-                            or (_PROGRESS_LOG_INTERVAL > 0 and done_n % _PROGRESS_LOG_INTERVAL == 0)
-                        ):
-                            logger.info(
-                                f"[vnthuquan] Page {_pn} progress: {done_n}/{_total} "
-                                f"({page_stats['ok']} ok, {page_stats['err']} err)"
-                            )
+                page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
 
                 if pending:
-                    await asyncio.gather(*[_process(e) for e in pending])
+                    await self._crawl_page_with_chapter_queue(
+                        pending, page_num, page_stats, concurrency, max_hours, start_time
+                    )
 
                 run_totals["ok"] += page_stats["ok"]
                 run_totals["err"] += page_stats["err"]
-                run_totals["skipped"] += already_done
+                run_totals["skipped"] += already_done + page_stats["time_skipped"]
 
                 logger.info(
                     f"[vnthuquan] Page {page_num} complete — "
-                    f"{page_stats['ok']} ok, {page_stats['err']} err | "
+                    f"{page_stats['ok']} ok, {page_stats['err']} err, "
+                    f"{page_stats['time_skipped']} time-skipped | "
                     f"Run total: {run_totals['ok']} ok, {run_totals['err']} err, "
                     f"{run_totals['skipped']} skipped"
                 )
@@ -662,6 +738,218 @@ class VnthuquanAdapter:
             f"{run_totals['ok']} ok, {run_totals['err']} err, "
             f"{run_totals['skipped']} already done"
         )
+
+    async def _crawl_page_with_chapter_queue(
+        self,
+        pending: list[BookListingEntry],
+        page_num: int,
+        page_stats: dict[str, int],
+        concurrency: int,
+        max_hours: float,
+        start_time: float,
+    ) -> None:
+        """Process a page's pending books using a shared chapter-level work queue.
+
+        Phase A  — fetch book details concurrently (semaphore-limited).
+        Phase A.1 — chapter resume check: pre-fill collectors from existing book.json.
+        Phase B  — enqueue only missing chapters into a shared queue.
+        Phase C  — N worker coroutines pull from the queue and fetch chapters.
+        Phase D  — one assembler task per book awaits completion then writes book.json.
+        """
+        # ── Phase A: Fetch all book details concurrently ──
+        detail_sem = asyncio.Semaphore(concurrency)
+        collectors: list[BookCollector] = []
+        collectors_lock = asyncio.Lock()
+        page_stats_lock = asyncio.Lock()
+
+        async def _fetch_detail(entry: BookListingEntry) -> None:
+            if self._abort or (max_hours > 0 and (time.time() - start_time) / 3600 > max_hours):
+                self._books_remaining = max(0, self._books_remaining - 1)
+                async with page_stats_lock:
+                    page_stats["time_skipped"] += 1
+                return
+            async with detail_sem:
+                detail = await self.fetch_book_detail(entry)
+            if detail is None:
+                async with self._state_lock:
+                    self.state.mark_error(entry.url)
+                    self.state.save()
+                async with page_stats_lock:
+                    page_stats["err"] += 1
+                self._books_remaining = max(0, self._books_remaining - 1)
+                return
+
+            # ── Phase A.1: Chapter resume check ──
+            existing_html = _load_existing_chapters(entry, detail, self.output_dir)
+            pending_count = sum(1 for h in existing_html if h is None)
+            loaded = len(detail.chapter_list) - pending_count
+
+            chapters_result: list[ChapterParseResult | None] = [
+                ChapterParseResult(content_html=h, cover_image_url=None) if h is not None else None
+                for h in existing_html
+            ]
+
+            collector = BookCollector(
+                entry=entry,
+                detail=detail,
+                total_chapters=len(detail.chapter_list),
+                chapters_result=chapters_result,
+                cover_url=entry.cover_image_url,
+                completed=asyncio.Event(),
+                pending_count=pending_count,
+            )
+
+            if loaded > 0:
+                logger.info(
+                    f"[vnthuquan] Book \"{detail.title}\": "
+                    f"{loaded}/{len(detail.chapter_list)} chapters from disk, "
+                    f"{pending_count} to fetch"
+                )
+
+            if pending_count == 0:
+                # All chapters already on disk — mark immediately, no network needed
+                collector.completed.set()
+                async with self._state_lock:
+                    self.state.mark_downloaded(entry.url)
+                    self.state.save()
+                self._record_book_completed()
+                logger.info(
+                    f"[vnthuquan] Downloaded (from disk): {entry.url} ({loaded} chapters)"
+                )
+                async with page_stats_lock:
+                    page_stats["ok"] += 1
+                self._books_remaining = max(0, self._books_remaining - 1)
+
+            async with collectors_lock:
+                collectors.append(collector)
+
+        await asyncio.gather(*[_fetch_detail(e) for e in pending])
+
+        # ── Phase B: Enqueue only missing chapters ──
+        chapter_queue: asyncio.Queue[ChapterTask] = asyncio.Queue()
+        active_collectors = [c for c in collectors if not c.completed.is_set()]
+        total_to_fetch = 0
+
+        for coll in active_collectors:
+            for i, (chuongid, chapter_name) in enumerate(coll.detail.chapter_list):
+                if coll.chapters_result[i] is None:
+                    await chapter_queue.put(ChapterTask(
+                        collector=coll,
+                        chapter_index=i,
+                        chuongid=chuongid,
+                        chapter_name=chapter_name,
+                    ))
+                    total_to_fetch += 1
+
+        if not active_collectors:
+            return
+
+        chapters_fetched = {"n": 0}
+        progress_lock = asyncio.Lock()
+
+        # ── Phase C: Worker pool — N coroutines pull chapters from the shared queue ──
+        async def _chapter_worker() -> None:
+            while True:
+                task = await chapter_queue.get()
+                try:
+                    coll = task.collector
+                    result = await self.fetch_chapter(coll.detail.tuaid, task.chuongid)
+
+                    if result is None:
+                        logger.warning(
+                            f"[vnthuquan] Empty chapter {task.chuongid} in book {coll.detail.tuaid}"
+                        )
+                        coll.chapters_result[task.chapter_index] = ChapterParseResult(
+                            content_html="", cover_image_url=None
+                        )
+                    else:
+                        coll.chapters_result[task.chapter_index] = result
+                        if task.chapter_index == 0 and result.cover_image_url and coll.cover_url is None:
+                            coll.cover_url = result.cover_image_url
+
+                    coll.received_count += 1
+
+                    # Progress logging
+                    async with progress_lock:
+                        chapters_fetched["n"] += 1
+                        done_n = chapters_fetched["n"]
+                        if (
+                            done_n == 1
+                            or done_n == total_to_fetch
+                            or (_PROGRESS_LOG_INTERVAL > 0 and done_n % _PROGRESS_LOG_INTERVAL == 0)
+                        ):
+                            books_complete = sum(1 for c in active_collectors if c.completed.is_set())
+                            logger.info(
+                                f"[vnthuquan] Page {page_num} chapters: "
+                                f"{done_n}/{total_to_fetch} fetched "
+                                f"(books: {books_complete}/{len(active_collectors)} complete, "
+                                f"{page_stats['err']} err)"
+                            )
+
+                    # Progressive save every 5 chapters + on last chapter for this book
+                    if (
+                        coll.received_count % 5 == 0
+                        or coll.received_count == coll.pending_count
+                    ):
+                        _write_partial_book_json(coll, self.output_dir)
+
+                    if coll.received_count == coll.pending_count:
+                        coll.completed.set()
+
+                finally:
+                    chapter_queue.task_done()
+
+        # ── Phase D: Assembler tasks — one per active collector ──
+        async def _assemble_book(coll: BookCollector) -> None:
+            await coll.completed.wait()
+            entry = coll.entry
+            detail = coll.detail
+
+            chapters_html: list[str] = []
+            cover_url = coll.cover_url
+            for i, res in enumerate(coll.chapters_result):
+                if res is not None:
+                    if i == 0 and res.cover_image_url and cover_url is None:
+                        cover_url = res.cover_image_url
+                    chapters_html.append(res.content_html or "")
+                else:
+                    chapters_html.append("")
+
+            try:
+                book_data = assemble_book_data(entry, detail, chapters_html, cover_url)
+                cover_local_path = await self._download_cover(cover_url, book_data)
+                if cover_local_path:
+                    book_data.cover_image_local_path = cover_local_path
+                write_book_json(book_data, self.output_dir)
+                async with self._state_lock:
+                    self.state.mark_downloaded(entry.url)
+                    self.state.save()
+                self._record_book_completed()
+                logger.info(
+                    f"[vnthuquan] Downloaded: {entry.url} ({len(chapters_html)} chapters)"
+                )
+                async with page_stats_lock:
+                    page_stats["ok"] += 1
+            except Exception as e:
+                async with self._state_lock:
+                    self.state.mark_error(entry.url)
+                    self.state.save()
+                logger.error(f"[vnthuquan] Error writing book {entry.url}: {e}")
+                async with page_stats_lock:
+                    page_stats["err"] += 1
+            finally:
+                self._books_remaining = max(0, self._books_remaining - 1)
+
+        # Launch workers and assemblers; wait for queue to drain then clean up
+        num_workers = min(concurrency, total_to_fetch)
+        workers = [asyncio.create_task(_chapter_worker()) for _ in range(num_workers)]
+        assemblers = [asyncio.create_task(_assemble_book(c)) for c in active_collectors]
+
+        await chapter_queue.join()
+        for w in workers:
+            w.cancel()
+        await asyncio.gather(*workers, return_exceptions=True)
+        await asyncio.gather(*assemblers)
 
 
 # ---------------------------------------------------------------------------

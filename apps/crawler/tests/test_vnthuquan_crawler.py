@@ -34,7 +34,7 @@ from models import SourceConfig
 from utils.state import CrawlState
 from vnthuquan_crawler import CHAPTER_AJAX_URL, assemble_book_data, write_book_json, app, _run_crawl
 from vnthuquan_parser import BookDetail, BookListingEntry, ChapterParseResult, extract_last_page_number, parse_listing_page
-from vnthuquan_crawler import VnthuquanAdapter, create_session
+from vnthuquan_crawler import VnthuquanAdapter, create_session, BookCollector
 
 
 # ---------------------------------------------------------------------------
@@ -722,8 +722,8 @@ async def test_crawl_book_detail_failure_returns_false():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_crawl_all_semaphore_limits_concurrency():
-    """crawl_all respects concurrency limit via Semaphore."""
+async def test_crawl_all_chapter_concurrency():
+    """crawl_all respects concurrency limit at the chapter level."""
     session = await create_session()
     cfg, mock_state = _make_adapter_23()
     adapter = VnthuquanAdapter(source_config=cfg, session=session, state=mock_state, output_dir=Path("/tmp"))
@@ -734,7 +734,7 @@ async def test_crawl_all_semaphore_limits_concurrency():
             title=f"Book {i}",
             author_name="Author",
             author_id=i,
-            category_name="Phật Giáo",
+            category_name="Phat Giao",
             category_id=1,
             chapter_count=1,
             date="1.1.2026",
@@ -743,24 +743,46 @@ async def test_crawl_all_semaphore_limits_concurrency():
         for i in range(6)
     ]
 
+    details = [
+        BookDetail(
+            title=f"Book {i}",
+            category_label="Phat Giao",
+            tuaid=i + 100,
+            chapter_list=[(i * 10 + 1, f"Chapter 1")],
+            cover_image_url=None,
+            is_single_chapter=True,
+        )
+        for i in range(6)
+    ]
+
     peak = 0
     current = 0
-    lock = asyncio.Lock()
+    conc_lock = asyncio.Lock()
 
-    async def fake_crawl_book(entry):
+    async def fake_fetch_detail(entry: BookListingEntry) -> BookDetail:
+        idx = int(entry.url.split("tid=")[1])
+        return details[idx]
+
+    async def fake_fetch_chapter(tuaid: int, chuongid: int | str) -> ChapterParseResult:
         nonlocal peak, current
-        async with lock:
+        async with conc_lock:
             current += 1
             if current > peak:
                 peak = current
         await asyncio.sleep(0.05)
-        async with lock:
+        async with conc_lock:
             current -= 1
+        return ChapterParseResult(content_html="<p>content</p>", cover_image_url=None)
 
-    with patch.object(adapter, "_auto_detect_end_page", new=AsyncMock(return_value=1)):
-        with patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=entries)):
-            with patch.object(adapter, "crawl_book", side_effect=fake_crawl_book):
-                await adapter.crawl_all(concurrency=3)
+    with (
+        patch.object(adapter, "_auto_detect_end_page", new=AsyncMock(return_value=1)),
+        patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=entries)),
+        patch.object(adapter, "fetch_book_detail", side_effect=fake_fetch_detail),
+        patch.object(adapter, "fetch_chapter", side_effect=fake_fetch_chapter),
+        patch("vnthuquan_crawler.write_book_json"),
+        patch("vnthuquan_crawler.assemble_book_data", return_value=MagicMock()),
+    ):
+        await adapter.crawl_all(concurrency=3)
 
     await session.close()
     assert peak <= 3
@@ -1237,36 +1259,48 @@ async def test_crawl_book_skips_downloaded_url(adapter_32, caplog):
 
 @pytest.mark.asyncio
 async def test_crawl_all_skips_downloaded_entries(adapter_32):
-    """crawl_all filters out downloaded entries before dispatching crawl_book."""
+    """crawl_all skips downloaded entries — fetch_book_detail is NOT called for them."""
     entry_done = _make_entry_32(url="http://vnthuquan.net/truyen/done.aspx")
     entry_todo = _make_entry_32(url="http://vnthuquan.net/truyen/todo.aspx")
 
     adapter_32.state.mark_downloaded(entry_done.url)
 
+    detail = _make_detail_32()
+    ch_result = _make_chapter_result_32()
+
     with (
         patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=[entry_done, entry_todo])),
-        patch.object(adapter_32, "crawl_book", new=AsyncMock(return_value=True)) as mock_crawl,
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)) as mock_detail,
+        patch.object(adapter_32, "fetch_chapter", new=AsyncMock(return_value=ch_result)),
+        patch("vnthuquan_crawler.write_book_json"),
+        patch("vnthuquan_crawler.assemble_book_data", return_value=MagicMock()),
     ):
         await adapter_32.crawl_all(start_page=1, end_page=1, concurrency=1, max_hours=0, dry_run=False)
 
-    called_urls = [call.args[0].url for call in mock_crawl.call_args_list]
-    assert entry_done.url not in called_urls, "Downloaded entry must not be passed to crawl_book"
-    assert entry_todo.url in called_urls, "Pending entry must be passed to crawl_book"
+    called_urls = [call.args[0].url for call in mock_detail.call_args_list]
+    assert entry_done.url not in called_urls, "Downloaded entry must not trigger fetch_book_detail"
+    assert entry_todo.url in called_urls, "Pending entry must trigger fetch_book_detail"
 
 
 @pytest.mark.asyncio
 async def test_crawl_all_reattempts_error_entries(adapter_32):
-    """crawl_all does NOT skip entries with 'error' status — they are re-attempted."""
+    """crawl_all does NOT skip entries with 'error' status — fetch_book_detail IS called."""
     entry_error = _make_entry_32(url="http://vnthuquan.net/truyen/error.aspx")
     adapter_32.state.mark_error(entry_error.url)
 
+    detail = _make_detail_32()
+    ch_result = _make_chapter_result_32()
+
     with (
         patch.object(adapter_32, "fetch_listing_page", new=AsyncMock(return_value=[entry_error])),
-        patch.object(adapter_32, "crawl_book", new=AsyncMock(return_value=True)) as mock_crawl,
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)) as mock_detail,
+        patch.object(adapter_32, "fetch_chapter", new=AsyncMock(return_value=ch_result)),
+        patch("vnthuquan_crawler.write_book_json"),
+        patch("vnthuquan_crawler.assemble_book_data", return_value=MagicMock()),
     ):
         await adapter_32.crawl_all(start_page=1, end_page=1, concurrency=1, max_hours=0, dry_run=False)
 
-    called_urls = [call.args[0].url for call in mock_crawl.call_args_list]
+    called_urls = [call.args[0].url for call in mock_detail.call_args_list]
     assert entry_error.url in called_urls, "Error entry must be re-attempted"
 
 
@@ -1548,3 +1582,271 @@ async def test_dry_run_prints_books_without_fetching_detail(adapter_32, capsys):
 
     captured = capsys.readouterr()
     assert "[vnthuquan] DRY RUN book:" in captured.out
+
+
+# ===========================================================================
+# Chapter Resume & Progressive Save (Tech Spec ACs 5–8)
+# ===========================================================================
+
+from vnthuquan_crawler import _load_existing_chapters, _write_partial_book_json
+
+
+# ---------------------------------------------------------------------------
+# _load_existing_chapters
+# ---------------------------------------------------------------------------
+
+def test_load_existing_chapters_no_file(tmp_path):
+    """Returns all-None when no book.json exists on disk."""
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+    result = _load_existing_chapters(entry, detail, tmp_path)
+    assert result == [None, None]
+
+
+def test_load_existing_chapters_full_book(tmp_path):
+    """Returns html for every chapter when all chapters have content."""
+    from utils.slugify import slugify_title
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()  # chapter_list=[(101, ...), (102, ...)]
+
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+    book_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    book_dir.mkdir(parents=True)
+    book_json = {
+        "book_id": detail.tuaid,
+        "chapters": [
+            {"chapter_id": 101, "pages": [{"html_content": "<p>ch1</p>"}]},
+            {"chapter_id": 102, "pages": [{"html_content": "<p>ch2</p>"}]},
+        ]
+    }
+    (book_dir / "book.json").write_text(_json.dumps(book_json), encoding="utf-8")
+
+    result = _load_existing_chapters(entry, detail, tmp_path)
+    assert result == ["<p>ch1</p>", "<p>ch2</p>"]
+
+
+def test_load_existing_chapters_partial(tmp_path):
+    """Returns None for chapters missing from disk, html for present ones."""
+    from utils.slugify import slugify_title
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+    book_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    book_dir.mkdir(parents=True)
+    book_json = {
+        "book_id": detail.tuaid,
+        "chapters": [
+            {"chapter_id": 101, "pages": [{"html_content": "<p>ch1</p>"}]},
+            {"chapter_id": 102, "pages": [{"html_content": ""}]},  # empty = not yet fetched
+        ]
+    }
+    (book_dir / "book.json").write_text(_json.dumps(book_json), encoding="utf-8")
+
+    result = _load_existing_chapters(entry, detail, tmp_path)
+    assert result[0] == "<p>ch1</p>"
+    assert result[1] is None
+
+
+def test_load_existing_chapters_collision_resolved_path(tmp_path):
+    """Returns html when chapters were saved under the collision-resolved slug."""
+    from utils.slugify import slugify_title
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+
+    # Base slug has a DIFFERENT book — simulates a slug collision on a prior run
+    base_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    base_dir.mkdir(parents=True)
+    (base_dir / "book.json").write_text(
+        _json.dumps({"book_id": 99999, "chapters": []}), encoding="utf-8"
+    )
+
+    # Our book was written under the collision-resolved path
+    collision_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / f"{book_seo}-{detail.tuaid}"
+    collision_dir.mkdir(parents=True)
+    (collision_dir / "book.json").write_text(
+        _json.dumps({
+            "book_id": detail.tuaid,
+            "chapters": [
+                {"chapter_id": 101, "pages": [{"html_content": "<p>ch1</p>"}]},
+                {"chapter_id": 102, "pages": [{"html_content": "<p>ch2</p>"}]},
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    result = _load_existing_chapters(entry, detail, tmp_path)
+    assert result == ["<p>ch1</p>", "<p>ch2</p>"]
+
+
+def test_load_existing_chapters_corrupt_json(tmp_path):
+    """Returns all-None gracefully on corrupt JSON."""
+    from utils.slugify import slugify_title
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+    book_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    book_dir.mkdir(parents=True)
+    (book_dir / "book.json").write_text("not json", encoding="utf-8")
+
+    result = _load_existing_chapters(entry, detail, tmp_path)
+    assert result == [None, None]
+
+
+# ---------------------------------------------------------------------------
+# AC5 & AC6: crawl_all only fetches missing chapters on resume
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_crawl_all_resume_skips_existing_chapters(tmp_path, tmp_state):
+    """On resume, chapters already in book.json are NOT re-fetched (AC5, AC6)."""
+    from utils.slugify import slugify_title
+
+    source_config = MagicMock()
+    source_config.rate_limit_seconds = 0
+    adapter = VnthuquanAdapter(
+        source_config=source_config,
+        session=MagicMock(),
+        state=tmp_state,
+        output_dir=tmp_path,
+    )
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()  # 2 chapters: 101, 102
+
+    # Pre-populate book.json with chapter 101 already fetched
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+    book_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    book_dir.mkdir(parents=True)
+    book_json_data = {
+        "book_id": detail.tuaid,
+        "chapters": [
+            {"chapter_id": 101, "pages": [{"html_content": "<p>existing ch1</p>"}]},
+            {"chapter_id": 102, "pages": [{"html_content": ""}]},
+        ],
+    }
+    (book_dir / "book.json").write_text(_json.dumps(book_json_data), encoding="utf-8")
+
+    fetch_chapter_calls: list[int | str] = []
+
+    async def fake_fetch_detail(e: BookListingEntry) -> BookDetail:
+        return detail
+
+    async def fake_fetch_chapter(tuaid: int, chuongid: int | str) -> ChapterParseResult:
+        fetch_chapter_calls.append(chuongid)
+        return ChapterParseResult(content_html="<p>fetched</p>", cover_image_url=None)
+
+    with (
+        patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=[entry])),
+        patch.object(adapter, "fetch_book_detail", side_effect=fake_fetch_detail),
+        patch.object(adapter, "fetch_chapter", side_effect=fake_fetch_chapter),
+        patch("vnthuquan_crawler.write_book_json"),
+        patch("vnthuquan_crawler.assemble_book_data", return_value=MagicMock()),
+    ):
+        await adapter.crawl_all(start_page=1, end_page=1, concurrency=2)
+
+    # Only chapter 102 (missing) should have been fetched — not 101
+    assert len(fetch_chapter_calls) == 1
+    assert 102 in fetch_chapter_calls
+
+
+# ---------------------------------------------------------------------------
+# AC7: Progressive save writes partial book.json
+# ---------------------------------------------------------------------------
+
+def test_write_partial_book_json_passes_empty_string_for_unfetched(tmp_path):
+    """_write_partial_book_json passes '' for unfetched chapters to assemble_book_data."""
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+
+    chapters_result: list[ChapterParseResult | None] = [
+        ChapterParseResult(content_html="<p>ch1</p>", cover_image_url=None),
+        None,  # not yet fetched
+    ]
+    collector = BookCollector(
+        entry=entry,
+        detail=detail,
+        total_chapters=2,
+        chapters_result=chapters_result,
+        cover_url=None,
+        completed=asyncio.Event(),
+        pending_count=1,
+        received_count=1,
+    )
+
+    assembled_html_args: list[list[str]] = []
+
+    def fake_assemble(e, d, chapters_html, cover_url):
+        assembled_html_args.append(chapters_html)
+        return MagicMock()
+
+    with (
+        patch("vnthuquan_crawler.assemble_book_data", side_effect=fake_assemble),
+        patch("vnthuquan_crawler.write_book_json"),
+    ):
+        _write_partial_book_json(collector, tmp_path)
+
+    assert len(assembled_html_args) == 1
+    called_html = assembled_html_args[0]
+    assert called_html[0] == "<p>ch1</p>"
+    assert called_html[1] == ""  # unfetched chapter represented as empty string
+
+
+# ---------------------------------------------------------------------------
+# AC8: Book with 0 missing chapters marked downloaded without network
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_crawl_all_resume_complete_book_no_network(tmp_path, tmp_state):
+    """A book with all chapters on disk is marked downloaded without any fetch_chapter (AC8)."""
+    from utils.slugify import slugify_title
+
+    source_config = MagicMock()
+    source_config.rate_limit_seconds = 0
+    adapter = VnthuquanAdapter(
+        source_config=source_config,
+        session=MagicMock(),
+        state=tmp_state,
+        output_dir=tmp_path,
+    )
+
+    entry = _make_entry_32()
+    detail = _make_detail_32()
+
+    # Pre-populate book.json with both chapters already fetched
+    cat_seo = slugify_title(entry.category_name)
+    book_seo = slugify_title(detail.title)
+    book_dir = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo
+    book_dir.mkdir(parents=True)
+    book_json_data = {
+        "book_id": detail.tuaid,
+        "chapters": [
+            {"chapter_id": 101, "pages": [{"html_content": "<p>ch1</p>"}]},
+            {"chapter_id": 102, "pages": [{"html_content": "<p>ch2</p>"}]},
+        ],
+    }
+    (book_dir / "book.json").write_text(_json.dumps(book_json_data), encoding="utf-8")
+
+    mock_fetch_chapter = AsyncMock()
+
+    with (
+        patch.object(adapter, "fetch_listing_page", new=AsyncMock(return_value=[entry])),
+        patch.object(adapter, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(adapter, "fetch_chapter", mock_fetch_chapter),
+    ):
+        await adapter.crawl_all(start_page=1, end_page=1, concurrency=2)
+
+    mock_fetch_chapter.assert_not_called()
+    assert tmp_state.is_downloaded(entry.url)
