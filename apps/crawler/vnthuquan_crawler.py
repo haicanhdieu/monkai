@@ -964,7 +964,7 @@ def crawl(
     start_page: int = typer.Option(1, "--start-page", help="First listing page to crawl"),
     end_page: int = typer.Option(0, "--end-page", help="Last page (0 = auto-detect)"),
     resume: bool = typer.Option(True, "--resume/--no-resume", help="Resume from existing state"),
-    rate_limit: float = typer.Option(0.0, "--rate-limit", help="Rate limit override in seconds (0 = use config)"),
+    rate_limit: float = typer.Option(-1.0, "--rate-limit", help="Rate limit per request in seconds (-1 = use config, 0 = no limit)"),
     concurrency: int = typer.Option(5, "--concurrency", help="Number of concurrent book workers"),
     max_hours: float = typer.Option(0.0, "--max-hours", help="Max hours to crawl (0 = unlimited)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="List books without downloading"),
@@ -989,7 +989,7 @@ async def _run_crawl(
     except StopIteration:
         raise typer.BadParameter("No 'vnthuquan' source found in config.yaml")
 
-    if rate_limit > 0:
+    if rate_limit >= 0:
         vnthuquan_src.rate_limit_seconds = rate_limit
 
     state = CrawlState(state_file="data/crawl-state-vnthuquan.json")
@@ -1028,7 +1028,7 @@ def _print_summary(state: CrawlState) -> None:
 def backfill_covers(
     start_page: int = typer.Option(1, "--start-page", help="First listing page to scan"),
     end_page: int = typer.Option(0, "--end-page", help="Last page (0 = auto-detect)"),
-    rate_limit: float = typer.Option(0.0, "--rate-limit", help="Rate limit override in seconds (0 = use config)"),
+    rate_limit: float = typer.Option(-1.0, "--rate-limit", help="Rate limit per request in seconds (-1 = use config, 0 = no limit)"),
     concurrency: int = typer.Option(3, "--concurrency", help="Number of concurrent cover downloads"),
 ) -> None:
     """Download missing cover images for already-crawled books without re-downloading chapters."""
@@ -1048,7 +1048,7 @@ async def _run_backfill_covers(
     except StopIteration:
         raise typer.BadParameter("No 'vnthuquan' source found in config.yaml")
 
-    if rate_limit > 0:
+    if rate_limit >= 0:
         vnthuquan_src.rate_limit_seconds = rate_limit
 
     state = CrawlState(state_file="data/crawl-state-vnthuquan.json")

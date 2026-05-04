@@ -1349,7 +1349,7 @@ def test_cli_crawl_default_options():
     assert args.args[0] == 1       # start_page
     assert args.args[1] == 0       # end_page
     assert args.args[2] is True    # resume
-    assert args.args[3] == 0.0     # rate_limit
+    assert args.args[3] == -1.0    # rate_limit (-1 = use config)
     assert args.args[4] == 5       # concurrency
     assert args.args[5] == 0.0     # max_hours
     assert args.args[6] is False   # dry_run
