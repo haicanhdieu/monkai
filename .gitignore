@@ -18,6 +18,8 @@ __pycache__/
 # devbox
 .devbox/
 
+.temp/
+
 # IDE
 .idea/
 .vscode/
@@ -35,6 +37,8 @@ cursor.sh
 .env
 .env.local
 .env.*.local
+.pi-server.yaml
+.ngrok-config.yaml
 
 # MCP config (contains API keys) - use mcp.canonical.example.json as template
 mcp.canonical.json

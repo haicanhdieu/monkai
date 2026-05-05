@@ -1,5 +1,6 @@
 ---
-project_name: 'monkai'
+
+## project_name: 'monkai'
 user_name: 'Minh'
 date: '2026-03-13'
 sections_completed:
@@ -14,11 +15,10 @@ sections_completed:
 status: complete
 rule_count: 42
 optimized_for_llm: true
----
 
 # Project Context for AI Agents
 
-_This file contains critical rules and patterns that AI agents must follow when implementing code in this project. Focus on unobvious details that agents might otherwise miss._
+*This file contains critical rules and patterns that AI agents must follow when implementing code in this project. Focus on unobvious details that agents might otherwise miss.*
 
 **Monkai** is a monorepo: **Phase 1 Crawler** (`apps/crawler`, Python) ingests and indexes Buddhist scriptures; **Phase 2 Reader** (`apps/reader`, React/Vite) is a PWA that consumes that corpus. The handoff contract is `index.json` plus per-book JSON; reader Zod schemas must stay aligned with crawler output.
 
@@ -70,7 +70,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Data:** Validate book/catalog with Zod in `shared/schemas/`; use `useBook`, `useCatalogIndex`, `useCatalogSync` for catalog access. PWA/Workbox config in `vite.config.ts`; respect `VITE_BASE_PATH`.
 - **Reader EPUB flow:** `epubUrl` comes from (1) catalog `epubUrl` when present, or (2) built from JSON when absent: `useEpubFromBook(book)` builds EPUB in memory via `bookToEpubBuffer(book)` from `@/shared/lib/bookToEpub`, caches the blob with `epubBlobCacheKey(bookId)` (see `storage.keys.ts`), and exposes a blob URL; revoke the blob URL on cleanup. `useEpubReader(epubUrl)` accepts both `blob:` URLs (fetch → ArrayBuffer → epub.js) and regular URLs. Do not use `localStorage`/indexedDB/localforage directly; cache EPUB blobs only via `StorageService` and the keys in `storage.keys.ts`.
 - **Shared lib:** `@/shared/lib/bookToEpub.ts` builds a minimal EPUB 2.0 from `Book` (JSZip); mirrors structure of `scripts/build-epubs.mjs`. Use `sanitizeXml` for XML 1.0 forbidden control characters and `xmlEscape` for content; keep in sync with build-time script where both produce EPUB.
-- **Storage keys:** `storage.keys.ts` defines `STORAGE_KEYS`, `EPUB_BLOB_CACHE_PREFIX`, and `epubBlobCacheKey(bookId)`. Bump `EPUB_BLOB_CACHE_PREFIX` version (e.g. `epub_blob_v2_`) when EPUB generation logic changes so stale blobs don’t mask fixes.
+- **Storage keys:** `storage.keys.ts` defines `STORAGE_KEYS`, `EPUB_BLOB_CACHE_PREFIX`, and `epubBlobCacheKey(bookId)`. Bump `EPUB_BLOB_CACHE_PREFIX` version (e.g. `epub_blob_v2`_) when EPUB generation logic changes so stale blobs don’t mask fixes.
 - **Tests:** Vitest; colocated `*.test.ts(x)`; `test-setup.ts` (jest-dom, ResizeObserver mock); `vi.mock` + `data-testid` for mocked components. For `useEpubFromBook` / `bookToEpub`: mock `StorageService` and `bookToEpubBuffer`; stub `URL.createObjectURL`/`revokeObjectURL` when testing blob URLs. Run `pnpm test` and `pnpm lint` (zero warnings).
 - **Structure:** `src/features/<feature>/`, `src/shared/` (components, hooks, services, constants, schemas, types, **lib**), `src/stores/`, `src/lib/`. PascalCase components; default export only for page components used by router.
 - **i18n:** Vietnamese UI strings (e.g. "Cài Đặt", "Đọc kinh Phật"); keep consistent with existing locale.
@@ -99,6 +99,22 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ---
 
+## Deployment
+
+### Raspberry Pi Server
+
+The Raspberry Pi is the **primary deployment target** for both the crawler and the book data host.
+
+- **Config file:** `.pi-server.yaml` at repo root — contains `host`, `user`, `password`, `port` for SSH access. Never commit credentials; reference this file when scripting deploys.
+- **Ngrok config:** `.ngrok-config.yaml` at repo root — contains ngrok tunnel configuration for exposing the Pi's book data server to the internet. Reference this file when setting up or scripting ngrok tunnels.
+- **Crawler deployment:** SSH into the Pi and run crawler commands there. Use `.pi-server.yaml` for connection details.
+- **Book data hosting:** The Pi serves the book data (i.e. `index.json` + per-book JSON) consumed by the reader. Update book data on the Pi after each crawl/pipeline run.
+- **Deploy scripts:** `devbox run deploy:book-data`, `devbox run deploy:reader`, `devbox run deploy:all` (see `apps/deployer/README.md`). When adding new deploy scripts, target the Pi using `.pi-server.yaml`.
+
+**When the user says "deploy the crawler" or "deploy book data":** connect to the Pi using `.pi-server.yaml` credentials, not any other server.
+
+---
+
 ## Usage Guidelines
 
 **For AI Agents:**
@@ -110,4 +126,4 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - Keep this file lean; update when stack or conventions change; review periodically.
 
-Last Updated: 2026-03-13
+Last Updated: 2026-05-05

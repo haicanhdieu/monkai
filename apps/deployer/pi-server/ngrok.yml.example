@@ -1,0 +1,9 @@
+version: "3"
+agent:
+  authtoken: <AUTH-TOKEN>
+
+tunnels:
+  book-data:
+    proto: http
+    addr: 80
+    domain: <NGROK-DOMAIN>

@@ -1,0 +1,25 @@
+:80 {
+	@book_data path /book-data/*
+	@options method OPTIONS
+
+	handle @options {
+		header Access-Control-Allow-Origin "*"
+		header Access-Control-Allow-Methods "GET, OPTIONS"
+		respond 204
+	}
+
+	handle @book_data {
+		uri strip_prefix /book-data
+		root * <PI-HOME>/working/monkai/apps/crawler/data/book-data
+		file_server {
+			hide .git
+		}
+		header Access-Control-Allow-Origin "*"
+		header Access-Control-Allow-Methods "GET, OPTIONS"
+	}
+
+	handle {
+		header Access-Control-Allow-Origin "*"
+		respond 404
+	}
+}
