@@ -123,7 +123,9 @@ def write_book_json(book_data: BookData, output_dir: Path) -> Path:
 
     target_dir.mkdir(parents=True, exist_ok=True)
     out_path = target_dir / "book.json"
-    out_path.write_text(book_data.model_dump_json(by_alias=True), encoding="utf-8")
+    tmp_path = target_dir / "book.json.tmp"
+    tmp_path.write_text(book_data.model_dump_json(by_alias=True), encoding="utf-8")
+    tmp_path.replace(out_path)  # atomic rename — readers always see a complete file
     return out_path
 
 
