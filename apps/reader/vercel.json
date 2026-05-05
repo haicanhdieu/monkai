@@ -1,7 +1,7 @@
 {
 "installCommand": "pnpm install",
 "rewrites": [
-    { "source": "/book-data/:path*", "destination": "https://pub-f372aac7cb1749f3927f74f6375153b5.r2.dev/book-data/:path*" },
+    { "source": "/book-data/:path*", "destination": "https://paying-citizen-nullify.ngrok-free.dev/book-data/:path*" },
     { "source": "/((?!book-data/).*)", "destination": "/index.html" }
   ]
 }

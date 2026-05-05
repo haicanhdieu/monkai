@@ -59,7 +59,7 @@ jobs:
           {
             "version": 3,
             "routes": [
-              { "src": "/book-data/(.*)", "dest": "https://pub-f372aac7cb1749f3927f74f6375153b5.r2.dev/book-data/$1" },
+              { "src": "/book-data/(.*)", "dest": "https://paying-citizen-nullify.ngrok-free.dev/book-data/$1" },
               { "handle": "filesystem" },
               { "src": "/(.*)", "dest": "/index.html" }
             ]
