@@ -19,6 +19,8 @@ PID_FILE="${CRAWLER_DIR}/crawl.pid"
 LOG_FILE="${CRAWLER_DIR}/crawl-vnthuquan.log"
 
 ssh "$PI_USER@$PI_HOST" bash <<ENDSSH
+  cd "${MONKAI_DIR}" && git pull --ff-only
+
   if [ -f "${PID_FILE}" ]; then
     PID=\$(cat "${PID_FILE}")
     if kill -0 "\$PID" 2>/dev/null; then
