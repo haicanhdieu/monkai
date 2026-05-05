@@ -21,6 +21,7 @@ from pathlib import Path
 import aiohttp
 import typer
 
+from indexer import append_book_to_index
 from models import BookData, BookMeta, ChapterEntry, PageEntry, SourceConfig
 from utils.config import load_config
 from utils.logging import setup_logger
@@ -275,6 +276,7 @@ class VnthuquanAdapter:
         self.state = state
         self.output_dir = output_dir
         self._state_lock = asyncio.Lock()
+        self._index_lock = asyncio.Lock()
         self.rate_limit_seconds: float = source_config.rate_limit_seconds
         self._session_refresh_count: int = 0
         self._done: bool = False
@@ -549,6 +551,9 @@ class VnthuquanAdapter:
             async with self._state_lock:
                 self.state.mark_downloaded(entry.url)    # only after successful write
                 self.state.save()
+            await self._append_to_index(
+                self._book_json_path(book_data.category_seo_name, book_data.book_seo_name)
+            )
             self._record_book_completed()
             logger.info(f"[vnthuquan] Downloaded: {entry.url} ({len(chapters_html)} chapters)")
             return True
@@ -561,6 +566,32 @@ class VnthuquanAdapter:
 
     def _record_book_completed(self) -> None:
         self._last_activity = time.time()
+
+    def _book_json_path(self, category_seo: str, book_seo: str) -> Path:
+        """Resolve the on-disk book.json path for a (category, book) slug pair."""
+        return (
+            self.output_dir
+            / "book-data"
+            / "vnthuquan"
+            / category_seo
+            / book_seo
+            / "book.json"
+        )
+
+    async def _append_to_index(self, book_json_path: Path) -> None:
+        """Append-only incremental update of data/book-data/vnthuquan/index.json.
+
+        Serialized via _index_lock so concurrent assemblers can't trample each other.
+        Reads BookData from book_json_path on disk — no need for an in-memory copy.
+        """
+        async with self._index_lock:
+            await asyncio.to_thread(
+                append_book_to_index,
+                self.output_dir,
+                "vnthuquan",
+                book_json_path,
+                logger,
+            )
 
     # -----------------------------------------------------------------------
     # Page-level crash recovery
@@ -812,6 +843,17 @@ class VnthuquanAdapter:
                 async with self._state_lock:
                     self.state.mark_downloaded(entry.url)
                     self.state.save()
+                # book.json already exists on disk. Resolve to the actual file
+                # (base slug OR collision-resolved {slug}-{tuaid}) and let the
+                # indexer read it directly.
+                cat_seo = slugify_title(entry.category_name)
+                base_slug = slugify_title(detail.title)
+                base_path = self._book_json_path(cat_seo, base_slug)
+                resolved_path = (
+                    base_path if base_path.exists()
+                    else self._book_json_path(cat_seo, f"{base_slug}-{detail.tuaid}")
+                )
+                await self._append_to_index(resolved_path)
                 self._record_book_completed()
                 logger.info(
                     f"[vnthuquan] Downloaded (from disk): {entry.url} ({loaded} chapters)"
@@ -924,6 +966,9 @@ class VnthuquanAdapter:
                 async with self._state_lock:
                     self.state.mark_downloaded(entry.url)
                     self.state.save()
+                await self._append_to_index(
+                    self._book_json_path(book_data.category_seo_name, book_data.book_seo_name)
+                )
                 self._record_book_completed()
                 logger.info(
                     f"[vnthuquan] Downloaded: {entry.url} ({len(chapters_html)} chapters)"
@@ -1006,6 +1051,10 @@ async def _run_crawl(
             state._state.clear()  # discard loaded state, start fresh
             if adapter._meta_file.exists():
                 adapter._meta_file.unlink()  # reset page-level progress too
+            # Reset incremental index — append-only from a clean slate.
+            index_path = adapter.output_dir / "book-data" / "vnthuquan" / "index.json"
+            index_path.unlink(missing_ok=True)
+            index_path.with_suffix(".json.tmp").unlink(missing_ok=True)
         try:
             await adapter.crawl_all(start_page, end_page, concurrency, max_hours, dry_run)
         except KeyboardInterrupt:

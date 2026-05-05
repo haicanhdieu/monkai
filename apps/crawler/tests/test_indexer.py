@@ -14,6 +14,7 @@ import pytest
 
 from models import BookData, BookIndexRecord, CrawlerConfig, SourceConfig
 from indexer import (
+    append_book_to_index,
     build_index,
     build_book_data_index,
     load_existing_index,
@@ -781,3 +782,221 @@ def test_build_book_data_index_vnthuquan_multi_category(
     assert data["_meta"]["total_books"] == 2
     sources = {b["artifacts"][0]["source"] for b in data["books"]}
     assert sources == {"vnthuquan"}
+
+
+# ===========================================================================
+# append_book_to_index — append-only incremental update
+# ===========================================================================
+
+
+def test_append_book_to_index_creates_index_when_missing(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """First book: index.json is created with one entry."""
+    book_data_dir = tmp_path / "book-data"
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+
+    added = append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+    assert added is True
+
+    index_path = book_data_dir / "vnthuquan" / "index.json"
+    assert index_path.exists()
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+    assert data["books"][0]["source_book_id"] == "1001"
+    assert data["books"][0]["source"] == "vnthuquan"
+
+
+def test_append_book_to_index_appends_new_books(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Subsequent calls append distinct books to existing index."""
+    book_data_dir = tmp_path / "book-data"
+    book_a = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    book_b = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-b", book_id=1002)
+
+    assert append_book_to_index(tmp_path, "vnthuquan", book_a, mock_logger) is True
+    assert append_book_to_index(tmp_path, "vnthuquan", book_b, mock_logger) is True
+
+    data = json.loads(
+        (book_data_dir / "vnthuquan" / "index.json").read_text(encoding="utf-8")
+    )
+    assert data["_meta"]["total_books"] == 2
+    ids = {b["source_book_id"] for b in data["books"]}
+    assert ids == {"1001", "1002"}
+
+
+def test_append_book_to_index_skips_when_already_present(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Append-only: a second call for the same (source, source_book_id) is a no-op."""
+    book_data_dir = tmp_path / "book-data"
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+
+    assert append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger) is True
+    index_path = book_data_dir / "vnthuquan" / "index.json"
+    content_before = index_path.read_text(encoding="utf-8")
+
+    # Second call must skip
+    assert append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger) is False
+    content_after = index_path.read_text(encoding="utf-8")
+    assert content_before == content_after, "Index file must be untouched on skip"
+
+
+def test_append_book_to_index_preserves_existing_uuid(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """When an entry already exists with a UUID, repeated appends do not change it."""
+    book_data_dir = tmp_path / "book-data"
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+
+    append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+    index_path = book_data_dir / "vnthuquan" / "index.json"
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    original_uuid = data["books"][0]["id"]
+
+    # Skipped second call: UUID must remain
+    append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+    data2 = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data2["books"][0]["id"] == original_uuid
+
+
+def test_append_book_to_index_no_tmp_leftover(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """After successful write, no .tmp file remains alongside index.json."""
+    book_data_dir = tmp_path / "book-data"
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+
+    append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+    index_dir = book_data_dir / "vnthuquan"
+    leftovers = list(index_dir.glob("*.tmp"))
+    assert leftovers == [], f"Found stray tmp files: {leftovers}"
+
+
+def test_append_book_to_index_preserves_existing_other_books(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Appending one book never modifies entries already in the index."""
+    book_data_dir = tmp_path / "book-data"
+    book_a = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    book_b = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-b", book_id=1002)
+
+    append_book_to_index(tmp_path, "vnthuquan", book_a, mock_logger)
+    data1 = json.loads(
+        (book_data_dir / "vnthuquan" / "index.json").read_text(encoding="utf-8")
+    )
+    book_a_entry_before = data1["books"][0]
+
+    append_book_to_index(tmp_path, "vnthuquan", book_b, mock_logger)
+    data2 = json.loads(
+        (book_data_dir / "vnthuquan" / "index.json").read_text(encoding="utf-8")
+    )
+    book_a_entry_after = next(
+        b for b in data2["books"] if b["source_book_id"] == "1001"
+    )
+    assert book_a_entry_before == book_a_entry_after, (
+        "Existing entry must remain byte-for-byte identical after appending another book"
+    )
+
+
+def test_append_book_to_index_quarantines_corrupt_index(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Corrupt index.json is renamed to index.json.corrupt-* and a fresh one is written.
+
+    Crucially, the new index does NOT silently overwrite the corrupt file —
+    the prior bytes survive on disk for forensic recovery.
+    """
+    book_data_dir = tmp_path / "book-data"
+    index_path = book_data_dir / "vnthuquan" / "index.json"
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text("{ this is not valid JSON", encoding="utf-8")
+    corrupt_bytes = index_path.read_text(encoding="utf-8")
+
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    added = append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+
+    assert added is True
+    # New, valid index exists with one entry
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+    # Corrupt original was preserved with `.corrupt-` suffix
+    quarantined = list(index_path.parent.glob("index.json.corrupt-*"))
+    assert len(quarantined) == 1, f"Expected one quarantine file, found: {quarantined}"
+    assert quarantined[0].read_text(encoding="utf-8") == corrupt_bytes
+
+
+def test_append_book_to_index_preserves_unknown_fields(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """Unknown/extra fields in pre-existing entries survive across appends.
+
+    Guards against silent stripping via Pydantic round-trip.
+    """
+    book_data_dir = tmp_path / "book-data"
+    book_a = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    book_b = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-b", book_id=1002)
+
+    # Seed the index with book-a, then inject a custom field
+    append_book_to_index(tmp_path, "vnthuquan", book_a, mock_logger)
+    index_path = book_data_dir / "vnthuquan" / "index.json"
+    seeded = json.loads(index_path.read_text(encoding="utf-8"))
+    seeded["books"][0]["custom_annotation"] = "manually-added"
+    seeded["books"][0]["legacy_v0_field"] = {"nested": [1, 2, 3]}
+    index_path.write_text(json.dumps(seeded, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # Append a different book; the manually-added fields must survive.
+    append_book_to_index(tmp_path, "vnthuquan", book_b, mock_logger)
+
+    data = json.loads(index_path.read_text(encoding="utf-8"))
+    book_a_entry = next(b for b in data["books"] if b["source_book_id"] == "1001")
+    assert book_a_entry.get("custom_annotation") == "manually-added", (
+        "Unknown field 'custom_annotation' was stripped on append"
+    )
+    assert book_a_entry.get("legacy_v0_field") == {"nested": [1, 2, 3]}, (
+        "Nested unknown field was stripped on append"
+    )
+
+
+def test_append_book_to_index_preserves_built_at_across_appends(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """_meta.built_at is set on first creation and preserved across appends.
+
+    Prevents downstream caches keyed on built_at from churning per book.
+    """
+    book_data_dir = tmp_path / "book-data"
+    book_a = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    book_b = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-b", book_id=1002)
+    book_c = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-c", book_id=1003)
+
+    append_book_to_index(tmp_path, "vnthuquan", book_a, mock_logger)
+    data1 = json.loads((book_data_dir / "vnthuquan" / "index.json").read_text(encoding="utf-8"))
+    initial_built_at = data1["_meta"]["built_at"]
+
+    append_book_to_index(tmp_path, "vnthuquan", book_b, mock_logger)
+    append_book_to_index(tmp_path, "vnthuquan", book_c, mock_logger)
+    data3 = json.loads((book_data_dir / "vnthuquan" / "index.json").read_text(encoding="utf-8"))
+
+    assert data3["_meta"]["built_at"] == initial_built_at, (
+        "built_at must be frozen at first-creation time"
+    )
+    assert data3["_meta"]["total_books"] == 3
+
+
+def test_append_book_to_index_cleans_stale_tmp_at_start(
+    tmp_path: Path, mock_logger: MagicMock
+) -> None:
+    """A stale .tmp left by a SIGKILL'd prior run is removed before our write."""
+    book_data_dir = tmp_path / "book-data"
+    index_dir = book_data_dir / "vnthuquan"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    stale_tmp = index_dir / "index.json.tmp"
+    stale_tmp.write_text("garbage from a crashed run", encoding="utf-8")
+
+    book_json = make_vnthuquan_book_json(book_data_dir, "phat-giao", "book-a", book_id=1001)
+    append_book_to_index(tmp_path, "vnthuquan", book_json, mock_logger)
+
+    leftover = list(index_dir.glob("*.tmp"))
+    assert leftover == [], f"Stale tmp file not cleaned up: {leftover}"

@@ -1850,3 +1850,80 @@ async def test_crawl_all_resume_complete_book_no_network(tmp_path, tmp_state):
 
     mock_fetch_chapter.assert_not_called()
     assert tmp_state.is_downloaded(entry.url)
+
+
+# ===========================================================================
+# Incremental index update — append after each successful book completion
+# ===========================================================================
+
+
+@pytest.mark.asyncio
+async def test_crawl_book_appends_to_index_on_success(tmp_path):
+    """A successful crawl_book run produces an entry in data/book-data/vnthuquan/index.json."""
+    session = await create_session()
+    cfg, mock_state = _make_adapter_23()
+    adapter = VnthuquanAdapter(
+        source_config=cfg, session=session, state=mock_state, output_dir=tmp_path
+    )
+    entry = _make_entry_31()
+
+    from vnthuquan_parser import ChapterParseResult
+    mock_detail = _make_detail_31(2)
+    ch_result = ChapterParseResult(cover_image_url=None, content_html="<p>x</p>")
+
+    with patch.object(adapter, "fetch_book_detail", new=AsyncMock(return_value=mock_detail)):
+        with patch.object(adapter, "fetch_chapter", new=AsyncMock(return_value=ch_result)):
+            result = await adapter.crawl_book(entry)
+
+    await session.close()
+    assert result is True
+
+    index_path = tmp_path / "book-data" / "vnthuquan" / "index.json"
+    assert index_path.exists(), "Incremental index.json must exist after a successful book"
+    data = _json.loads(index_path.read_text(encoding="utf-8"))
+    assert data["_meta"]["total_books"] == 1
+    assert data["books"][0]["source_book_id"] == str(mock_detail.tuaid)
+    assert data["books"][0]["source"] == "vnthuquan"
+
+
+@pytest.mark.asyncio
+async def test_crawl_book_does_not_modify_existing_index_entry(tmp_path):
+    """Append-only: if a book is already in the index, a re-crawl does not change it.
+
+    Note: the adapter's `is_downloaded` short-circuit early-exits before the index call,
+    so we exercise the underlying invariant directly via _append_to_index.
+    """
+    from indexer import append_book_to_index
+
+    session = await create_session()
+    cfg, mock_state = _make_adapter_23()
+    adapter = VnthuquanAdapter(
+        source_config=cfg, session=session, state=mock_state, output_dir=tmp_path
+    )
+    entry = _make_entry_31()
+
+    from vnthuquan_parser import ChapterParseResult
+    mock_detail = _make_detail_31(1)
+    ch_result = ChapterParseResult(cover_image_url=None, content_html="<p>x</p>")
+
+    with patch.object(adapter, "fetch_book_detail", new=AsyncMock(return_value=mock_detail)):
+        with patch.object(adapter, "fetch_chapter", new=AsyncMock(return_value=ch_result)):
+            await adapter.crawl_book(entry)
+
+    await session.close()
+
+    index_path = tmp_path / "book-data" / "vnthuquan" / "index.json"
+    snapshot = index_path.read_text(encoding="utf-8")
+
+    from utils.slugify import slugify_title
+
+    # Direct second call — should be a no-op (already present)
+    book_json_path = (
+        tmp_path / "book-data" / "vnthuquan"
+        / slugify_title(entry.category_name)
+        / slugify_title(mock_detail.title)
+        / "book.json"
+    )
+    added = append_book_to_index(tmp_path, "vnthuquan", book_json_path, MagicMock())
+    assert added is False
+    assert index_path.read_text(encoding="utf-8") == snapshot
