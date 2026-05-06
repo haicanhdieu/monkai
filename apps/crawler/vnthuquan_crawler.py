@@ -484,7 +484,14 @@ class VnthuquanAdapter:
                 f"[vnthuquan] Failed chapter {chuongid} for book {tuaid}: {result.error_detail}"
             )
             return None
-        raw = await result.response.text(encoding="utf-8")
+        try:
+            raw = await result.response.text(encoding="utf-8")
+        except Exception as exc:
+            await result.response.release()
+            logger.warning(
+                f"[vnthuquan] Error reading chapter {chuongid} body: {exc}"
+            )
+            return None
         return parse_chapter_response(raw)
 
     async def _download_cover(self, cover_url: str | None, book_data: "BookData") -> str | None:
@@ -925,7 +932,14 @@ class VnthuquanAdapter:
                 task = await chapter_queue.get()
                 try:
                     coll = task.collector
-                    result = await self.fetch_chapter(coll.detail.tuaid, task.chuongid)
+                    try:
+                        result = await self.fetch_chapter(coll.detail.tuaid, task.chuongid)
+                    except Exception as exc:
+                        logger.error(
+                            f"[vnthuquan] Unexpected error fetching chapter {task.chuongid} "
+                            f"book {coll.detail.tuaid}: {exc}"
+                        )
+                        result = None
 
                     if result is None:
                         logger.warning(
@@ -1048,7 +1062,22 @@ class VnthuquanAdapter:
             await asyncio.gather(*assemblers, return_exceptions=True)
             return
 
-        await asyncio.gather(*assemblers)
+        # Race assembler completion against abort so a stuck assembler (e.g. due to
+        # a missed completed.set()) doesn't block crawl_all indefinitely.
+        assembler_gather = asyncio.create_task(
+            asyncio.gather(*assemblers, return_exceptions=True)
+        )
+        abort_watch = asyncio.create_task(self._abort_event.wait())
+        done_a, pending_a = await asyncio.wait(
+            {assembler_gather, abort_watch}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending_a:
+            t.cancel()
+        await asyncio.gather(*pending_a, return_exceptions=True)
+        if abort_watch in done_a:
+            for a in assemblers:
+                a.cancel()
+            await asyncio.gather(*assemblers, return_exceptions=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1135,7 +1164,7 @@ async def _run_crawl(
         made_progress = downloads_after > downloads_before
 
         if made_progress:
-            consecutive_stalls = 1
+            consecutive_stalls = 0
         else:
             consecutive_stalls += 1
 
