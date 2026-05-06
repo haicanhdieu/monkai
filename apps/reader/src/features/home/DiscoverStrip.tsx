@@ -7,7 +7,7 @@ import { resolveCoverUrl } from '@/shared/services/data.service'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { toRead } from '@/shared/constants/routes'
 
-const DISCOVER_COUNT = 4
+const DISCOVER_COUNT = 8
 
 function BookCoverTile({ book }: { book: CatalogBook }) {
   const [coverError, setCoverError] = useState(false)
@@ -95,7 +95,7 @@ export function DiscoverStrip() {
           Khám Phá
         </h2>
         <div
-          className="flex flex-row gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+          className="flex flex-row gap-5 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none' }}
           data-testid="discover-strip-skeleton"
         >
@@ -118,7 +118,7 @@ export function DiscoverStrip() {
         Khám Phá
       </h2>
       <div
-        className="flex flex-row gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
+        className="flex flex-row gap-5 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden"
         role="list"
         style={{ scrollbarWidth: 'none' }}
       >

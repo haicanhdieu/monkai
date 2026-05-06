@@ -46,15 +46,15 @@ beforeEach(() => {
 })
 
 describe('DiscoverStrip', () => {
-  it('renders 4 book cover links and section heading when catalog has books', () => {
-    const books = makeBooks(6)
+  it('renders 8 book cover links and section heading when catalog has books', () => {
+    const books = makeBooks(10)
     mockUseCatalogIndex.mockReturnValue({ data: { books, categories: [] }, isLoading: false, isError: false })
 
     renderStrip()
 
     expect(screen.getByRole('heading', { name: 'Khám Phá' })).toBeInTheDocument()
     const links = screen.getAllByRole('listitem')
-    expect(links).toHaveLength(4)
+    expect(links).toHaveLength(8)
     links.forEach((item) => {
       expect(item).toHaveAttribute('aria-label', expect.stringMatching(/^Đọc /))
     })
@@ -65,7 +65,9 @@ describe('DiscoverStrip', () => {
 
     renderStrip()
 
-    expect(screen.getByTestId('discover-strip-skeleton')).toBeInTheDocument()
+    const skeleton = screen.getByTestId('discover-strip-skeleton')
+    expect(skeleton).toBeInTheDocument()
+    expect(skeleton.children).toHaveLength(8)
     expect(screen.queryAllByRole('listitem')).toHaveLength(0)
   })
 
@@ -85,14 +87,14 @@ describe('DiscoverStrip', () => {
     expect(screen.queryByTestId('discover-strip')).toBeNull()
   })
 
-  it('each tile links to the correct book route', () => {
-    const books = makeBooks(4)
+  it('each tile links to the correct book route and caps at DISCOVER_COUNT', () => {
+    const books = makeBooks(10)
     mockUseCatalogIndex.mockReturnValue({ data: { books, categories: [] }, isLoading: false, isError: false })
 
     renderStrip()
 
     const items = screen.getAllByRole('listitem')
-    expect(items).toHaveLength(4)
+    expect(items).toHaveLength(8)
     items.forEach((item) => {
       const href = item.getAttribute('href') ?? ''
       expect(href).toMatch(/^\/read\/book-\d+$/)

@@ -187,8 +187,6 @@ export default function HomePage() {
 
         <ContinueReadingCard />
 
-        <DiscoverStrip />
-
         <section className="mb-8" aria-label="Truy cập nhanh">
           <div className="grid grid-cols-2 gap-4">
             {quickActions.map((action) => (
@@ -212,6 +210,8 @@ export default function HomePage() {
             ))}
           </div>
         </section>
+
+        <DiscoverStrip />
 
       </div>
     </div>
