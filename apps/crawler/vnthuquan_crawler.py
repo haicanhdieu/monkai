@@ -1064,7 +1064,9 @@ class VnthuquanAdapter:
 
         # Race assembler completion against abort so a stuck assembler (e.g. due to
         # a missed completed.set()) doesn't block crawl_all indefinitely.
-        assembler_gather = asyncio.create_task(
+        # assemblers are Tasks (not coroutines), so asyncio.gather returns a Future —
+        # use ensure_future, which accepts both coroutines and futures.
+        assembler_gather = asyncio.ensure_future(
             asyncio.gather(*assemblers, return_exceptions=True)
         )
         abort_watch = asyncio.create_task(self._abort_event.wait())
