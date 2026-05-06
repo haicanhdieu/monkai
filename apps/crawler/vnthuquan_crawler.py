@@ -1020,6 +1020,10 @@ def crawl(
     asyncio.run(_run_crawl(start_page, end_page, resume, rate_limit, concurrency, max_hours, dry_run))
 
 
+_MAX_CONSECUTIVE_STALLS = 3
+_STALL_RETRY_DELAY_SECONDS = 60
+
+
 async def _run_crawl(
     start_page: int,
     end_page: int,
@@ -1040,31 +1044,61 @@ async def _run_crawl(
         vnthuquan_src.rate_limit_seconds = rate_limit
 
     state = CrawlState(state_file="data/crawl-state-vnthuquan.json")
+    consecutive_stalls = 0
+    first_attempt = True
 
-    session = await create_session()
-    try:
-        adapter = VnthuquanAdapter(
-            vnthuquan_src,
-            session,
-            state,
-            output_dir=Path("data"),
-        )
-        if not resume:
-            state._state.clear()  # discard loaded state, start fresh
-            if adapter._meta_file.exists():
-                adapter._meta_file.unlink()  # reset page-level progress too
-            # Reset incremental index — append-only from a clean slate.
-            index_path = adapter.output_dir / "book-data" / "vnthuquan" / "index.json"
-            index_path.unlink(missing_ok=True)
-            index_path.with_suffix(".json.tmp").unlink(missing_ok=True)
+    while True:
+        session = await create_session()
         try:
-            await adapter.crawl_all(start_page, end_page, concurrency, max_hours, dry_run)
-        except KeyboardInterrupt:
-            state.save()
-            _print_summary(state)
-            typer.echo("Interrupted. State saved.")
-    finally:
-        await session.close()
+            adapter = VnthuquanAdapter(
+                vnthuquan_src,
+                session,
+                state,
+                output_dir=Path("data"),
+            )
+            if not resume and first_attempt:
+                state._state.clear()
+                if adapter._meta_file.exists():
+                    adapter._meta_file.unlink()
+                index_path = adapter.output_dir / "book-data" / "vnthuquan" / "index.json"
+                index_path.unlink(missing_ok=True)
+                index_path.with_suffix(".json.tmp").unlink(missing_ok=True)
+            first_attempt = False
+
+            downloads_before = sum(1 for s in state._state.values() if s == "downloaded")
+            try:
+                await adapter.crawl_all(start_page, end_page, concurrency, max_hours, dry_run)
+            except KeyboardInterrupt:
+                state.save()
+                _print_summary(state)
+                typer.echo("Interrupted. State saved.")
+                return
+        finally:
+            await session.close()
+
+        if not adapter._abort:
+            break  # normal completion
+
+        downloads_after = sum(1 for s in state._state.values() if s == "downloaded")
+        made_progress = downloads_after > downloads_before
+
+        if made_progress:
+            consecutive_stalls = 1
+        else:
+            consecutive_stalls += 1
+
+        if consecutive_stalls >= _MAX_CONSECUTIVE_STALLS:
+            logger.error(
+                f"[vnthuquan] {_MAX_CONSECUTIVE_STALLS} consecutive stalls with no progress — "
+                "stopping, human intervention required"
+            )
+            break
+
+        logger.warning(
+            f"[vnthuquan] Stall detected (consecutive no-progress: {consecutive_stalls}/{_MAX_CONSECUTIVE_STALLS}) — "
+            f"retrying in {_STALL_RETRY_DELAY_SECONDS}s"
+        )
+        await asyncio.sleep(_STALL_RETRY_DELAY_SECONDS)
 
 
 def _print_summary(state: CrawlState) -> None:

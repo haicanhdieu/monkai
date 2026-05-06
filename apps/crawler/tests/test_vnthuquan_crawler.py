@@ -1447,6 +1447,7 @@ async def test_run_crawl_loads_config_and_state():
     mock_session.close = AsyncMock()
     mock_adapter = MagicMock()
     mock_adapter.crawl_all = AsyncMock()
+    mock_adapter._abort = False
 
     with (
         patch("vnthuquan_crawler.load_config", return_value=mock_cfg),
@@ -1476,6 +1477,7 @@ async def test_run_crawl_no_resume_skips_state_load():
     mock_session.close = AsyncMock()
     mock_adapter = MagicMock()
     mock_adapter.crawl_all = AsyncMock()
+    mock_adapter._abort = False
 
     with (
         patch("vnthuquan_crawler.load_config", return_value=mock_cfg),
