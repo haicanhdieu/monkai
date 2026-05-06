@@ -256,9 +256,13 @@ async def create_session() -> aiohttp.ClientSession:
     jar = aiohttp.CookieJar()
     jar.update_cookies({"AspxAutoDetectCookieSupport": "1"})
     timeout = aiohttp.ClientTimeout(sock_connect=30, sock_read=60)
+    # Cap simultaneous sockets to a single host. With --concurrency 50 we'd otherwise
+    # open 50 parallel connections to vietnamthuquan.eu and trigger server-side stalls.
+    connector = aiohttp.TCPConnector(limit_per_host=10)
     session = aiohttp.ClientSession(
         cookie_jar=jar,
         timeout=timeout,
+        connector=connector,
         headers={"User-Agent": "MonkaiCrawler/1.1"},
     )
     return session
@@ -290,6 +294,9 @@ class VnthuquanAdapter:
         self._done: bool = False
         self._shutdown_event = asyncio.Event()
         self._abort: bool = False
+        # Set alongside _abort so workers/queue waits can race against it for
+        # prompt cancellation instead of polling _abort.
+        self._abort_event = asyncio.Event()
         self._last_activity: float = time.time()
         self._books_remaining: int = 0
 
@@ -649,6 +656,7 @@ class VnthuquanAdapter:
                     f"[vnthuquan] Aborting: no HTTP activity for {idle_sec / 60:.0f}min"
                 )
                 self._abort = True
+                self._abort_event.set()
                 return
 
     async def _auto_detect_end_page(self, start_page: int) -> int:
@@ -873,7 +881,21 @@ class VnthuquanAdapter:
             async with collectors_lock:
                 collectors.append(collector)
 
-        await asyncio.gather(*[_fetch_detail(e) for e in pending])
+        # Race Phase A gather against abort so a mid-Phase-A stall doesn't keep
+        # the page loop blocked waiting for in-flight detail fetches to time out.
+        async def _run_phase_a() -> None:
+            await asyncio.gather(*[_fetch_detail(e) for e in pending], return_exceptions=True)
+
+        detail_gather = asyncio.create_task(_run_phase_a())
+        detail_abort = asyncio.create_task(self._abort_event.wait())
+        detail_done, detail_pending = await asyncio.wait(
+            {detail_gather, detail_abort}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in detail_pending:
+            t.cancel()
+        await asyncio.gather(*detail_pending, return_exceptions=True)
+        if detail_abort in detail_done:
+            return
 
         # ── Phase B: Enqueue only missing chapters ──
         chapter_queue: asyncio.Queue[ChapterTask] = asyncio.Queue()
@@ -998,10 +1020,34 @@ class VnthuquanAdapter:
         workers = [asyncio.create_task(_chapter_worker()) for _ in range(num_workers)]
         assemblers = [asyncio.create_task(_assemble_book(c)) for c in active_collectors]
 
-        await chapter_queue.join()
+        # Race queue drain against abort event. Without this, a stall detected by
+        # _monitor_health only sets _abort=True but workers keep grinding through
+        # tasks (each timing out for minutes) before queue.join() can return.
+        join_task = asyncio.create_task(chapter_queue.join())
+        abort_task = asyncio.create_task(self._abort_event.wait())
+        done, pending_waits = await asyncio.wait(
+            {join_task, abort_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+        for t in pending_waits:
+            t.cancel()
+        await asyncio.gather(*pending_waits, return_exceptions=True)
+
+        aborted = abort_task in done
+
         for w in workers:
             w.cancel()
         await asyncio.gather(*workers, return_exceptions=True)
+
+        if aborted:
+            # Assemblers may be parked on coll.completed.wait() (chapters never
+            # finished) or stuck inside _download_cover. Cancel them so the page
+            # loop can return and the retry in _run_crawl can fire. Progressive
+            # saves (every 5 chapters) preserve work-in-flight on disk.
+            for a in assemblers:
+                a.cancel()
+            await asyncio.gather(*assemblers, return_exceptions=True)
+            return
+
         await asyncio.gather(*assemblers)
 
 

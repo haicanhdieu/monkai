@@ -1492,6 +1492,127 @@ async def test_run_crawl_no_resume_skips_state_load():
 
 
 # ---------------------------------------------------------------------------
+# Retry loop in _run_crawl — verify recovery from stall abort
+# ---------------------------------------------------------------------------
+
+def _make_run_crawl_mocks():
+    """Boilerplate for _run_crawl integration tests."""
+    mock_source = MagicMock()
+    mock_source.name = "vnthuquan"
+    mock_source.rate_limit_seconds = 0.0
+    mock_cfg = MagicMock()
+    mock_cfg.sources = [mock_source]
+
+    mock_state = MagicMock()
+    mock_state._state = {}
+
+    mock_session = MagicMock()
+    mock_session.close = AsyncMock()
+
+    return mock_cfg, mock_state, mock_session
+
+
+@pytest.mark.asyncio
+async def test_run_crawl_retries_after_stall_then_succeeds():
+    """A single stall (_abort=True after first crawl_all) triggers retry; second
+    attempt completes normally and the loop exits."""
+    mock_cfg, mock_state, mock_session = _make_run_crawl_mocks()
+
+    call_count = {"n": 0}
+
+    async def crawl_all_side_effect(*_args, **_kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            # First call: simulate stall. Mark some progress so the stall
+            # counter resets to 1 on the next iteration.
+            mock_state._state["http://x/1"] = "downloaded"
+            mock_adapter._abort = True
+        else:
+            # Second call: normal completion.
+            mock_adapter._abort = False
+
+    mock_adapter = MagicMock()
+    mock_adapter.crawl_all = AsyncMock(side_effect=crawl_all_side_effect)
+    mock_adapter._abort = False
+
+    with (
+        patch("vnthuquan_crawler.load_config", return_value=mock_cfg),
+        patch("vnthuquan_crawler.CrawlState", return_value=mock_state),
+        patch("vnthuquan_crawler.create_session", new_callable=AsyncMock, return_value=mock_session),
+        patch("vnthuquan_crawler.VnthuquanAdapter", return_value=mock_adapter),
+        patch("vnthuquan_crawler.asyncio.sleep", new_callable=AsyncMock),  # skip 60s retry delay
+    ):
+        await _run_crawl(1, 1, True, 0.0, 5, 0.0, False)
+
+    assert call_count["n"] == 2, "crawl_all should have been retried once"
+    assert mock_session.close.await_count == 2, "each retry creates a fresh session"
+
+
+@pytest.mark.asyncio
+async def test_run_crawl_stops_after_max_consecutive_stalls():
+    """Three consecutive stalls with no progress stop the retry loop."""
+    mock_cfg, mock_state, mock_session = _make_run_crawl_mocks()
+
+    call_count = {"n": 0}
+
+    async def always_stall(*_args, **_kwargs):
+        call_count["n"] += 1
+        # No state changes → made_progress=False each time
+        mock_adapter._abort = True
+
+    mock_adapter = MagicMock()
+    mock_adapter.crawl_all = AsyncMock(side_effect=always_stall)
+    mock_adapter._abort = False
+
+    with (
+        patch("vnthuquan_crawler.load_config", return_value=mock_cfg),
+        patch("vnthuquan_crawler.CrawlState", return_value=mock_state),
+        patch("vnthuquan_crawler.create_session", new_callable=AsyncMock, return_value=mock_session),
+        patch("vnthuquan_crawler.VnthuquanAdapter", return_value=mock_adapter),
+        patch("vnthuquan_crawler.asyncio.sleep", new_callable=AsyncMock),
+    ):
+        await _run_crawl(1, 1, True, 0.0, 5, 0.0, False)
+
+    # MAX_CONSECUTIVE_STALLS = 3, so we should attempt exactly 3 times then give up.
+    assert call_count["n"] == 3
+
+
+@pytest.mark.asyncio
+async def test_run_crawl_progress_resets_stall_counter():
+    """Stall → progress → stall → progress → stall → ... never hits the cap."""
+    mock_cfg, mock_state, mock_session = _make_run_crawl_mocks()
+
+    call_count = {"n": 0}
+
+    async def stall_then_progress(*_args, **_kwargs):
+        call_count["n"] += 1
+        # Always stall, but make progress on every call so consecutive_stalls
+        # never accumulates past 1.
+        mock_state._state[f"http://x/{call_count['n']}"] = "downloaded"
+        # Stop after 5 calls by signaling normal completion
+        if call_count["n"] >= 5:
+            mock_adapter._abort = False
+        else:
+            mock_adapter._abort = True
+
+    mock_adapter = MagicMock()
+    mock_adapter.crawl_all = AsyncMock(side_effect=stall_then_progress)
+    mock_adapter._abort = False
+
+    with (
+        patch("vnthuquan_crawler.load_config", return_value=mock_cfg),
+        patch("vnthuquan_crawler.CrawlState", return_value=mock_state),
+        patch("vnthuquan_crawler.create_session", new_callable=AsyncMock, return_value=mock_session),
+        patch("vnthuquan_crawler.VnthuquanAdapter", return_value=mock_adapter),
+        patch("vnthuquan_crawler.asyncio.sleep", new_callable=AsyncMock),
+    ):
+        await _run_crawl(1, 1, True, 0.0, 5, 0.0, False)
+
+    # 4 stalls (each made progress) + 1 normal completion = 5 calls
+    assert call_count["n"] == 5
+
+
+# ---------------------------------------------------------------------------
 # AC #5 — Stall detection unit tests
 # ---------------------------------------------------------------------------
 
@@ -1515,6 +1636,7 @@ async def test_monitor_health_aborts_when_idle_too_long(adapter_32):
         await adapter_32._monitor_health()
 
     assert adapter_32._abort is True
+    assert adapter_32._abort_event.is_set()
 
 
 @pytest.mark.asyncio
@@ -1560,6 +1682,100 @@ async def test_monitor_health_exits_when_done(adapter_32):
     """_monitor_health exits immediately when _done=True before first wait."""
     adapter_32._done = True
     await adapter_32._monitor_health()
+
+
+# ---------------------------------------------------------------------------
+# Abort propagation — chapter queue must exit promptly on stall
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_chapter_queue_exits_promptly_on_abort(adapter_32):
+    """_crawl_page_with_chapter_queue must return promptly once _abort_event fires.
+
+    Regression: previously, workers ignored _abort and chapter_queue.join() blocked
+    until every queued chapter timed out (minutes per chapter), so the retry loop
+    in _run_crawl couldn't engage for hours after a stall was detected.
+    """
+    entry = _make_entry_32()
+    detail = BookDetail(
+        title="Slow Book",
+        category_label="Truyen-ngan",
+        tuaid=42,
+        # 50 chapters — if workers actually fetched them on hang, this would
+        # never finish in the test timeout.
+        chapter_list=[(i, f"Ch {i}") for i in range(1, 51)],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+
+    fetch_started = asyncio.Event()
+
+    async def hanging_fetch_chapter(*_args, **_kwargs):
+        fetch_started.set()
+        await asyncio.sleep(3600)  # simulate a stalled remote
+        return None
+
+    async def trigger_abort():
+        await fetch_started.wait()
+        # let a few workers settle into their hanging fetch
+        await asyncio.sleep(0.05)
+        adapter_32._abort = True
+        adapter_32._abort_event.set()
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(adapter_32, "fetch_chapter", side_effect=hanging_fetch_chapter),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+    ):
+        trigger = asyncio.create_task(trigger_abort())
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        # If abort isn't honoured promptly, this wait_for trips the timeout.
+        await asyncio.wait_for(
+            adapter_32._crawl_page_with_chapter_queue(
+                pending=[entry],
+                page_num=1,
+                page_stats=page_stats,
+                concurrency=5,
+                max_hours=0,
+                start_time=time.time(),
+            ),
+            timeout=2.0,
+        )
+        await trigger
+
+
+@pytest.mark.asyncio
+async def test_chapter_queue_phase_a_aborts_on_stall(adapter_32):
+    """Mid-Phase-A stall (during fetch_book_detail) also exits promptly."""
+    entry = _make_entry_32()
+    fetch_detail_started = asyncio.Event()
+
+    async def hanging_fetch_detail(*_args, **_kwargs):
+        fetch_detail_started.set()
+        await asyncio.sleep(3600)
+        return None
+
+    async def trigger_abort():
+        await fetch_detail_started.wait()
+        await asyncio.sleep(0.05)
+        adapter_32._abort = True
+        adapter_32._abort_event.set()
+
+    with patch.object(adapter_32, "fetch_book_detail", side_effect=hanging_fetch_detail):
+        trigger = asyncio.create_task(trigger_abort())
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await asyncio.wait_for(
+            adapter_32._crawl_page_with_chapter_queue(
+                pending=[entry],
+                page_num=1,
+                page_stats=page_stats,
+                concurrency=5,
+                max_hours=0,
+                start_time=time.time(),
+            ),
+            timeout=2.0,
+        )
+        await trigger
 
 
 # ---------------------------------------------------------------------------
