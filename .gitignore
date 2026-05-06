@@ -48,3 +48,7 @@ mcp_settings.json
 .gemini/settings.json
 .vercel
 .env*.local
+
+# Local mock runtime artifacts
+MagicMock/
+apps/crawler/MagicMock/
