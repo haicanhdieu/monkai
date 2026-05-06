@@ -109,8 +109,14 @@ def write_book_json(book_data: BookData, output_dir: Path) -> Path:
     existing_path = target_dir / "book.json"
 
     if existing_path.exists():
-        existing = json.loads(existing_path.read_text(encoding="utf-8"))
-        existing_id = existing.get("book_id")
+        try:
+            existing = json.loads(existing_path.read_text(encoding="utf-8"))
+            existing_id = existing.get("book_id")
+        except Exception:
+            logger.warning(
+                f"[vnthuquan] Corrupt existing book.json at {existing_path} — overwriting"
+            )
+            existing_id = book_data.book_id  # treat as same book to skip slug collision
         if existing_id != book_data.book_id:
             slug = book_data.book_seo_name
             new_slug = f"{slug}-{book_data.book_id}"
