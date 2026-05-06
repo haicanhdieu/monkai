@@ -31,6 +31,8 @@ interface LastReadPosition {
   chapterTitle?: string
   /** Linear-spine approximation of whole-book progress [0, 1]. */
   bookProgressApprox?: number
+  /** Source catalog the book belongs to; used by home card to load correct book data. */
+  source?: string
 }
 
 type TocItem = { label?: string; href?: string; subitems?: TocItem[] }
@@ -104,6 +106,8 @@ export interface ReaderEngineProps {
   error: Error | null
   bookId: string
   bookTitle: string
+  /** Source catalog this book belongs to; persisted with last-read position for home card. */
+  bookSource?: string
   /** When opening from a bookmark link, pass the saved CFI to open at that position. */
   initialCfi?: string | null
 }
@@ -116,6 +120,7 @@ export function ReaderEngine({
   error,
   bookId,
   bookTitle,
+  bookSource = '',
   initialCfi,
 }: ReaderEngineProps) {
   const { toggleChrome, setCurrentCfi, setProgress, setLastRead } = useReaderStore()
@@ -178,7 +183,7 @@ export function ReaderEngine({
         bookProgressApprox =
           approxWholeBookProgressFromSpine(bookRef.current, href, displayed.page, displayed.total) ?? null
         setProgress(displayed.page, displayed.total, chapterTitle)
-        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle, bookProgressApprox)
+        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle, bookProgressApprox, bookSource)
       }
 
       const cfi = location?.start?.cfi
@@ -191,6 +196,7 @@ export function ReaderEngine({
           ...(displayed && displayed.total > 0 ? { page: displayed.page, total: displayed.total } : {}),
           ...(chapterTitle ? { chapterTitle } : {}),
           ...(bookProgressApprox != null ? { bookProgressApprox } : {}),
+          ...(bookSource ? { source: bookSource } : {}),
         }
         void storageService.setItem(STORAGE_KEYS.LAST_READ_POSITION, payload)
         useBookmarksStore.getState().upsertBookmark({
@@ -226,7 +232,7 @@ export function ReaderEngine({
       rendition.off('keyup', handleKeyup)
       rendition.off('relocated', handleRelocated)
     }
-  }, [rendition, toggleChrome, setCurrentCfi, setProgress, setLastRead, bookId, bookTitle])
+  }, [rendition, toggleChrome, setCurrentCfi, setProgress, setLastRead, bookId, bookTitle, bookSource])
 
   // Resume from saved position or initialCfi (e.g. from bookmark link)
   useEffect(() => {

@@ -26,10 +26,12 @@ export default function ReaderPage() {
     useReaderStore.getState().setProgress(0, 0, '')
   }, [bookId])
   const { activeSource } = useActiveSource()
-  const { data: book, isLoading, error } = useBook(bookId)
-  // Prefer the book's own source once loaded; fall back to activeSource while loading.
-  // This ensures catalog lookup is correct even if the user switched sources after bookmarking.
-  const catalogSource = (book?.source as SourceId | undefined) ?? activeSource
+  // Use source passed via navigation state (e.g. from bookmarks) so the correct
+  // catalog is queried even when activeSource differs from the book's actual source.
+  const locationSource = (location.state as { source?: SourceId } | null)?.source
+  const { data: book, isLoading, error } = useBook(bookId, locationSource)
+  // Prefer the book's own source once loaded; fall back to locationSource or activeSource.
+  const catalogSource = (book?.source as SourceId | undefined) ?? locationSource ?? activeSource
   const { data: catalog } = useCatalogIndex(catalogSource)
   const isOnline = useOnlineStatus()
 
@@ -95,6 +97,7 @@ export default function ReaderPage() {
         error={readerError}
         bookId={bookId}
         bookTitle={book.title}
+        bookSource={book.source}
         initialCfi={initialCfi}
       />
     </ChromelessLayout>

@@ -172,6 +172,7 @@ export default function BookmarksPage() {
                         <li key={`${b.bookId}-${b.cfi}-${b.type}`}>
                           <BookmarkCard
                             bookmark={b}
+                            source={bookMap[group.bookId]?.source}
                             onDelete={() => {
                               removeBookmark(b.bookId, b.cfi)
                               void storageService.setItem(

@@ -7,10 +7,11 @@ import type { Bookmark } from '@/stores/bookmarks.store'
 
 interface BookmarkCardProps {
   bookmark: Bookmark
+  source?: string
   onDelete?: () => void
 }
 
-export function BookmarkCard({ bookmark, onDelete }: BookmarkCardProps) {
+export function BookmarkCard({ bookmark, source, onDelete }: BookmarkCardProps) {
   const [swipeX, setSwipeX] = useState(0)
   const startXRef = useRef(0)
   const startSwipeXRef = useRef(0)
@@ -94,7 +95,7 @@ export function BookmarkCard({ bookmark, onDelete }: BookmarkCardProps) {
         </div>
       <Link
         to={toRead(bookmark.bookId)}
-        state={{ cfi: bookmark.cfi }}
+        state={{ cfi: bookmark.cfi, source }}
         style={{
           transform: `translateX(-${swipeX}px)`,
           transition: swipeX === 0 ? 'transform 0.2s' : 'none',

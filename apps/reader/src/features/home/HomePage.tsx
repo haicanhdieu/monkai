@@ -8,6 +8,7 @@ import { coverPlaceholderStyle } from '@/shared/constants/cover'
 import { resolveCoverUrl } from '@/shared/services/data.service'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
+import type { SourceId } from '@/shared/constants/sources'
 import { DiscoverStrip } from '@/features/home/DiscoverStrip'
 
 const quickActions = [
@@ -31,9 +32,11 @@ function ContinueReadingCard() {
     lastReadTotalPages,
     lastReadChapterTitle,
     lastReadBookProgressApprox,
+    lastReadSourceId,
   } = useReaderStore()
   const hasLastRead = lastReadBookId !== ''
-  const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '')
+  const bookSourceOverride = lastReadSourceId ? (lastReadSourceId as SourceId) : undefined
+  const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '', bookSourceOverride)
   const [coverError, setCoverError] = useState(false)
   const [coverLoaded, setCoverLoaded] = useState(false)
 
@@ -65,6 +68,7 @@ function ContinueReadingCard() {
       </h2>
       <Link
         to={toRead(lastReadBookId)}
+        state={lastReadSourceId ? { source: lastReadSourceId } : undefined}
         className="flex min-h-[44px] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
         style={{
           backgroundColor: 'var(--color-surface)',

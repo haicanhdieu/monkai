@@ -23,6 +23,8 @@ interface ReaderState {
   lastReadChapterTitle: string
   /** ~Whole-book progress [0,1] from linear spine + in-chapter page/total; null if unknown. */
   lastReadBookProgressApprox: number | null
+  /** Source (catalog) the last-read book belongs to; used by home card to fetch correct book data. */
+  lastReadSourceId: string
   setCurrentCfi: (cfi: string) => void
   toggleChrome: () => void
   /** Set page progress from epub.js relocated (bottom bar). */
@@ -35,6 +37,7 @@ interface ReaderState {
     total: number,
     chapterTitle?: string,
     bookProgressApprox?: number | null,
+    sourceId?: string,
   ) => void
   /** Hydrate last-read from storage (useStorageHydration). */
   hydrateLastRead: (
@@ -44,6 +47,7 @@ interface ReaderState {
     total: number,
     chapterTitle?: string,
     bookProgressApprox?: number | null,
+    sourceId?: string,
   ) => void
   reset: () => void
 }
@@ -60,6 +64,7 @@ const initialState = {
   lastReadTotalPages: 0,
   lastReadChapterTitle: '',
   lastReadBookProgressApprox: null as number | null,
+  lastReadSourceId: '',
 }
 
 export const useReaderStore = create<ReaderState>((set) => ({
@@ -74,6 +79,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
     lastReadTotalPages,
     lastReadChapterTitle = '',
     lastReadBookProgressApprox = null,
+    lastReadSourceId = '',
   ) =>
     set({
       lastReadBookId,
@@ -82,6 +88,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       lastReadTotalPages,
       lastReadChapterTitle,
       lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
+      lastReadSourceId,
     }),
   hydrateLastRead: (
     lastReadBookId,
@@ -90,6 +97,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
     lastReadTotalPages,
     lastReadChapterTitle = '',
     lastReadBookProgressApprox = null,
+    lastReadSourceId = '',
   ) =>
     set({
       lastReadBookId,
@@ -98,6 +106,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       lastReadTotalPages,
       lastReadChapterTitle,
       lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
+      lastReadSourceId,
     }),
   reset: () => set(initialState),
 }))
