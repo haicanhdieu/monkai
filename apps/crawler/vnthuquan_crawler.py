@@ -56,6 +56,13 @@ def _chunked(iterable, n):
         yield chunk
 
 
+# Sentinel for chapters that already exist on disk — avoids holding all pre-existing
+# HTML strings in memory during Phase A.  Identity-checked with `is`, never `==`.
+# INVARIANT: never mutate this object; ChapterParseResult is not frozen.  Mutation
+# would silently corrupt every sentinel check in the process for its lifetime.
+_PRE_LOADED_SENTINEL = ChapterParseResult(content_html=None, cover_image_url=None)
+
+
 # ---------------------------------------------------------------------------
 # Story 3.1: Assembly and file-writing helpers (module-level pure functions)
 # ---------------------------------------------------------------------------
@@ -847,9 +854,10 @@ class VnthuquanAdapter:
             loaded = len(detail.chapter_list) - pending_count
 
             chapters_result: list[ChapterParseResult | None] = [
-                ChapterParseResult(content_html=h, cover_image_url=None) if h is not None else None
+                _PRE_LOADED_SENTINEL if h is not None else None
                 for h in existing_html
             ]
+            del existing_html
 
             collector = BookCollector(
                 entry=entry,
@@ -936,6 +944,7 @@ class VnthuquanAdapter:
                 task = await q.get()
                 try:
                     coll = task.collector
+                    is_fresh_book = coll.pending_count == coll.total_chapters
                     try:
                         result = await self.fetch_chapter(coll.detail.tuaid, task.chuongid)
                     except Exception as exc:
@@ -976,8 +985,10 @@ class VnthuquanAdapter:
                                 f"{page_stats['err']} err)"
                             )
 
-                    # Progressive save every 5 chapters + on last chapter for this book
-                    if (
+                    # Progressive save every 5 chapters + on last chapter for this book.
+                    # Skip for resume books: pre-existing chapters are safe on disk;
+                    # partial saves only protect in-flight new chapters on fresh books.
+                    if is_fresh_book and (
                         coll.received_count % 5 == 0
                         or coll.received_count == coll.pending_count
                     ):
@@ -995,17 +1006,29 @@ class VnthuquanAdapter:
             entry = coll.entry
             detail = coll.detail
 
-            chapters_html: list[str] = []
             cover_url = coll.cover_url
-            for i, res in enumerate(coll.chapters_result):
-                if res is not None:
-                    if i == 0 and res.cover_image_url and cover_url is None:
-                        cover_url = res.cover_image_url
-                    chapters_html.append(res.content_html or "")
-                else:
-                    chapters_html.append("")
 
             try:
+                chapters_html: list[str] = []
+                existing_html: list[str | None] | None = None
+                if coll.pending_count < coll.total_chapters:
+                    existing_html = _load_existing_chapters(entry, detail, self.output_dir)
+                for i, res in enumerate(coll.chapters_result):
+                    if res is _PRE_LOADED_SENTINEL:
+                        disk_html = (existing_html[i] if existing_html else None) or ""
+                        if not disk_html:
+                            logger.warning(
+                                f"[vnthuquan] Sentinel chapter {i} for '{detail.title}' "
+                                f"has no HTML on disk — assembling as empty string"
+                            )
+                        chapters_html.append(disk_html)
+                    elif res is not None:
+                        if i == 0 and res.cover_image_url and cover_url is None:
+                            cover_url = res.cover_image_url
+                        chapters_html.append(res.content_html or "")
+                    else:
+                        chapters_html.append("")
+
                 book_data = assemble_book_data(entry, detail, chapters_html, cover_url)
                 cover_local_path = await self._download_cover(cover_url, book_data)
                 if cover_local_path:

@@ -35,6 +35,7 @@ from utils.state import CrawlState
 from vnthuquan_crawler import CHAPTER_AJAX_URL, assemble_book_data, write_book_json, app, _run_crawl
 from vnthuquan_parser import BookDetail, BookListingEntry, ChapterParseResult, extract_last_page_number, parse_listing_page
 from vnthuquan_crawler import VnthuquanAdapter, create_session, BookCollector
+from utils.slugify import slugify_title
 
 
 # ---------------------------------------------------------------------------
@@ -1905,6 +1906,323 @@ async def test_chapters_result_cleared_directly(adapter_32, tmp_path):
             assert c.chapters_result == [], (
                 f"chapters_result not cleared for '{c.detail.title}'"
             )
+
+
+# ---------------------------------------------------------------------------
+# Sentinel pre-load: Phase A memory optimisation for resume books
+# ---------------------------------------------------------------------------
+
+def _write_resume_book_json(output_dir: Path, tuaid: int, title: str, cat: str, chapters: list[tuple[int, str]]) -> None:
+    """Write a minimal book.json to disk so _load_existing_chapters can find it."""
+    cat_seo = slugify_title(cat)
+    book_seo = slugify_title(title)
+    target = output_dir / "book-data" / "vnthuquan" / cat_seo / book_seo / "book.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        "book_id": tuaid,
+        "chapters": [
+            {"chapter_id": cid, "pages": [{"html_content": html}]}
+            for cid, html in chapters
+        ],
+    }
+    target.write_text(_json.dumps(data), encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_sentinel_partial_save_skipped_for_resume_book(adapter_32, tmp_path):
+    """_write_partial_book_json must NOT be called for a resume book (pending_count < total)."""
+    import vnthuquan_crawler as _vc_mod
+
+    cat = "Truyen-ngan"
+    title = "SentinelResumeBook"
+    tuaid = 7001
+    # 3 chapters total; ch 101 & 102 already on disk; ch 103 still pending
+    _write_resume_book_json(
+        tmp_path, tuaid, title, cat,
+        [(101, "<p>disk1</p>"), (102, "<p>disk2</p>")],
+    )
+    detail = BookDetail(
+        title=title,
+        category_label=cat,
+        tuaid=tuaid,
+        chapter_list=[(101, "Ch1"), (102, "Ch2"), (103, "Ch3")],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+    entry = _make_entry_32(url="http://vnthuquan.net/truyen/sentinel-resume.aspx")
+    entry = BookListingEntry(
+        url=entry.url, title=title, author_name=entry.author_name,
+        author_id=entry.author_id, category_name=cat, category_id=entry.category_id,
+        chapter_count=3, date=entry.date, format_type=entry.format_type,
+    )
+
+    partial_save_calls: list = []
+
+    def capturing_partial_save(coll, output_dir):
+        partial_save_calls.append(coll.detail.title)
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(
+            adapter_32, "fetch_chapter",
+            new=AsyncMock(return_value=ChapterParseResult(content_html="<p>fresh</p>", cover_image_url=None)),
+        ),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+        patch.object(_vc_mod, "_write_partial_book_json", side_effect=capturing_partial_save),
+    ):
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await adapter_32._crawl_page_with_chapter_queue(
+            pending=[entry],
+            page_num=1,
+            page_stats=page_stats,
+            concurrency=2,
+            max_hours=0,
+            start_time=time.time(),
+        )
+
+    assert page_stats["ok"] == 1
+    assert page_stats["err"] == 0
+    assert partial_save_calls == [], (
+        f"_write_partial_book_json should not be called for resume book; called for: {partial_save_calls}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sentinel_partial_save_still_fires_for_fresh_book(adapter_32, tmp_path):
+    """_write_partial_book_json must still be called for a fresh book (pending_count == total)."""
+    import vnthuquan_crawler as _vc_mod
+
+    # No book.json on disk → all chapters pending → pending_count == total_chapters
+    detail = BookDetail(
+        title="FreshBook",
+        category_label="Truyen-ngan",
+        tuaid=7002,
+        chapter_list=[(201 + i, f"Ch{i}") for i in range(10)],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+    entry = _make_entry_32(url="http://vnthuquan.net/truyen/fresh-book.aspx")
+
+    partial_save_calls: list = []
+
+    def capturing_partial_save(coll, output_dir):
+        partial_save_calls.append(coll.detail.title)
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(
+            adapter_32, "fetch_chapter",
+            new=AsyncMock(return_value=ChapterParseResult(content_html="<p>new</p>", cover_image_url=None)),
+        ),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+        patch.object(_vc_mod, "_write_partial_book_json", side_effect=capturing_partial_save),
+    ):
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await adapter_32._crawl_page_with_chapter_queue(
+            pending=[entry],
+            page_num=1,
+            page_stats=page_stats,
+            concurrency=2,
+            max_hours=0,
+            start_time=time.time(),
+        )
+
+    assert page_stats["ok"] == 1
+    assert len(partial_save_calls) > 0, "_write_partial_book_json should be called for fresh books"
+
+
+@pytest.mark.asyncio
+async def test_sentinel_all_chapters_on_disk_assemble_never_called(adapter_32, tmp_path):
+    """When every chapter is already on disk (pending_count==0), _assemble_book must NOT be
+    called — the book is marked completed immediately in Phase A and skipped by the assembler."""
+    import vnthuquan_crawler as _vc_mod
+
+    cat = "Truyen-ngan"
+    title = "FullyOnDiskBook"
+    tuaid = 7004
+    _write_resume_book_json(
+        tmp_path, tuaid, title, cat,
+        [(401, "<p>ch1</p>"), (402, "<p>ch2</p>"), (403, "<p>ch3</p>")],
+    )
+    detail = BookDetail(
+        title=title,
+        category_label=cat,
+        tuaid=tuaid,
+        chapter_list=[(401, "Ch1"), (402, "Ch2"), (403, "Ch3")],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+    entry = BookListingEntry(
+        url="http://vnthuquan.net/truyen/fully-on-disk.aspx",
+        title=title, author_name="Author", author_id=1,
+        category_name=cat, category_id=1,
+        chapter_count=3, date="1.1.2026", format_type="Text",
+    )
+
+    mock_fetch_chapter = AsyncMock(return_value=ChapterParseResult(content_html="<p>x</p>", cover_image_url=None))
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(adapter_32, "fetch_chapter", mock_fetch_chapter),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+    ):
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await adapter_32._crawl_page_with_chapter_queue(
+            pending=[entry],
+            page_num=1,
+            page_stats=page_stats,
+            concurrency=2,
+            max_hours=0,
+            start_time=time.time(),
+        )
+
+    # All-on-disk books skip Phase B entirely — no chapter fetches, no assembly, no errors.
+    assert mock_fetch_chapter.call_count == 0, "fetch_chapter should not be called for fully-on-disk books"
+    assert page_stats["err"] == 0
+
+
+@pytest.mark.asyncio
+async def test_sentinel_assembled_html_correct_and_chapters_result_cleared(adapter_32, tmp_path):
+    """Resume book: assembled book.json has correct HTML from both disk and fresh fetch,
+    and chapters_result is empty after completion."""
+    import vnthuquan_crawler as _vc_mod
+    from vnthuquan_crawler import BookCollector as _RealBC
+
+    cat = "Truyen-ngan"
+    title = "SentinelAssemblyBook"
+    tuaid = 7003
+    pre_html_1 = "<p>pre-ch1</p>"
+    pre_html_2 = "<p>pre-ch2</p>"
+    fresh_html = "<p>fresh-ch3</p>"
+
+    _write_resume_book_json(
+        tmp_path, tuaid, title, cat,
+        [(301, pre_html_1), (302, pre_html_2)],
+    )
+    detail = BookDetail(
+        title=title,
+        category_label=cat,
+        tuaid=tuaid,
+        chapter_list=[(301, "Ch1"), (302, "Ch2"), (303, "Ch3")],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+    entry = BookListingEntry(
+        url="http://vnthuquan.net/truyen/sentinel-assembly.aspx",
+        title=title, author_name="Author", author_id=1,
+        category_name=cat, category_id=1,
+        chapter_count=3, date="1.1.2026", format_type="Text",
+    )
+
+    created_collectors: list[_RealBC] = []
+
+    def capturing_bc(**kwargs):
+        c = _RealBC(**kwargs)
+        created_collectors.append(c)
+        return c
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        patch.object(
+            adapter_32, "fetch_chapter",
+            new=AsyncMock(return_value=ChapterParseResult(content_html=fresh_html, cover_image_url=None)),
+        ),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+        patch.object(_vc_mod, "BookCollector", side_effect=capturing_bc),
+    ):
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await adapter_32._crawl_page_with_chapter_queue(
+            pending=[entry],
+            page_num=1,
+            page_stats=page_stats,
+            concurrency=2,
+            max_hours=0,
+            start_time=time.time(),
+        )
+
+    assert page_stats["ok"] == 1
+    assert page_stats["err"] == 0
+
+    # Verify chapters_result is cleared
+    for c in created_collectors:
+        assert c.chapters_result == [], f"chapters_result not cleared for '{c.detail.title}'"
+
+    # Verify assembled book.json has correct HTML
+    cat_seo = slugify_title(cat)
+    book_seo = slugify_title(title)
+    book_path = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo / "book.json"
+    assert book_path.exists(), "book.json not written"
+    book_data = _json.loads(book_path.read_text(encoding="utf-8"))
+    chapters_by_id = {ch["chapter_id"]: ch for ch in book_data["chapters"]}
+
+    assert chapters_by_id[301]["pages"][0]["html_content"] == pre_html_1
+    assert chapters_by_id[302]["pages"][0]["html_content"] == pre_html_2
+    assert chapters_by_id[303]["pages"][0]["html_content"] == fresh_html
+
+    # Verify chapter order is preserved (not just content by id)
+    chapter_ids_in_order = [ch["chapter_id"] for ch in book_data["chapters"]]
+    assert chapter_ids_in_order == [301, 302, 303], f"Chapter order wrong: {chapter_ids_in_order}"
+
+
+@pytest.mark.asyncio
+async def test_sentinel_fetch_error_on_pending_chapter_still_assembles(adapter_32, tmp_path):
+    """When fetch_chapter fails for the one pending chapter in a resume book,
+    the book should still assemble (with an empty string for that chapter) and
+    the second disk load in _assemble_book should succeed for the sentinel positions."""
+    cat = "Truyen-ngan"
+    title = "SentinelFetchErrorBook"
+    tuaid = 7005
+    pre_html = "<p>pre-ch1</p>"
+
+    _write_resume_book_json(
+        tmp_path, tuaid, title, cat,
+        [(501, pre_html)],
+    )
+    detail = BookDetail(
+        title=title,
+        category_label=cat,
+        tuaid=tuaid,
+        chapter_list=[(501, "Ch1"), (502, "Ch2")],
+        cover_image_url=None,
+        is_single_chapter=False,
+    )
+    entry = BookListingEntry(
+        url="http://vnthuquan.net/truyen/sentinel-error.aspx",
+        title=title, author_name="Author", author_id=1,
+        category_name=cat, category_id=1,
+        chapter_count=2, date="1.1.2026", format_type="Text",
+    )
+
+    with (
+        patch.object(adapter_32, "fetch_book_detail", new=AsyncMock(return_value=detail)),
+        # fetch_chapter returns None → treated as empty chapter by _chapter_worker
+        patch.object(adapter_32, "fetch_chapter", new=AsyncMock(return_value=None)),
+        patch.object(adapter_32, "_download_cover", new=AsyncMock(return_value=None)),
+    ):
+        page_stats = {"ok": 0, "err": 0, "time_skipped": 0}
+        await adapter_32._crawl_page_with_chapter_queue(
+            pending=[entry],
+            page_num=1,
+            page_stats=page_stats,
+            concurrency=2,
+            max_hours=0,
+            start_time=time.time(),
+        )
+
+    # Assembly should still succeed (ok==1, err==0)
+    assert page_stats["ok"] == 1
+    assert page_stats["err"] == 0
+
+    # Pre-existing chapter HTML must be preserved; failed chapter is empty
+    cat_seo = slugify_title(cat)
+    book_seo = slugify_title(title)
+    book_path = tmp_path / "book-data" / "vnthuquan" / cat_seo / book_seo / "book.json"
+    assert book_path.exists(), "book.json not written"
+    book_data = _json.loads(book_path.read_text(encoding="utf-8"))
+    chapters_by_id = {ch["chapter_id"]: ch for ch in book_data["chapters"]}
+
+    assert chapters_by_id[501]["pages"][0]["html_content"] == pre_html
+    assert chapters_by_id[502]["pages"][0]["html_content"] == ""
 
 
 # ---------------------------------------------------------------------------
