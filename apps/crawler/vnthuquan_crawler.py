@@ -14,6 +14,7 @@ import logging
 import random
 import time
 from dataclasses import dataclass, field, replace
+from itertools import islice
 from urllib.parse import urljoin
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +47,13 @@ _PROGRESS_LOG_INTERVAL = 10
 
 # Chapter AJAX endpoint
 CHAPTER_AJAX_URL = "http://vietnamthuquan.eu/truyen/chuonghoi_moi.aspx"
+
+
+def _chunked(iterable, n):
+    """Yield successive n-sized chunks from iterable."""
+    it = iter(iterable)
+    while chunk := list(islice(it, n)):
+        yield chunk
 
 
 # ---------------------------------------------------------------------------
@@ -904,32 +912,28 @@ class VnthuquanAdapter:
         if detail_abort in detail_done:
             return
 
-        # ── Phase B: Enqueue only missing chapters ──
-        chapter_queue: asyncio.Queue[ChapterTask] = asyncio.Queue()
+        # ── Identify active collectors and pre-compute total chapters to fetch ──
         active_collectors = [c for c in collectors if not c.completed.is_set()]
-        total_to_fetch = 0
-
-        for coll in active_collectors:
-            for i, (chuongid, chapter_name) in enumerate(coll.detail.chapter_list):
-                if coll.chapters_result[i] is None:
-                    await chapter_queue.put(ChapterTask(
-                        collector=coll,
-                        chapter_index=i,
-                        chuongid=chuongid,
-                        chapter_name=chapter_name,
-                    ))
-                    total_to_fetch += 1
 
         if not active_collectors:
             return
 
+        # Pre-compute total_to_fetch in one pass so progress logs stay accurate
+        # across all batches (worker closure captures this by reference).
+        total_to_fetch = sum(
+            1
+            for coll in active_collectors
+            for i in range(len(coll.detail.chapter_list))
+            if coll.chapters_result[i] is None
+        )
+
         chapters_fetched = {"n": 0}
         progress_lock = asyncio.Lock()
 
-        # ── Phase C: Worker pool — N coroutines pull chapters from the shared queue ──
-        async def _chapter_worker() -> None:
+        # ── Phase C: Worker pool — N coroutines pull chapters from a per-batch queue ──
+        async def _chapter_worker(q: asyncio.Queue[ChapterTask]) -> None:
             while True:
-                task = await chapter_queue.get()
+                task = await q.get()
                 try:
                     coll = task.collector
                     try:
@@ -983,9 +987,9 @@ class VnthuquanAdapter:
                         coll.completed.set()
 
                 finally:
-                    chapter_queue.task_done()
+                    q.task_done()
 
-        # ── Phase D: Assembler tasks — one per active collector ──
+        # ── Phase D: Assembler — awaits completion then writes book.json ──
         async def _assemble_book(coll: BookCollector) -> None:
             await coll.completed.wait()
             entry = coll.entry
@@ -1029,57 +1033,85 @@ class VnthuquanAdapter:
             finally:
                 self._books_remaining = max(0, self._books_remaining - 1)
 
-        # Launch workers and assemblers; wait for queue to drain then clean up
-        num_workers = min(concurrency, total_to_fetch)
-        workers = [asyncio.create_task(_chapter_worker()) for _ in range(num_workers)]
-        assemblers = [asyncio.create_task(_assemble_book(c)) for c in active_collectors]
+        # ── Batch loop: process active_collectors in groups of `concurrency` ──
+        for batch in _chunked(active_collectors, concurrency):
+            if self._abort_event.is_set():
+                return
+            # Phase B: enqueue only this batch's pending chapters
+            batch_queue: asyncio.Queue[ChapterTask] = asyncio.Queue()
+            batch_total = 0
+            for coll in batch:
+                for i, (chuongid, chapter_name) in enumerate(coll.detail.chapter_list):
+                    if coll.chapters_result[i] is None:
+                        await batch_queue.put(ChapterTask(
+                            collector=coll,
+                            chapter_index=i,
+                            chuongid=chuongid,
+                            chapter_name=chapter_name,
+                        ))
+                        batch_total += 1
 
-        # Race queue drain against abort event. Without this, a stall detected by
-        # _monitor_health only sets _abort=True but workers keep grinding through
-        # tasks (each timing out for minutes) before queue.join() can return.
-        join_task = asyncio.create_task(chapter_queue.join())
-        abort_task = asyncio.create_task(self._abort_event.wait())
-        done, pending_waits = await asyncio.wait(
-            {join_task, abort_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for t in pending_waits:
-            t.cancel()
-        await asyncio.gather(*pending_waits, return_exceptions=True)
+            # Phase C: worker pool for this batch
+            num_workers = min(concurrency, batch_total) if batch_total > 0 else 0
+            workers = [asyncio.create_task(_chapter_worker(batch_queue)) for _ in range(num_workers)]
 
-        aborted = abort_task in done
+            if batch_total > 0:
+                # Race queue drain against abort event. Without this, a stall detected
+                # by _monitor_health only sets _abort=True but workers keep grinding
+                # through tasks (each timing out for minutes) before join() can return.
+                join_task = asyncio.create_task(batch_queue.join())
+                abort_task = asyncio.create_task(self._abort_event.wait())
+                done, pending_waits = await asyncio.wait(
+                    {join_task, abort_task}, return_when=asyncio.FIRST_COMPLETED
+                )
+                for t in pending_waits:
+                    t.cancel()
+                await asyncio.gather(*pending_waits, return_exceptions=True)
+                aborted = abort_task in done
+            else:
+                aborted = self._abort_event.is_set()
 
-        for w in workers:
-            w.cancel()
-        await asyncio.gather(*workers, return_exceptions=True)
+            for w in workers:
+                w.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
 
-        if aborted:
-            # Assemblers may be parked on coll.completed.wait() (chapters never
-            # finished) or stuck inside _download_cover. Cancel them so the page
-            # loop can return and the retry in _run_crawl can fire. Progressive
-            # saves (every 5 chapters) preserve work-in-flight on disk.
-            for a in assemblers:
-                a.cancel()
-            await asyncio.gather(*assemblers, return_exceptions=True)
-            return
+            if aborted:
+                # Assemblers for this batch may be parked on coll.completed.wait()
+                # (chapters never finished) or stuck in _download_cover. Cancel them
+                # so the page loop can return and the retry in _run_crawl can fire.
+                # Progressive saves (every 5 chapters) preserve work-in-flight.
+                batch_assemblers = [asyncio.create_task(_assemble_book(c)) for c in batch]
+                for a in batch_assemblers:
+                    a.cancel()
+                await asyncio.gather(*batch_assemblers, return_exceptions=True)
+                return
 
-        # Race assembler completion against abort so a stuck assembler (e.g. due to
-        # a missed completed.set()) doesn't block crawl_all indefinitely.
-        # assemblers are Tasks (not coroutines), so asyncio.gather returns a Future —
-        # use ensure_future, which accepts both coroutines and futures.
-        assembler_gather = asyncio.ensure_future(
-            asyncio.gather(*assemblers, return_exceptions=True)
-        )
-        abort_watch = asyncio.create_task(self._abort_event.wait())
-        done_a, pending_a = await asyncio.wait(
-            {assembler_gather, abort_watch}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for t in pending_a:
-            t.cancel()
-        await asyncio.gather(*pending_a, return_exceptions=True)
-        if abort_watch in done_a:
-            for a in assemblers:
-                a.cancel()
-            await asyncio.gather(*assemblers, return_exceptions=True)
+            # Phase D: assemble and write all books in this batch
+            batch_assemblers = [asyncio.create_task(_assemble_book(c)) for c in batch]
+
+            # Race assembler completion against abort so a stuck assembler (e.g. due
+            # to a missed completed.set()) doesn't block crawl_all indefinitely.
+            # assemblers are Tasks (not coroutines), so asyncio.gather returns a
+            # Future — use ensure_future, which accepts both coroutines and futures.
+            assembler_gather = asyncio.ensure_future(
+                asyncio.gather(*batch_assemblers, return_exceptions=True)
+            )
+            abort_watch = asyncio.create_task(self._abort_event.wait())
+            done_a, pending_a = await asyncio.wait(
+                {assembler_gather, abort_watch}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for t in pending_a:
+                t.cancel()
+            await asyncio.gather(*pending_a, return_exceptions=True)
+            if abort_watch in done_a:
+                for a in batch_assemblers:
+                    a.cancel()
+                await asyncio.gather(*batch_assemblers, return_exceptions=True)
+                return
+
+            # Clear HTML memory for this batch now that assemblers have finished
+            for coll in batch:
+                coll.chapters_result.clear()
 
 
 # ---------------------------------------------------------------------------
