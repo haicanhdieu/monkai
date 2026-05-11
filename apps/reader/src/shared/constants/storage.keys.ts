@@ -14,3 +14,15 @@ export const EPUB_BLOB_CACHE_PREFIX = 'epub_blob_v4_'
 export function epubBlobCacheKey(bookId: string): string {
   return `${EPUB_BLOB_CACHE_PREFIX}${bookId}`
 }
+
+export const CATALOG_CACHE_PREFIX = 'catalog_cache_v1_'
+
+export function catalogCacheKey(source: string): string {
+  return `${CATALOG_CACHE_PREFIX}${source}`
+}
+
+export const BOOK_CACHE_PREFIX = 'book_cache_v1_'
+
+export function bookCacheKey(id: string, source: string): string {
+  return `${BOOK_CACHE_PREFIX}${source}_${id}`
+}

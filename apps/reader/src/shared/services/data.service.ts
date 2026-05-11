@@ -2,6 +2,8 @@ import { catalogSchema } from '@/shared/schemas/catalog.schema'
 import { bookSchema } from '@/shared/schemas/book.schema'
 import type { Book, CatalogIndex, DataErrorCategory } from '@/shared/types/global.types'
 import type { SourceId } from '@/shared/constants/sources'
+import { storageService as defaultStorageService, type StorageService } from '@/shared/services/storage.service'
+import { catalogCacheKey, bookCacheKey } from '@/shared/constants/storage.keys'
 
 export interface DataService {
   getCatalog(source: SourceId): Promise<CatalogIndex>
@@ -82,11 +84,17 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
 export class StaticJsonDataService implements DataService {
   private readonly fetchImpl: typeof fetch
   private readonly baseUrl: string
+  private readonly storage: StorageService
   private catalogPromises: Map<SourceId, Promise<CatalogIndex>> = new Map()
 
-  constructor(fetchImpl: typeof fetch = fetch.bind(globalThis), baseUrl = resolveBookDataBaseUrl()) {
+  constructor(
+    fetchImpl: typeof fetch = fetch.bind(globalThis),
+    baseUrl = resolveBookDataBaseUrl(),
+    storage: StorageService = defaultStorageService,
+  ) {
     this.fetchImpl = fetchImpl
     this.baseUrl = baseUrl
+    this.storage = storage
   }
 
   async getCatalog(source: SourceId): Promise<CatalogIndex> {
@@ -102,9 +110,19 @@ export class StaticJsonDataService implements DataService {
         if (!parsed.success) {
           throw new DataError('parse', 'Catalog payload failed schema validation', parsed.error.flatten())
         }
+        void this.storage.setItem(catalogCacheKey(source), parsed.data)
         return parsed.data
       } catch (error) {
         this.catalogPromises.delete(source)
+        if (error instanceof DataError && error.category === 'network') {
+          try {
+            const cached = await this.storage.getItem<CatalogIndex>(catalogCacheKey(source))
+            // Validate minimum shape: stored data is already-transformed CatalogIndex, not raw JSON
+            if (cached && Array.isArray(cached.books)) return cached
+          } catch {
+            // storage read failed — treat as cache miss
+          }
+        }
         throw error
       }
     })()
@@ -114,32 +132,46 @@ export class StaticJsonDataService implements DataService {
   }
 
   async getBook(id: string, source: SourceId): Promise<Book> {
-    const catalog = await this.getCatalog(source)
-    const bookEntry = catalog.books.find((b) => b.id === id)
+    try {
+      const catalog = await this.getCatalog(source)
+      const bookEntry = catalog.books.find((b) => b.id === id)
 
-    if (!bookEntry) {
-      throw new DataError('not_found', `Book not found in catalog: ${id}`)
+      if (!bookEntry) {
+        throw new DataError('not_found', `Book not found in catalog: ${id}`)
+      }
+
+      const jsonArtifact = bookEntry.artifacts.find((a) => a.format === 'json')
+      if (!jsonArtifact) {
+        throw new DataError('not_found', `JSON artifact not found for book: ${id}`)
+      }
+
+      const artifactPath = jsonArtifact.path
+      if (artifactPath.startsWith('/') || artifactPath.includes('..')) {
+        throw new DataError('parse', `Invalid artifact path for book: ${id}`)
+      }
+
+      const response = await this.fetchJson(`/book-data/${artifactPath}`)
+      const parsed = bookSchema.safeParse(response)
+      if (!parsed.success) {
+        throw new DataError('parse', `Book payload failed schema validation for id: ${id}`, parsed.error.flatten())
+      }
+
+      // Override the internal slug id and inject source from the caller.
+      // book.json files have no source field — it is always injected here.
+      const book: Book = { ...parsed.data, id, source }
+      void this.storage.setItem(bookCacheKey(id, source), book)
+      return book
+    } catch (error) {
+      if (error instanceof DataError && error.category === 'network') {
+        try {
+          const cached = await this.storage.getItem<Book>(bookCacheKey(id, source))
+          if (cached && Array.isArray(cached.content)) return cached
+        } catch {
+          // storage read failed — treat as cache miss
+        }
+      }
+      throw error
     }
-
-    const jsonArtifact = bookEntry.artifacts.find((a) => a.format === 'json')
-    if (!jsonArtifact) {
-      throw new DataError('not_found', `JSON artifact not found for book: ${id}`)
-    }
-
-    const artifactPath = jsonArtifact.path
-    if (artifactPath.startsWith('/') || artifactPath.includes('..')) {
-      throw new DataError('parse', `Invalid artifact path for book: ${id}`)
-    }
-
-    const response = await this.fetchJson(`/book-data/${artifactPath}`)
-    const parsed = bookSchema.safeParse(response)
-    if (!parsed.success) {
-      throw new DataError('parse', `Book payload failed schema validation for id: ${id}`, parsed.error.flatten())
-    }
-
-    // Override the internal slug id and inject source from the caller.
-    // book.json files have no source field — it is always injected here.
-    return { ...parsed.data, id, source }
   }
 
   private async fetchJson(path: string): Promise<unknown> {

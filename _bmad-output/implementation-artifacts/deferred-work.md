@@ -30,6 +30,22 @@ None of these were introduced by that change.
 
 ---
 
+## Path traversal check in `StaticJsonDataService.getBook` is incomplete
+
+**File:** `apps/reader/src/shared/services/data.service.ts` — `getBook`  
+**Issue:** `artifactPath.startsWith('/') || artifactPath.includes('..')` does not block URL-encoded traversal (`%2F`, `%2e%2e`) or Windows-style separators. Pre-existing before the offline-mode fix.  
+**Fix when addressed:** Validate that the resolved fetch URL starts with the expected `/book-data/` prefix after URL construction, rather than string-matching the raw path.
+
+---
+
+## Concurrent `getBook` calls not deduplicated
+
+**File:** `apps/reader/src/shared/services/data.service.ts` — `getBook`  
+**Issue:** Unlike `getCatalog`, `getBook` has no in-flight promise deduplication. Multiple simultaneous calls for the same `(id, source)` each make independent network requests. Pre-existing before the offline-mode fix.  
+**Fix when addressed:** Add a `bookPromises: Map<string, Promise<Book>>` similar to `catalogPromises`.
+
+---
+
 ## `concurrency=0` silently skips all active collectors
 
 **File:** `apps/crawler/vnthuquan_crawler.py` — `_chunked(active_collectors, 0)`  
