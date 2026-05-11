@@ -46,6 +46,30 @@ None of these were introduced by that change.
 
 ---
 
+## Search input mobile UX gaps (surfaced during fix-search-input-mobile-zoom, 2026-05-11)
+
+Pre-existing issues in `LibrarySearchBar.tsx` and `BookmarkSearchBar.tsx`. None introduced by the zoom fix.
+
+**1. No `autoComplete`/`autoCorrect`/`spellCheck` suppression on search inputs**
+iOS auto-corrects Vietnamese scripture titles in search. Add `autoComplete="off" autoCorrect="off" spellCheck={false}` to both inputs.
+
+**2. `LibrarySearchBar` uses `type="text"`, `BookmarkSearchBar` uses `type="search"` (inconsistent)**
+`type="search"` gives native clear affordances that duplicate the custom clear button. Decide and align both.
+
+**3. Input text color set inconsistently — `BookmarkSearchBar` uses inline `style={{ color }}`, `LibrarySearchBar` inherits**
+If a parent ever sets a different foreground color, the library input text may become invisible. Add explicit `style={{ color: 'var(--color-text)' }}` to `LibrarySearchBar` input.
+
+**4. Placeholder text color not themed in either component**
+Placeholder inherits browser default rather than `var(--color-text-muted)`. Add `placeholder:text-[var(--color-text-muted)]` (Tailwind) or CSS `::placeholder { color: ... }`.
+
+**5. `<html lang="en">` mismatch — app serves Vietnamese content**
+`apps/reader/index.html` declares `lang="en"`. Change to `lang="vi"` for correct screen reader language detection.
+
+**6. No future safeguard against re-introducing `text-sm` on new inputs**
+No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider an ESLint rule or a Playwright assertion with device emulation if this regresses.
+
+---
+
 ## `concurrency=0` silently skips all active collectors
 
 **File:** `apps/crawler/vnthuquan_crawler.py` — `_chunked(active_collectors, 0)`  

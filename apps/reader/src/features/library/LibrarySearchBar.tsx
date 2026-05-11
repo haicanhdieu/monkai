@@ -24,7 +24,7 @@ export function LibrarySearchBar({ query, onQueryChange, onClear, placeholder }:
         onKeyDown={(event) => { if (event.key === 'Escape') onClear() }}
         placeholder={placeholder ?? 'Tìm kiếm kinh điển...'}
         enterKeyHint="search"
-        className="h-full w-full border-none bg-transparent p-0 text-sm font-medium outline-none focus:ring-0"
+        className="h-full w-full border-none bg-transparent p-0 text-base font-medium outline-none focus:ring-0"
         aria-label={placeholder ?? 'Tìm kiếm sách'}
       />
       {query ? (

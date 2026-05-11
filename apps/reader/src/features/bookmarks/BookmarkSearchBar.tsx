@@ -27,7 +27,7 @@ export function BookmarkSearchBar({ value, onChange, onClear }: BookmarkSearchBa
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') onClear() }}
         enterKeyHint="search"
-        className="flex-1 bg-transparent text-sm outline-none focus:ring-0"
+        className="flex-1 bg-transparent text-base outline-none focus:ring-0"
         style={{ color: 'var(--color-text)' }}
         aria-label="Tìm kiếm dấu trang"
         data-testid="bookmark-search-input"
