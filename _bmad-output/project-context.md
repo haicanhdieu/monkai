@@ -113,6 +113,19 @@ The Raspberry Pi is the **primary deployment target** for both the crawler and t
 
 **When the user says "deploy the crawler" or "deploy book data":** connect to the Pi using `.pi-server.yaml` credentials, not any other server.
 
+### Windows Docker Server
+
+The Windows machine is an **alternative book data host** when the Pi is unavailable. It runs the same Caddy + ngrok stack via Docker Compose.
+
+- **Config file:** `.window-server.yaml` at repo root — contains `host`, `user`, `password`, `port`, and `codebase_root` (`d:\ntm\monkai`) for SSH access.
+- **Ngrok config:** `.ngrok-config.yaml` (shared with Pi) — same static domain. **Only one server can hold the ngrok tunnel at a time.** Stop Pi's ngrok before starting Windows stack (`sudo systemctl stop ngrok` on Pi).
+- **Docker Compose:** `apps/deployer/win-server/docker-compose.yml` — two services: `caddy:2-alpine` (static file server) and `ngrok/ngrok:3` (outbound tunnel). Start with `docker compose up -d` from `d:\ntm\monkai\apps\deployer\win-server\`.
+- **Book data path:** `D:\ntm\monkai\apps\crawler\data\book-data` — set as `BOOK_DATA_PATH` in `apps/deployer/win-server/.env` (gitignored).
+- **SSH credential store:** Docker Desktop's `credsStore: desktop` blocks `docker pull` in SSH sessions. The fix (already applied) is to remove `"credsStore"` from `C:\Users\admin\.docker\config.json`. Images must be pre-pulled via SSH with `DOCKER_CONFIG=C:\tmp\dockercfg docker pull <image>` if not cached.
+- **Verify tunnel:** `curl -I https://<NGROK_DOMAIN>/book-data/vnthuquan/index.json` should return `HTTP/2 200` with `access-control-allow-origin: *`.
+
+**When the user says "deploy to Windows" or "start Windows book data server":** SSH into `.window-server.yaml` host, `cd` to `codebase_root\apps\deployer\win-server`, and run `docker compose up -d`.
+
 ---
 
 ## Usage Guidelines
