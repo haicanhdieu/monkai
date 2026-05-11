@@ -39,6 +39,7 @@ cursor.sh
 .env.*.local
 .pi-server.yaml
 .ngrok-config.yaml
+.window-server.yaml
 
 # MCP config (contains API keys) - use mcp.canonical.example.json as template
 mcp.canonical.json
