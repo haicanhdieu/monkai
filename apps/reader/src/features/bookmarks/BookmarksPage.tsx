@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { PersonIcon } from '@radix-ui/react-icons'
 import { AppLogo } from '@/shared/components/AppLogo'
-import { ROUTES } from '@/shared/constants/routes'
+import { ROUTES, toRead } from '@/shared/constants/routes'
 import { AppBar } from '@/shared/components/AppBar'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
@@ -137,7 +137,13 @@ export default function BookmarksPage() {
                       borderColor: 'var(--color-border)',
                     }}
                   >
-                    <div className="flex items-center gap-4 px-3 pt-3 pb-3" data-testid="bookmark-group-header">
+                    <Link
+                      to={toRead(group.bookId)}
+                      state={{ cfi: group.items[0]?.cfi, source: bookMap[group.bookId]?.source }}
+                      aria-label={`Tiếp tục đọc ${group.bookTitle}`}
+                      className="flex items-center gap-4 px-3 pt-3 pb-3 transition-colors hover:brightness-95"
+                      data-testid="bookmark-group-header"
+                    >
                       <div className="relative h-[88px] w-[70px] shrink-0 overflow-hidden rounded">
                         {bookMap[group.bookId]?.coverUrl ? (
                           <img
@@ -166,7 +172,7 @@ export default function BookmarksPage() {
                           ) : null
                         })()}
                       </div>
-                    </div>
+                    </Link>
                     <ul className="divide-y divide-[var(--color-border)]">
                       {group.items.map((b) => (
                         <li key={`${b.bookId}-${b.cfi}-${b.type}`}>

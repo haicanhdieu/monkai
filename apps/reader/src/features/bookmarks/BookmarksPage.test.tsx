@@ -78,6 +78,34 @@ describe('BookmarksPage', () => {
     expect(within(groups[1]).getByTestId('bookmark-group-header')).toHaveTextContent('Kinh Pháp Hoa')
   })
 
+  it('group header is a link that navigates to the reader at the auto bookmark position', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+
+    const header = screen.getByTestId('bookmark-group-header')
+    expect(header.tagName).toBe('A')
+    expect(header).toHaveAttribute('href', '/read/kinh-phap-hoa')
+    expect(header).toHaveAccessibleName('Tiếp tục đọc Kinh Pháp Hoa')
+  })
+
+  it('group header link falls back to first manual bookmark when no auto bookmark exists', () => {
+    const manualOnly: Bookmark = {
+      bookId: 'kinh-phap-hoa',
+      bookTitle: 'Kinh Pháp Hoa',
+      cfi: 'epubcfi(/6/10!/4/2/1:0)',
+      timestamp: 900000,
+      type: 'manual',
+      page: 3,
+      total: 50,
+    }
+    useBookmarksStore.setState({ bookmarks: [manualOnly] })
+    renderPage()
+
+    const header = screen.getByTestId('bookmark-group-header')
+    expect(header.tagName).toBe('A')
+    expect(header).toHaveAttribute('href', '/read/kinh-phap-hoa')
+  })
+
   it('BookmarkCard link navigates to correct URL', () => {
     useBookmarksStore.setState({ bookmarks: [bookmark1] })
     renderPage()
