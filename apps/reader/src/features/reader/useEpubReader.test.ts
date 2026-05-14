@@ -16,7 +16,7 @@ describe('useEpubReader TOC API', () => {
       on: vi.fn(),
       destroy: vi.fn(),
       renderTo: vi.fn(() => ({
-        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn() },
+        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
         display: vi.fn().mockResolvedValue(undefined),
         on: vi.fn(),
       })),
@@ -56,7 +56,7 @@ describe('useEpubReader TOC API', () => {
       packaging: { navPath: 'OEBPS/nav.xhtml', ncxPath: '' },
       on: vi.fn(),
       renderTo: vi.fn(() => ({
-        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn() },
+        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
         display: vi.fn().mockResolvedValue(undefined),
         on: vi.fn(),
       })),
@@ -91,7 +91,7 @@ describe('useEpubReader TOC API', () => {
       on: vi.fn(),
       destroy: vi.fn(),
       renderTo: vi.fn(() => ({
-        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn() },
+        themes: { register: vi.fn(), select: vi.fn(), fontSize: vi.fn(), override: vi.fn() },
         display: vi.fn().mockResolvedValue(undefined),
         on: vi.fn(),
       })),

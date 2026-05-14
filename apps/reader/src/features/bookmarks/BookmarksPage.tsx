@@ -51,15 +51,21 @@ export default function BookmarksPage() {
       const maxB = b.items.reduce((m, i) => Math.max(m, i.timestamp), -Infinity)
       return maxB - maxA
     })
-    .map((g) => ({
-      ...g,
-      items: [
-        ...g.items.filter((b) => b.type === 'auto'),
-        ...g.items
-          .filter((b) => b.type === 'manual')
-          .sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity)),
-      ],
-    })), [bookmarks])
+    .map((g) => {
+      const sortedByTimestamp = [...g.items].sort((a, b) => b.timestamp - a.timestamp)
+      return {
+        ...g,
+        // Most recently updated bookmark (manual save or auto last-read) — used by group header
+        // so clicking the book cover/title opens the position the user cares about most.
+        headerBookmark: sortedByTimestamp[0],
+        items: [
+          ...g.items.filter((b) => b.type === 'auto'),
+          ...g.items
+            .filter((b) => b.type === 'manual')
+            .sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity)),
+        ],
+      }
+    }), [bookmarks])
 
   // Reset search when all bookmarks are removed
   useEffect(() => {
@@ -139,7 +145,7 @@ export default function BookmarksPage() {
                   >
                     <Link
                       to={toRead(group.bookId)}
-                      state={{ cfi: group.items[0]?.cfi, source: bookMap[group.bookId]?.source }}
+                      state={{ cfi: group.headerBookmark?.cfi, source: bookMap[group.bookId]?.source }}
                       aria-label={`Tiếp tục đọc ${group.bookTitle}`}
                       className="flex items-center gap-4 px-3 pt-3 pb-3 transition-colors hover:brightness-95"
                       data-testid="bookmark-group-header"

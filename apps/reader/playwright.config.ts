@@ -8,7 +8,7 @@ export default defineConfig({
     workers: 1,
     reporter: [['html', { open: 'never' }]],
     use: {
-        baseURL: 'http://localhost:4173',
+        baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'http://localhost:4173',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
         trace: 'on-first-retry',
@@ -23,7 +23,7 @@ export default defineConfig({
             },
         },
     ],
-    webServer: {
+    webServer: process.env.PLAYWRIGHT_TEST_BASE_URL ? undefined : {
         command: 'pnpm preview --port 4173',
         port: 4173,
         reuseExistingServer: !process.env.CI,

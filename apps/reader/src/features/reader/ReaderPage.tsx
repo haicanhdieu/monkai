@@ -45,7 +45,7 @@ export default function ReaderPage() {
 
   const epubUrl = epubUrlFromCatalog ?? epubUrlFromBook
   const { containerRef, rendition, book: epubBook, isReady, error: readerError, getToc, navigateToTocEntry } =
-    useEpubReader(epubUrl)
+    useEpubReader(epubUrl, initialCfi)
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />

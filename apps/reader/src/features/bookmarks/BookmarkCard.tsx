@@ -44,7 +44,7 @@ export function BookmarkCard({ bookmark, source, onDelete }: BookmarkCardProps) 
     },
     onPointerMove: (e: React.PointerEvent) => {
       const delta = startXRef.current - e.clientX
-      if (Math.abs(delta) > 5) didSwipeRef.current = true
+      if (Math.abs(delta) > 15) didSwipeRef.current = true
       setSwipeX(Math.max(0, Math.min(startSwipeXRef.current + delta, 72)))
     },
     onPointerUp: () => {

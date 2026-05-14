@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import ePub from 'epubjs'
 import type { Book, Rendition } from 'epubjs'
-import { EPUB_THEMES } from './epubThemes'
+import { EPUB_THEMES, toEpubThemeName } from './epubThemes'
+import { useSettingsStore } from '@/stores/settings.store'
 
 export interface TocEntry {
   label: string
@@ -18,7 +19,7 @@ export interface UseEpubReaderResult {
   navigateToTocEntry: (entry: TocEntry) => Promise<void>
 }
 
-export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
+export function useEpubReader(epubUrl: string | null, initialCfi?: string | null): UseEpubReaderResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const [rendition, setRendition] = useState<Rendition | null>(null)
   const [book, setBook] = useState<Book | null>(null)
@@ -82,17 +83,35 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         localRenditionInstance.themes.register(name, styles as Record<string, Record<string, string>>)
       })
 
-      localRenditionInstance
-        .display()
-        .then(() => {
-          if (!errorOccurredRef.current && !cancelled) setIsReady(true)
-        })
-        .catch((err: Error) => {
-          if (cancelled) return
-          console.error('[useEpubReader] display error:', err)
-          errorOccurredRef.current = true
-          setError(err)
-        })
+      // Apply theme and font size before the first display so epub.js computes
+      // column positions with the user's actual settings. Without this, epub.js
+      // paginates at the default font, then ReaderEngine's effects apply the user
+      // font (e.g. 28px) — but epub.js does not recompute column offsets, causing
+      // display(cfi) to land on the wrong page.
+      const { fontSize, theme } = useSettingsStore.getState()
+      const themeName = toEpubThemeName(theme)
+      localRenditionInstance.themes.select(themeName)
+      const bodyStyles = EPUB_THEMES[themeName].body
+      localRenditionInstance.themes.override('background', bodyStyles.background, true)
+      localRenditionInstance.themes.override('color', bodyStyles.color, true)
+      localRenditionInstance.themes.override('font-family', bodyStyles.fontFamily, true)
+      localRenditionInstance.themes.fontSize(`${fontSize}px`)
+
+      // Await the initial display before exposing rendition to React. This prevents
+      // ReaderEngine's theme/fontSize effects (which fire on rendition change) from
+      // calling themes.select() mid-display and resetting epub.js column offsets.
+      try {
+        await localRenditionInstance.display(initialCfi ?? undefined)
+      } catch (err: unknown) {
+        if (cancelled) return
+        const displayErr = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Display failed')
+        console.error('[useEpubReader] display error:', displayErr)
+        errorOccurredRef.current = true
+        setError(displayErr)
+        return
+      }
+
+      if (cancelled || !containerRef.current) return
 
       localRenditionInstance.on('loadError', (err: Error) => {
         console.error('[useEpubReader] loadError:', err)
@@ -100,6 +119,7 @@ export function useEpubReader(epubUrl: string | null): UseEpubReaderResult {
         setError(err)
       })
 
+      if (!errorOccurredRef.current) setIsReady(true)
       setBook(bookInstance)
       setRendition(localRenditionInstance)
     })()

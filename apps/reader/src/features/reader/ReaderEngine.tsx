@@ -234,13 +234,20 @@ export function ReaderEngine({
     }
   }, [rendition, toggleChrome, setCurrentCfi, setProgress, setLastRead, bookId, bookTitle, bookSource])
 
-  // Resume from saved position or initialCfi (e.g. from bookmark link)
+  // Resume from saved position. When initialCfi is provided, useEpubReader already
+  // called display(initialCfi) before exposing the rendition; we do a second deferred call
+  // here to correct for iOS/WebKit where column offsets may be measured before font-size applies.
   useEffect(() => {
     if (!isReady || !rendition || resumeAttempted) return
     setResumeAttempted(true)
 
     if (initialCfi) {
-      void rendition.display(initialCfi)
+      // useEpubReader already displayed initialCfi, but epub.js may have computed column
+      // offsets before the font-size hook fired (observed on iOS/WebKit). A second display()
+      // deferred to the next animation frame re-measures with the correct layout.
+      requestAnimationFrame(() => {
+        void rendition.display(initialCfi)
+      })
       return
     }
 
