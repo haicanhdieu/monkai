@@ -76,3 +76,26 @@ No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider a
 **Issue:** `islice(it, 0)` yields nothing; the while loop never runs; all books are silently unprocessed and `_books_remaining` is never decremented.  
 **Pre-existing:** Original code had `min(concurrency, total_to_fetch) = 0` workers with the same effect. Pydantic config validator likely prevents `concurrency < 1` in practice.  
 **Fix when addressed:** Add `if concurrency <= 0: raise ValueError(...)` in `_chunked` or at call site.
+
+---
+
+## win-server: ngrok healthcheck gap — ngrok starts before Caddy is confirmed healthy (surfaced 2026-05-14)
+
+**File:** `apps/deployer/win-server/docker-compose.yml`  
+**Issue:** `depends_on: caddy` only waits for the container to be created, not for Caddy to be listening on `:80`. If Caddyfile is bad or the book-data volume fails, ngrok starts, finds nothing on `caddy:80`, and crash-loops with noisy logs.  
+**Fix when addressed:** Add a `healthcheck` on the `caddy` service (`wget -qO- http://localhost:80/`) and change ngrok's `depends_on` to `condition: service_healthy`.
+
+---
+
+## win-server: Caddyfile enables directory listing by default (surfaced 2026-05-14)
+
+**File:** `apps/deployer/win-server/Caddyfile`  
+**Issue:** `file_server` without `browse` does NOT enable listing by default in Caddy v2 — this finding was inaccurate. No action needed. Defer as rejected.
+
+---
+
+## win-server: BOOK_DATA_PATH in .env uses Mac path — will mount empty dir on Windows (surfaced 2026-05-14)
+
+**File:** `apps/deployer/win-server/.env` (not committed to git — `.gitignore` excludes it)  
+**Issue:** `.env` was likely set up on the Mac dev machine and not updated with the Windows host path. Docker will silently mount an empty directory, causing Caddy to return 404 for all book-data requests with no error in logs.  
+**Fix when addressed:** Update `.env` on the Windows server: set `BOOK_DATA_PATH` to the actual Windows path to the `book-data` directory (e.g., `C:\Users\YourUser\monkai\apps\crawler\data\book-data`).

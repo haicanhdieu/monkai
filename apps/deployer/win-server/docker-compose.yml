@@ -4,7 +4,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ${BOOK_DATA_PATH}:/srv/book-data:ro
-    restart: unless-stopped
+    restart: always
 
   ngrok:
     image: ngrok/ngrok:3
@@ -13,4 +13,4 @@ services:
     command: http caddy:80 --url=${NGROK_DOMAIN}
     depends_on:
       - caddy
-    restart: unless-stopped
+    restart: always
