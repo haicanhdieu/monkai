@@ -134,7 +134,7 @@ export function useEpubReader(epubUrl: string | null, initialCfi?: string | null
       setIsReady(false)
       setError(null)
     }
-  }, [epubUrl])
+  }, [epubUrl, initialCfi])
 
   const getToc = async (): Promise<TocEntry[]> => {
     if (!book) return []
