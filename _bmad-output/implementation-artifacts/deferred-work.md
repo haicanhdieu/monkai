@@ -127,6 +127,30 @@ No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider a
 
 ---
 
+## url-watcher: Alpine image tag unpinned (surfaced 2026-05-15)
+
+**File:** `apps/deployer/win-server/url-watcher/Dockerfile`  
+**Issue:** `FROM alpine:3` is a floating tag. Future minor Alpine releases may change behavior of `sh`, `sed`, or `grep` in ways that silently break `watch.sh`.  
+**Fix when addressed:** Pin to a specific Alpine version, e.g. `FROM alpine:3.21`, and update periodically.
+
+---
+
+## url-watcher: REPO_PATH and SSH_DIR not validated as required in compose (surfaced 2026-05-15)
+
+**File:** `apps/deployer/win-server/docker-compose.yml`  
+**Issue:** If `REPO_PATH` or `SSH_DIR` are unset at `docker compose up` time, Docker silently binds empty strings, causing unexpected host paths to be mounted with no warning.  
+**Fix when addressed:** Add `required: true` (or no-default entries in a `x-required-vars` block) to fail early on missing vars.
+
+---
+
+## url-watcher: SSH key and known_hosts security tradeoffs (surfaced 2026-05-15)
+
+**Files:** `apps/deployer/win-server/url-watcher/watch.sh`  
+**Issue:** SSH private key is copied to world-accessible `/tmp/ssh/` at startup without cleanup. `ssh-keyscan` output is trusted without fingerprint verification (TOFU). Both are explicit design tradeoffs per spec Design Notes.  
+**Fix when addressed:** (1) `trap 'rm -rf /tmp/ssh' EXIT` to clean up on container stop. (2) Hardcode the expected GitHub host key fingerprint and verify after keyscan.
+
+---
+
 ## win-server: BOOK_DATA_PATH in .env uses Mac path — will mount empty dir on Windows (surfaced 2026-05-14)
 
 **File:** `apps/deployer/win-server/.env` (not committed to git — `.gitignore` excludes it)  
