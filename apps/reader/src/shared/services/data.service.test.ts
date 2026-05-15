@@ -8,6 +8,7 @@ function makeNoopStorage(overrides?: Partial<StorageService>): StorageService {
     setItem: vi.fn().mockResolvedValue(undefined),
     removeItem: vi.fn().mockResolvedValue(undefined),
     clear: vi.fn().mockResolvedValue(undefined),
+    keys: vi.fn().mockResolvedValue([]),
     ...overrides,
   }
 }
