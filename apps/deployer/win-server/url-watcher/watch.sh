@@ -32,7 +32,7 @@ if [ -z "$SSH_KEY_FILE" ]; then
 fi
 
 ssh-keyscan github.com > /tmp/ssh/known_hosts 2>/dev/null
-export GIT_SSH_COMMAND="ssh -i $SSH_KEY_FILE -o UserKnownHostsFile=/tmp/ssh/known_hosts"
+export GIT_SSH_COMMAND="ssh -i $SSH_KEY_FILE -F /dev/null -o UserKnownHostsFile=/tmp/ssh/known_hosts"
 
 handle_event() {
     log "cloudflared start event — waiting 20s for tunnel negotiation..."
