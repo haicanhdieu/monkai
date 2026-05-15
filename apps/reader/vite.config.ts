@@ -103,6 +103,17 @@ const baseFallback = (env.VITE_BASE_PATH ?? '/').replace(/\/+$/, '')
               },
             },
             {
+              urlPattern: /\/book-data\/.*\.(jpg|jpeg|png|svg|webp)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'cover-image-cache',
+                expiration: {
+                  maxEntries: 600,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                },
+              },
+            },
+            {
               urlPattern: /\/book-data\/.*/,
               handler: 'NetworkFirst',
               options: {

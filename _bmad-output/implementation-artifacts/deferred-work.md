@@ -94,6 +94,24 @@ No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider a
 
 ---
 
+## Cross-origin cover images may not be cached by Workbox (surfaced during cover-offline-cache, 2026-05-15)
+
+**Files:** `apps/reader/vite.config.ts` (all `runtimeCaching` rules), `apps/reader/src/features/home/DiscoverStrip.tsx`, `apps/reader/src/features/bookmarks/BookmarksPage.tsx`  
+**Issue:** When the app and book-data server are on different origins (e.g., app on GitHub Pages, data on ngrok), `<img>` tags without `crossorigin="anonymous"` send `no-cors` fetches, producing opaque responses (HTTP status 0). Workbox does not cache opaque responses by default, so ALL image caching rules (including the new `cover-image-cache`) silently fail for cross-origin covers.  
+**Pre-existing:** The existing `book-data-cache` NetworkFirst rule has the same problem. The new `cover-image-cache` rule neither causes nor worsens it.  
+**Fix when addressed:** (1) Add `crossorigin="anonymous"` to `<img>` tags rendering cover images in `DiscoverStrip.tsx`, `HomePage.tsx`, and `BookmarksPage.tsx`. (2) Add `cacheableResponse: { statuses: [0, 200] }` (or just `{ statuses: [200] }` if crossorigin is added) to the `cover-image-cache` and `book-data-cache` Workbox rules to explicitly allow caching of these responses.
+
+---
+
+## Workbox runtimeCaching rules don't account for VITE_BASE_PATH prefix (surfaced during cover-offline-cache, 2026-05-15)
+
+**File:** `apps/reader/vite.config.ts` — all `runtimeCaching` URL patterns  
+**Issue:** If `VITE_BASE_PATH=/reader`, URLs become `/reader/book-data/...`. Patterns like `/\/book-data\/.*/` don't match. All rules fail silently — requests fall through to the SW's default fetch handler (network only, no cache).  
+**Pre-existing:** Affects all existing rules, not introduced by the cover cache rule.  
+**Fix when addressed:** Compute patterns dynamically using `baseFallback`: e.g., `new RegExp(baseFallback + '/book-data/index\\.json')`. Then all patterns correctly include any configured base path.
+
+---
+
 ## win-server: BOOK_DATA_PATH in .env uses Mac path — will mount empty dir on Windows (surfaced 2026-05-14)
 
 **File:** `apps/deployer/win-server/.env` (not committed to git — `.gitignore` excludes it)  
