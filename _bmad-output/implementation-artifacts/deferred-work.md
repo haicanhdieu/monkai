@@ -79,11 +79,11 @@ No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider a
 
 ---
 
-## win-server: ngrok healthcheck gap — ngrok starts before Caddy is confirmed healthy (surfaced 2026-05-14)
+## win-server: cloudflared healthcheck gap — cloudflared starts before Caddy is confirmed healthy (surfaced 2026-05-14, updated 2026-05-15)
 
 **File:** `apps/deployer/win-server/docker-compose.yml`  
-**Issue:** `depends_on: caddy` only waits for the container to be created, not for Caddy to be listening on `:80`. If Caddyfile is bad or the book-data volume fails, ngrok starts, finds nothing on `caddy:80`, and crash-loops with noisy logs.  
-**Fix when addressed:** Add a `healthcheck` on the `caddy` service (`wget -qO- http://localhost:80/`) and change ngrok's `depends_on` to `condition: service_healthy`.
+**Issue:** `depends_on: caddy` only waits for the container to be created, not for Caddy to be listening on `:80`. If Caddyfile is bad or the book-data volume fails, cloudflared starts, finds nothing on `caddy:80`, and crash-loops with noisy logs.  
+**Fix when addressed:** Add a `healthcheck` on the `caddy` service (`wget -qO- http://localhost:80/`) and change cloudflared's `depends_on` to `condition: service_healthy`.
 
 ---
 
@@ -109,6 +109,21 @@ No lint rule or test asserts `font-size >= 16px` on focusable inputs. Consider a
 **Issue:** If `VITE_BASE_PATH=/reader`, URLs become `/reader/book-data/...`. Patterns like `/\/book-data\/.*/` don't match. All rules fail silently — requests fall through to the SW's default fetch handler (network only, no cache).  
 **Pre-existing:** Affects all existing rules, not introduced by the cover cache rule.  
 **Fix when addressed:** Compute patterns dynamically using `baseFallback`: e.g., `new RegExp(baseFallback + '/book-data/index\\.json')`. Then all patterns correctly include any configured base path.
+
+---
+
+## win-server: cloudflared image tag unpinned (surfaced 2026-05-15)
+
+**File:** `apps/deployer/win-server/docker-compose.yml`  
+**Issue:** `image: cloudflare/cloudflared:latest` is a floating tag. An unattended `docker compose pull` can silently upgrade cloudflared to a breaking version.  
+**Fix when addressed:** Pin to a specific stable version, e.g. `cloudflare/cloudflared:2025.1.0`, and update periodically after verifying the new version works.
+
+---
+
+## win-server: Cloudflare quick-tunnel ToS constraints on persistent use (surfaced 2026-05-15)
+
+**Issue:** Cloudflare's Terms of Service for quick-tunnels discourage using them as persistent production infrastructure and include undocumented availability constraints. If the tunnel is relied upon for always-on book-data access, these constraints may apply.  
+**Fix when addressed:** If URL-change friction or availability becomes unacceptable, migrate to Cloudflare Named Tunnel (free Cloudflare account + domain on Cloudflare DNS) for a stable URL — that requires a separate spec.
 
 ---
 

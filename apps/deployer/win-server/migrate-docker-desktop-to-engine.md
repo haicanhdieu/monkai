@@ -32,7 +32,7 @@ docker run --rm `
   alpine tar czf /backup/myvolume.tar.gz -C /data .
 ```
 
-> The caddy + ngrok stack in this directory has **no persistent volumes** — its data is the
+> The caddy + cloudflared stack in this directory has **no persistent volumes** — its data is the
 > host-mounted `book-data` folder. No export needed for it.
 
 ---
@@ -205,12 +205,14 @@ Get-ScheduledTaskInfo -TaskName 'MonkaiBookDataServer'
 Inside WSL2:
 ```bash
 docker compose -f /mnt/c/.../win-server/docker-compose.yml ps
-# Both caddy and ngrok should be 'running'
+# Both caddy and cloudflared should be 'running'
 ```
 
-From outside:
+Get the tunnel URL, then verify from outside:
 ```bash
-curl -I https://<NGROK_DOMAIN>/book-data/index.json
+docker compose -f /mnt/c/.../win-server/docker-compose.yml logs cloudflared 2>&1 | grep trycloudflare
+# Note the https://<random>.trycloudflare.com URL printed in the logs
+curl -I https://<TUNNEL_URL>/book-data/index.json
 # HTTP 200, access-control-allow-origin: *
 ```
 
@@ -224,4 +226,4 @@ curl -I https://<NGROK_DOMAIN>/book-data/index.json
 | `Cannot connect to the Docker daemon` | systemd not enabled or docker.service not started | Check `sudo systemctl status docker` inside WSL2 |
 | Caddy returns 404 for all files | `BOOK_DATA_PATH` still a Windows path | Update `.env` to `/mnt/c/...` format |
 | Task runs but `LastTaskResult = 1` | WSL2 distro name mismatch | Run `wsl --list` and pass correct `-WslDistro` to startup-wsl2.ps1 |
-| ngrok crash-loops | Pi ngrok still running | `sudo systemctl stop ngrok` on the Pi |
+| cloudflared starts but no URL in logs | Container exited immediately | Run `docker compose logs cloudflared` for error details; check internet connectivity from WSL2 |
