@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ReaderIcon, BookmarkIcon, ChevronRightIcon, PersonIcon } from '@radix-ui/react-icons'
 import { AppLogo } from '@/shared/components/AppLogo'
 import { ROUTES, toRead } from '@/shared/constants/routes'
 import { AppBar } from '@/shared/components/AppBar'
-import { coverPlaceholderStyle } from '@/shared/constants/cover'
-import { resolveCoverUrl } from '@/shared/services/data.service'
+import { BookCover } from '@/shared/components/BookCover'
 import { useReaderStore } from '@/stores/reader.store'
 import { useBook } from '@/shared/hooks/useBook'
 import type { SourceId } from '@/shared/constants/sources'
@@ -37,14 +35,11 @@ function ContinueReadingCard() {
   const hasLastRead = lastReadBookId !== ''
   const bookSourceOverride = lastReadSourceId ? (lastReadSourceId as SourceId) : undefined
   const { data: bookData } = useBook(hasLastRead ? lastReadBookId : '', bookSourceOverride)
-  const [coverError, setCoverError] = useState(false)
-  const [coverLoaded, setCoverLoaded] = useState(false)
 
   if (!hasLastRead) return null
 
   const displayTitle =
     lastReadBookTitle !== '' ? lastReadBookTitle : (bookData?.title ?? lastReadBookId)
-  const coverUrl = bookData?.coverImageUrl ? resolveCoverUrl(bookData.coverImageUrl) : null
   const totalPages = lastReadTotalPages > 0 ? lastReadTotalPages : 1
   const currentPage = lastReadPage > 0 ? lastReadPage : 1
   const useApproxWholeBook =
@@ -87,22 +82,13 @@ function ContinueReadingCard() {
           style={{ aspectRatio: '2/3' }}
           data-testid="continue-reading-cover"
         >
-          {coverUrl && !coverError ? (
-            <>
-              {!coverLoaded && (
-                <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />
-              )}
-              <img
-                src={coverUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                onLoad={() => setCoverLoaded(true)}
-                onError={() => setCoverError(true)}
-              />
-            </>
-          ) : (
-            <div className="h-full w-full" style={coverPlaceholderStyle} />
-          )}
+          <div className="absolute inset-0">
+            <BookCover
+              id={lastReadBookId}
+              title={displayTitle}
+              coverImageUrl={bookData?.coverImageUrl ?? null}
+            />
+          </div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-start justify-between gap-3">

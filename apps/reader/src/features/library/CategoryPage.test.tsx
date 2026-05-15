@@ -86,7 +86,7 @@ describe('CategoryPage', () => {
     renderPage()
     const card = screen.getByRole('link', { name: 'Đọc Kinh Bát Nhã' })
     expect(card).toHaveClass('min-h-[44px]')
-    expect(screen.getByText('Kinh Bát Nhã')).toHaveStyle({ fontFamily: 'Lora, serif' })
+    expect(screen.getByText('Kinh Bát Nhã', { selector: 'p' })).toHaveStyle({ fontFamily: 'Lora, serif' })
     expect(screen.getByText('HT. A')).toBeInTheDocument()
   })
 

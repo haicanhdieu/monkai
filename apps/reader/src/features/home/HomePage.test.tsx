@@ -74,7 +74,7 @@ describe('HomePage', () => {
     expect(
       screen.getByRole('link', { name: /Tiếp tục đọc Kinh Pháp Hoa/ }),
     ).toHaveAttribute('href', '/read/kinh-phap-hoa')
-    expect(screen.getByText('Kinh Pháp Hoa')).toBeInTheDocument()
+    expect(screen.getByText('Kinh Pháp Hoa', { selector: 'h3' })).toBeInTheDocument()
     expect(screen.getAllByText(/Trang 15/).length).toBeGreaterThanOrEqual(1)
   })
 

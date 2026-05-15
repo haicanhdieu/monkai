@@ -18,10 +18,12 @@ function BookCoverTile({ book }: { book: CatalogBook }) {
       role="listitem"
     >
       <div
-        className="w-full overflow-hidden rounded"
+        className="relative w-full overflow-hidden rounded"
         style={{ aspectRatio: '2/3' }}
       >
-        <BookCover id={book.id} title={book.title} coverImageUrl={book.coverImageUrl} />
+        <div className="absolute inset-0">
+          <BookCover id={book.id} title={book.title} coverImageUrl={book.coverImageUrl} />
+        </div>
       </div>
       <p
         className="text-xs mt-1 line-clamp-2 overflow-hidden"

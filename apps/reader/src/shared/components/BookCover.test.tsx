@@ -56,13 +56,21 @@ describe('BookCover', () => {
     expect(style1).toEqual(style2)
   })
 
-  it('shows first two chars of title as initials on generated cover', () => {
+  it('shows full title on generated cover', () => {
     render(<BookCover id="book-1" title="Kinh A Di Đà" coverImageUrl={null} />)
-    expect(screen.getByText('KI')).toBeInTheDocument()
+    expect(screen.getByText('Kinh A Di Đà')).toBeInTheDocument()
   })
 
-  it('shows fallback initials when title is empty', () => {
+  it('shows fallback when title is empty', () => {
     render(<BookCover id="book-1" title="" coverImageUrl={null} />)
     expect(screen.getByText('?')).toBeInTheDocument()
+  })
+
+  it('truncates long titles in the middle with ellipsis', () => {
+    const longTitle = 'Kinh Đại Bát Niết Bàn Phẩm Thứ Nhất Ca Diếp Bồ Tát Hỏi Phật'
+    render(<BookCover id="book-1" title={longTitle} coverImageUrl={null} />)
+    const span = screen.getByTestId('generated-cover').querySelector('span')!
+    expect(span.textContent).toContain('…')
+    expect(span.textContent!.length).toBeLessThanOrEqual(40)
   })
 })
