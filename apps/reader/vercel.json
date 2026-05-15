@@ -1,7 +1,7 @@
 {
 "installCommand": "pnpm install",
 "rewrites": [
-    { "source": "/book-data/:path*", "destination": "https://paying-citizen-nullify.ngrok-free.dev/book-data/:path*" },
+    { "source": "/book-data/:path*", "destination": "https://innovation-capital-phrases-pastor.trycloudflare.com/book-data/:path*" },
     { "source": "/((?!book-data/).*)", "destination": "/index.html" }
   ]
 }
