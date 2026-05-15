@@ -6,7 +6,7 @@ import { ROUTES, toRead } from '@/shared/constants/routes'
 import { AppBar } from '@/shared/components/AppBar'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
-import { resolveCoverUrl } from '@/shared/services/data.service'
+import { BookCover } from '@/shared/components/BookCover'
 import { SOURCES } from '@/shared/constants/sources'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
@@ -20,7 +20,7 @@ export default function BookmarksPage() {
   const { data: vnthuquanCatalog } = useCatalogIndex('vnthuquan')
 
   const bookMap = useMemo(() => {
-    const map: Record<string, { coverUrl: string | null; source: string }> = {}
+    const map: Record<string, { coverImageUrl: string | null; source: string; id: string; title: string }> = {}
     for (const catalog of [vbetaCatalog, vnthuquanCatalog]) {
       if (!catalog) continue
       for (const book of catalog.books) {
@@ -28,8 +28,10 @@ export default function BookmarksPage() {
           console.warn(`[BookmarksPage] Duplicate book id across sources: ${book.id}`)
         }
         map[book.id] = {
-          coverUrl: book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null,
+          coverImageUrl: book.coverImageUrl,
           source: book.source,
+          id: book.id,
+          title: book.title,
         }
       }
     }
@@ -150,19 +152,12 @@ export default function BookmarksPage() {
                       className="flex items-center gap-4 px-3 pt-3 pb-3 transition-colors hover:brightness-95"
                       data-testid="bookmark-group-header"
                     >
-                      <div className="relative h-[88px] w-[70px] shrink-0 overflow-hidden rounded">
-                        {bookMap[group.bookId]?.coverUrl ? (
-                          <img
-                            src={bookMap[group.bookId]!.coverUrl!}
-                            alt={group.bookTitle}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="h-full w-full rounded"
-                            style={{ backgroundColor: 'var(--color-border)' }}
-                          />
-                        )}
+                      <div className="h-[88px] w-[70px] shrink-0 overflow-hidden rounded">
+                        <BookCover
+                          id={bookMap[group.bookId]?.id ?? group.bookId}
+                          title={bookMap[group.bookId]?.title ?? group.bookTitle}
+                          coverImageUrl={bookMap[group.bookId]?.coverImageUrl ?? null}
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="block text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>

@@ -2,8 +2,7 @@ import { useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { toRead } from '@/shared/constants/routes'
-import { coverPlaceholderStyle } from '@/shared/constants/cover'
-import { resolveCoverUrl } from '@/shared/services/data.service'
+import { BookCover } from '@/shared/components/BookCover'
 import { stripVietnamese } from '@/features/library/library.utils'
 import type { SearchDocument } from '@/features/library/library.types'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
@@ -139,10 +138,6 @@ function SearchResultCard({
   result: SearchDocument
   query: string
 }) {
-  const [coverError, setCoverError] = useState(false)
-  const [coverLoaded, setCoverLoaded] = useState(false)
-  const coverUrl = result.coverImageUrl ? resolveCoverUrl(result.coverImageUrl) : null
-
   return (
     <Link
       to={toRead(result.bookId)}
@@ -153,20 +148,8 @@ function SearchResultCard({
         borderColor: 'var(--color-border)',
       }}
     >
-      <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded object-cover">
-        {coverUrl && !coverError && (
-          <>
-            {!coverLoaded && <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />}
-            <img
-              src={coverUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onLoad={() => setCoverLoaded(true)}
-              onError={() => setCoverError(true)}
-            />
-          </>
-        )}
-        {(!coverUrl || coverError) && <div className="h-full w-full" style={coverPlaceholderStyle} />}
+      <div className="h-16 w-11 shrink-0 overflow-hidden rounded">
+        <BookCover id={result.bookId} title={result.title} coverImageUrl={result.coverImageUrl} />
       </div>
       <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
         <div className="min-w-0">

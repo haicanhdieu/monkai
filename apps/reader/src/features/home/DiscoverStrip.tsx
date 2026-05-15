@@ -1,19 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import type { CatalogBook } from '@/shared/types/global.types'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { useActiveSource } from '@/shared/stores/useActiveSource'
-import { resolveCoverUrl } from '@/shared/services/data.service'
 import { coverPlaceholderStyle } from '@/shared/constants/cover'
+import { BookCover } from '@/shared/components/BookCover'
 import { toRead } from '@/shared/constants/routes'
 
 const DISCOVER_COUNT = 8
 
 function BookCoverTile({ book }: { book: CatalogBook }) {
-  const [coverError, setCoverError] = useState(false)
-  const [coverLoaded, setCoverLoaded] = useState(false)
-  const coverUrl = book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null
-
   return (
     <Link
       to={toRead(book.id)}
@@ -22,25 +18,10 @@ function BookCoverTile({ book }: { book: CatalogBook }) {
       role="listitem"
     >
       <div
-        className="relative w-full overflow-hidden rounded"
+        className="w-full overflow-hidden rounded"
         style={{ aspectRatio: '2/3' }}
       >
-        {coverUrl && !coverError ? (
-          <>
-            {!coverLoaded && (
-              <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />
-            )}
-            <img
-              src={coverUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onLoad={() => setCoverLoaded(true)}
-              onError={() => setCoverError(true)}
-            />
-          </>
-        ) : (
-          <div className="h-full w-full" style={coverPlaceholderStyle} />
-        )}
+        <BookCover id={book.id} title={book.title} coverImageUrl={book.coverImageUrl} />
       </div>
       <p
         className="text-xs mt-1 line-clamp-2 overflow-hidden"

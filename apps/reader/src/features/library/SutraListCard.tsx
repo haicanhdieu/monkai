@@ -1,9 +1,7 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { CatalogBook } from '@/shared/types/global.types'
 import { toRead } from '@/shared/constants/routes'
-import { coverPlaceholderStyle } from '@/shared/constants/cover'
-import { resolveCoverUrl } from '@/shared/services/data.service'
+import { BookCover } from '@/shared/components/BookCover'
 import { SOURCES } from '@/shared/constants/sources'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 
@@ -12,9 +10,6 @@ interface SutraListCardProps {
 }
 
 export function SutraListCard({ book }: SutraListCardProps) {
-  const [coverError, setCoverError] = useState(false)
-  const [coverLoaded, setCoverLoaded] = useState(false)
-  const coverUrl = book.coverImageUrl ? resolveCoverUrl(book.coverImageUrl) : null
   const sourceConfig = SOURCES.find((s) => s.id === book.source)
   if (import.meta.env.DEV && !sourceConfig && book.source) {
     console.warn(`[SutraListCard] Unknown source: "${book.source}" for book ${book.id}`)
@@ -30,20 +25,8 @@ export function SutraListCard({ book }: SutraListCardProps) {
       }}
       aria-label={`Đọc ${book.title}`}
     >
-      <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded object-cover">
-        {coverUrl && !coverError && (
-          <>
-            {!coverLoaded && <div className="absolute inset-0" style={coverPlaceholderStyle} aria-hidden="true" />}
-            <img
-              src={coverUrl}
-              alt=""
-              className="h-full w-full object-cover"
-              onLoad={() => setCoverLoaded(true)}
-              onError={() => setCoverError(true)}
-            />
-          </>
-        )}
-        {(!coverUrl || coverError) && <div className="h-full w-full" style={coverPlaceholderStyle} />}
+      <div className="h-16 w-11 shrink-0 overflow-hidden rounded">
+        <BookCover id={book.id} title={book.title} coverImageUrl={book.coverImageUrl} />
       </div>
       <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
         <div className="min-w-0">
