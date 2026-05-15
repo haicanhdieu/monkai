@@ -18,13 +18,11 @@ git config --global user.email "$GIT_USER_EMAIL"
 # Copy SSH keys to writable temp dir (mount is :ro — cannot write to /root/.ssh)
 mkdir -p /tmp/ssh
 SSH_KEY_FILE=""
-for key in id_ed25519 id_rsa id_ecdsa; do
-    if [ -f "/root/.ssh/$key" ]; then
-        cp "/root/.ssh/$key" "/tmp/ssh/$key"
-        chmod 600 "/tmp/ssh/$key"
-        SSH_KEY_FILE="/tmp/ssh/$key"
-        break
-    fi
+for key in $(ls /root/.ssh/ | grep '^id_' | grep -v '\.pub$'); do
+    cp "/root/.ssh/$key" "/tmp/ssh/$key"
+    chmod 600 "/tmp/ssh/$key"
+    SSH_KEY_FILE="/tmp/ssh/$key"
+    break
 done
 
 if [ -z "$SSH_KEY_FILE" ]; then
