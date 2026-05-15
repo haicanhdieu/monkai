@@ -1,7 +1,7 @@
 {
 "installCommand": "pnpm install",
 "rewrites": [
-    { "source": "/book-data/:path*", "destination": "https://innovation-capital-phrases-pastor.trycloudflare.com/book-data/:path*" },
+    { "source": "/book-data/:path*", "destination": "https://assists-cards-maybe-location.trycloudflare.com/book-data/:path*" },
     { "source": "/((?!book-data/).*)", "destination": "/index.html" }
   ]
 }

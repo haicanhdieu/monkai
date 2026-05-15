@@ -59,7 +59,7 @@ jobs:
           {
             "version": 3,
             "routes": [
-              { "src": "/book-data/(.*)", "dest": "https://innovation-capital-phrases-pastor.trycloudflare.com/book-data/$1" },
+              { "src": "/book-data/(.*)", "dest": "https://assists-cards-maybe-location.trycloudflare.com/book-data/$1" },
               { "handle": "filesystem" },
               { "src": "/(.*)", "dest": "/index.html" }
             ]
