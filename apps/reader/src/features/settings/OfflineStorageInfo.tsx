@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { OFFLINE_COPY } from '@/shared/constants/offline.copy'
 import { useQueryClient } from '@tanstack/react-query'
 import { storageService } from '@/shared/services/storage.service'
+import { EPUB_BLOB_CACHE_PREFIX, CATALOG_CACHE_PREFIX } from '@/shared/constants/storage.keys'
 
 export function OfflineStorageInfo() {
   const queryClient = useQueryClient()
@@ -41,10 +42,14 @@ export function OfflineStorageInfo() {
     setClearError(false)
     setClearing(true)
     try {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((key) => caches.delete(key)))
+      const swKeys = await caches.keys()
+      await Promise.all(swKeys.map((key) => caches.delete(key)))
+      const storageKeys = await storageService.keys()
+      const keysToDelete = storageKeys.filter(
+        (k) => k.startsWith(EPUB_BLOB_CACHE_PREFIX) || k.startsWith(CATALOG_CACHE_PREFIX)
+      )
+      await Promise.all(keysToDelete.map((k) => storageService.removeItem(k)))
       queryClient.clear()
-      await storageService.clear()
     } catch {
       setClearError(true)
     } finally {
@@ -115,7 +120,7 @@ export function OfflineStorageInfo() {
               className="mb-6 text-sm"
               style={{ color: 'var(--color-text-muted)' }}
             >
-              Toàn bộ dữ liệu đã lưu offline (sách, vị trí đọc, dấu trang) sẽ bị xóa. Tiếp tục?
+              Dữ liệu tạm thời (file epub, danh mục đã cache) sẽ bị xóa. Dấu trang, cài đặt và nội dung sách vẫn được giữ lại. Tiếp tục?
             </Dialog.Description>
             <div className="flex justify-end gap-3">
               <Dialog.Close asChild>

@@ -13,11 +13,17 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
-const { mockLocalforageClear } = vi.hoisted(() => ({
+const { mockLocalforageClear, mockLocalforageKeys, mockLocalforageRemoveItem } = vi.hoisted(() => ({
   mockLocalforageClear: vi.fn(),
+  mockLocalforageKeys: vi.fn(),
+  mockLocalforageRemoveItem: vi.fn(),
 }))
 vi.mock('localforage', () => ({
-  default: { clear: mockLocalforageClear },
+  default: {
+    clear: mockLocalforageClear,
+    keys: mockLocalforageKeys,
+    removeItem: mockLocalforageRemoveItem,
+  },
 }))
 
 const mockCachesKeys = vi.fn()
@@ -28,6 +34,8 @@ beforeEach(() => {
   mockCachesKeys.mockResolvedValue([])
   mockCachesDelete.mockResolvedValue(true)
   mockLocalforageClear.mockResolvedValue(undefined)
+  mockLocalforageKeys.mockResolvedValue([])
+  mockLocalforageRemoveItem.mockResolvedValue(undefined)
   Object.defineProperty(globalThis, 'caches', {
     value: { keys: mockCachesKeys, delete: mockCachesDelete },
     writable: true,
@@ -63,7 +71,7 @@ describe('OfflineStorageInfo', () => {
     })
   })
 
-  it('"Xóa bộ nhớ đệm" button opens dialog; confirm clears all caches', async () => {
+  it('"Xóa bộ nhớ đệm" button opens dialog; confirm clears only cache keys, not user data', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('navigator', {
       ...navigator,
@@ -72,11 +80,18 @@ describe('OfflineStorageInfo', () => {
       },
     })
     mockCachesKeys.mockResolvedValue(['book-data', 'precache'])
+    mockLocalforageKeys.mockResolvedValue([
+      'epub_blob_v4_book-abc',
+      'catalog_cache_v1_vnthuquan',
+      'book_cache_v1_vnthuquan_book-abc',
+      'user_settings',
+      'bookmarks',
+      'last_read_position',
+    ])
 
     render(<OfflineStorageInfo />)
 
     await user.click(screen.getByRole('button', { name: /Xóa bộ nhớ đệm/i }))
-    // Dialog should be open — find and click the confirm button
     const confirmBtn = await screen.findByRole('button', { name: /^Xóa$/ })
     await user.click(confirmBtn)
 
@@ -85,7 +100,41 @@ describe('OfflineStorageInfo', () => {
       expect(mockCachesDelete).toHaveBeenCalledWith('book-data')
       expect(mockCachesDelete).toHaveBeenCalledWith('precache')
       expect(mockClear).toHaveBeenCalled()
-      expect(mockLocalforageClear).toHaveBeenCalled()
+      // Only cache-prefixed keys are deleted
+      expect(mockLocalforageRemoveItem).toHaveBeenCalledWith('epub_blob_v4_book-abc')
+      expect(mockLocalforageRemoveItem).toHaveBeenCalledWith('catalog_cache_v1_vnthuquan')
+      // User data and book JSON are NOT deleted
+      expect(mockLocalforageRemoveItem).not.toHaveBeenCalledWith('book_cache_v1_vnthuquan_book-abc')
+      expect(mockLocalforageRemoveItem).not.toHaveBeenCalledWith('user_settings')
+      expect(mockLocalforageRemoveItem).not.toHaveBeenCalledWith('bookmarks')
+      expect(mockLocalforageRemoveItem).not.toHaveBeenCalledWith('last_read_position')
+      // storageService.clear() must NOT be called
+      expect(mockLocalforageClear).not.toHaveBeenCalled()
+    })
+  })
+
+  it('makes no removeItem calls when storage has no cache-prefixed keys', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      storage: {
+        estimate: vi.fn().mockResolvedValue({ usage: 0, quota: 50000000 }),
+      },
+    })
+    mockLocalforageKeys.mockResolvedValue(['user_settings', 'bookmarks', 'last_read_position'])
+
+    render(<OfflineStorageInfo />)
+
+    await user.click(screen.getByRole('button', { name: /Xóa bộ nhớ đệm/i }))
+    const confirmBtn = await screen.findByRole('button', { name: /^Xóa$/ })
+    await user.click(confirmBtn)
+
+    await waitFor(() => {
+      expect(mockLocalforageRemoveItem).not.toHaveBeenCalled()
+      expect(mockLocalforageClear).not.toHaveBeenCalled()
+      // SW cache and query client are still cleared
+      expect(mockCachesKeys).toHaveBeenCalled()
+      expect(mockClear).toHaveBeenCalled()
     })
   })
 
@@ -107,6 +156,8 @@ describe('OfflineStorageInfo', () => {
     expect(mockCachesKeys).not.toHaveBeenCalled()
     expect(mockClear).not.toHaveBeenCalled()
     expect(mockLocalforageClear).not.toHaveBeenCalled()
+    expect(mockLocalforageKeys).not.toHaveBeenCalled()
+    expect(mockLocalforageRemoveItem).not.toHaveBeenCalled()
   })
 
   it('shows quota error message when storage-quota-exceeded event is fired', async () => {

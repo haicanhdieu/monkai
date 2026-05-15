@@ -5,6 +5,7 @@ export interface StorageService {
   setItem<T>(key: string, value: T): Promise<void>
   removeItem(key: string): Promise<void>
   clear(): Promise<void>
+  keys(): Promise<string[]>
 }
 
 export class LocalforageStorageService implements StorageService {
@@ -40,6 +41,10 @@ export class LocalforageStorageService implements StorageService {
     } catch (err) {
       console.error('[StorageService] clear failed:', err)
     }
+  }
+
+  async keys(): Promise<string[]> {
+    return localforage.keys()
   }
 }
 

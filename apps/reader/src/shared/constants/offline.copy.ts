@@ -16,5 +16,5 @@ export const OFFLINE_COPY = {
   bannerHint: 'Kết nối mạng để tải nội dung mới; sách đã mở vẫn đọc được.',
 
   /** Settings > Offline storage: explanation line */
-  settingsExplanation: 'Danh mục và các sách đã mở được lưu để đọc offline.',
+  settingsExplanation: 'Dữ liệu tạm thời (file epub, danh mục) được lưu để đọc offline. Cài đặt, dấu trang và nội dung sách không bị xóa khi xóa bộ nhớ đệm.',
 } as const
