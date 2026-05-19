@@ -45,6 +45,7 @@ export function useStorageHydration() {
               ? lastRead.bookProgressApprox
               : null,
             lastRead.source ?? '',
+            lastRead.cfi ?? '',
           )
         }
         if (settings) useSettingsStore.getState().hydrate(settings)

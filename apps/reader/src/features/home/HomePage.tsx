@@ -31,6 +31,7 @@ function ContinueReadingCard() {
     lastReadChapterTitle,
     lastReadBookProgressApprox,
     lastReadSourceId,
+    lastReadCfi,
   } = useReaderStore()
   const hasLastRead = lastReadBookId !== ''
   const bookSourceOverride = lastReadSourceId ? (lastReadSourceId as SourceId) : undefined
@@ -63,7 +64,7 @@ function ContinueReadingCard() {
       </h2>
       <Link
         to={toRead(lastReadBookId)}
-        state={lastReadSourceId ? { source: lastReadSourceId } : undefined}
+        state={{ ...(lastReadCfi ? { cfi: lastReadCfi } : {}), ...(lastReadSourceId ? { source: lastReadSourceId } : {}) }}
         className="flex min-h-[44px] gap-4 overflow-hidden rounded-xl border px-4 py-4 shadow-sm transition-opacity hover:opacity-95"
         style={{
           backgroundColor: 'var(--color-surface)',
