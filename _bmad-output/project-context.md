@@ -20,7 +20,9 @@ optimized_for_llm: true
 
 *This file contains critical rules and patterns that AI agents must follow when implementing code in this project. Focus on unobvious details that agents might otherwise miss.*
 
-**Monkai** is a monorepo: **Phase 1 Crawler** (`apps/crawler`, Python) ingests and indexes Buddhist scriptures; **Phase 2 Reader** (`apps/reader`, React/Vite) is a PWA that consumes that corpus. The handoff contract is `index.json` plus per-book JSON; reader Zod schemas must stay aligned with crawler output.
+**Monkai** is a monorepo building a **digital library for Buddhist practitioners** — centered on the Buddhist community, expanding from sutras to all human knowledge. The audience is Buddhist users who want to deepen not only their dharma practice but their broader understanding of the world (philosophy, history, science, literature). Content scope: Buddhist texts + general knowledge books, text and audio (human recordings only for now — TTS deferred until quality and cost improve). The handoff contract is `index.json` plus per-book JSON; reader Zod schemas must stay aligned with crawler output.
+
+**Vision statement (2026-05-17):** A data-rich library for Buddhist practitioners who don't only want to read sutras — they want to expand their knowledge from all of mankind. Same user (Buddhist community), broader content. Buddhist texts remain the heart; general knowledge is the expansion. TTS deferred — not permanently excluded; current quality insufficient for emotional dharma content, hosting cost too high. Revisit when model quality and cost improve. For now, audio = human recordings only.
 
 ---
 

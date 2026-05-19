@@ -17,7 +17,7 @@ export function FontSizeControl() {
       <Slider.Root
         className="relative flex min-h-[44px] w-full touch-none select-none items-center"
         min={14}
-        max={28}
+        max={36}
         step={2}
         value={[fontSize]}
         onValueChange={([value]) => setFontSize(value)}

@@ -58,7 +58,7 @@ describe('FontSizeControl', () => {
 
     const sliderRoot = screen.getByTestId('slider-root')
     expect(sliderRoot).toHaveAttribute('data-min', '14')
-    expect(sliderRoot).toHaveAttribute('data-max', '28')
+    expect(sliderRoot).toHaveAttribute('data-max', '36')
     expect(sliderRoot).toHaveAttribute('data-step', '2')
     expect(sliderRoot).toHaveAttribute('data-value', JSON.stringify([18]))
   })

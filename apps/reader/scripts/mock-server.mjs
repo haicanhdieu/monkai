@@ -4,7 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const BOOK_DATA_DIR = path.resolve(__dirname, '../../book-data')
+const BOOK_DATA_DIR = path.resolve(__dirname, '../../crawler/data/book-data')
 const PORT = 3001
 
 // Build UUID→artifact-path lookup map from per-source index files at startup so that
