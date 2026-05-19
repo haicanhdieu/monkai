@@ -25,6 +25,8 @@ interface ReaderState {
   lastReadBookProgressApprox: number | null
   /** Source (catalog) the last-read book belongs to; used by home card to fetch correct book data. */
   lastReadSourceId: string
+  /** CFI of last-read position; passed via router state so ReaderEngine uses the RAF re-display path. */
+  lastReadCfi: string
   setCurrentCfi: (cfi: string) => void
   toggleChrome: () => void
   /** Set page progress from epub.js relocated (bottom bar). */
@@ -38,6 +40,7 @@ interface ReaderState {
     chapterTitle?: string,
     bookProgressApprox?: number | null,
     sourceId?: string,
+    cfi?: string,
   ) => void
   /** Hydrate last-read from storage (useStorageHydration). */
   hydrateLastRead: (
@@ -48,6 +51,7 @@ interface ReaderState {
     chapterTitle?: string,
     bookProgressApprox?: number | null,
     sourceId?: string,
+    cfi?: string,
   ) => void
   reset: () => void
 }
@@ -65,6 +69,7 @@ const initialState = {
   lastReadChapterTitle: '',
   lastReadBookProgressApprox: null as number | null,
   lastReadSourceId: '',
+  lastReadCfi: '',
 }
 
 export const useReaderStore = create<ReaderState>((set) => ({
@@ -80,6 +85,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
     lastReadChapterTitle = '',
     lastReadBookProgressApprox = null,
     lastReadSourceId = '',
+    lastReadCfi = '',
   ) =>
     set({
       lastReadBookId,
@@ -89,6 +95,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       lastReadChapterTitle,
       lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
       lastReadSourceId,
+      ...(lastReadCfi ? { lastReadCfi } : {}),
     }),
   hydrateLastRead: (
     lastReadBookId,
@@ -98,6 +105,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
     lastReadChapterTitle = '',
     lastReadBookProgressApprox = null,
     lastReadSourceId = '',
+    lastReadCfi = '',
   ) =>
     set({
       lastReadBookId,
@@ -107,6 +115,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
       lastReadChapterTitle,
       lastReadBookProgressApprox: lastReadBookProgressApprox ?? null,
       lastReadSourceId,
+      ...(lastReadCfi ? { lastReadCfi } : {}),
     }),
   reset: () => set(initialState),
 }))

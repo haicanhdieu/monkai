@@ -177,16 +177,16 @@ export function ReaderEngine({
       setLocationAnnouncement(text)
 
       const chapterTitle = resolveChapterTitle(bookRef.current, href)
+      const cfi = location?.start?.cfi
 
       let bookProgressApprox: number | null = null
       if (displayed && displayed.total > 0) {
         bookProgressApprox =
           approxWholeBookProgressFromSpine(bookRef.current, href, displayed.page, displayed.total) ?? null
         setProgress(displayed.page, displayed.total, chapterTitle)
-        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle, bookProgressApprox, bookSource)
+        setLastRead(bookId, bookTitle, displayed.page, displayed.total, chapterTitle, bookProgressApprox, bookSource, typeof cfi === 'string' ? cfi : '')
       }
 
-      const cfi = location?.start?.cfi
       if (typeof cfi === 'string' && cfi) {
         setCurrentCfi(cfi)
         const payload: LastReadPosition = {
