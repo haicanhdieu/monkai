@@ -17,11 +17,11 @@ services:
     build: ./url-watcher
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${REPO_PATH}:/repo
     environment:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
       - SSH_PRIVATE_KEY
+      - GIT_REPO_URL
     depends_on:
       - cloudflared
     restart: always

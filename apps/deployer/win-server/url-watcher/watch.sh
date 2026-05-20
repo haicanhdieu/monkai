@@ -1,6 +1,7 @@
 #!/bin/sh
 
-REPO_DIR=/repo
+REPO_URL="${GIT_REPO_URL:-git@github.com:haicanhdieu/monkai.git}"
+REPO_DIR=/tmp/repo
 VERCEL_JSON="$REPO_DIR/apps/reader/vercel.json"
 CI_YML="$REPO_DIR/.github/workflows/ci.yml"
 MAX_RETRIES=3
@@ -11,10 +12,6 @@ if [ -z "$GIT_USER_NAME" ] || [ -z "$GIT_USER_EMAIL" ]; then
     log "ERROR: GIT_USER_NAME and GIT_USER_EMAIL must be set"
     exit 1
 fi
-
-git config --global user.name "$GIT_USER_NAME"
-git config --global user.email "$GIT_USER_EMAIL"
-git config --global --add safe.directory /repo
 
 mkdir -p /tmp/ssh
 SSH_KEY_FILE=""
@@ -38,6 +35,18 @@ fi
 
 ssh-keyscan github.com > /tmp/ssh/known_hosts 2>/dev/null
 export GIT_SSH_COMMAND="ssh -i $SSH_KEY_FILE -F /dev/null -o UserKnownHostsFile=/tmp/ssh/known_hosts"
+
+git config --global user.name "$GIT_USER_NAME"
+git config --global user.email "$GIT_USER_EMAIL"
+git config --global --add safe.directory "$REPO_DIR"
+
+if [ ! -d "$REPO_DIR/.git" ]; then
+    log "Cloning repo..."
+    git clone "$REPO_URL" "$REPO_DIR" || { log "ERROR: git clone failed"; exit 1; }
+else
+    git -C "$REPO_DIR" fetch origin main || { log "ERROR: initial git fetch failed"; exit 1; }
+    git -C "$REPO_DIR" reset --hard origin/main
+fi
 
 handle_event() {
     log "cloudflared start event — waiting 20s for tunnel negotiation..."
@@ -94,15 +103,6 @@ handle_event() {
 
     log "Done — pushed: $new_url"
 }
-
-if [ ! -f "$VERCEL_JSON" ]; then
-    log "ERROR: $VERCEL_JSON not found — check REPO_PATH mount"
-    exit 1
-fi
-if [ ! -f "$CI_YML" ]; then
-    log "ERROR: $CI_YML not found — check REPO_PATH mount"
-    exit 1
-fi
 
 log "Watching for cloudflared restarts..."
 
