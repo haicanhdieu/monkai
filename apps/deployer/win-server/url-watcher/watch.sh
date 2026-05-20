@@ -16,18 +16,23 @@ git config --global user.name "$GIT_USER_NAME"
 git config --global user.email "$GIT_USER_EMAIL"
 git config --global --add safe.directory /repo
 
-# Copy SSH keys to writable temp dir (mount is :ro — cannot write to /root/.ssh)
 mkdir -p /tmp/ssh
 SSH_KEY_FILE=""
-for key in $(ls /root/.ssh/ | grep '^id_' | grep -v '\.pub$'); do
-    cp "/root/.ssh/$key" "/tmp/ssh/$key"
-    chmod 600 "/tmp/ssh/$key"
-    SSH_KEY_FILE="/tmp/ssh/$key"
-    break
-done
+if [ -n "$SSH_PRIVATE_KEY" ]; then
+    printf '%s' "$SSH_PRIVATE_KEY" | base64 -d > /tmp/ssh/id_key
+    chmod 600 /tmp/ssh/id_key
+    SSH_KEY_FILE="/tmp/ssh/id_key"
+else
+    for key in $(ls /root/.ssh/ 2>/dev/null | grep '^id_' | grep -v '\.pub$'); do
+        cp "/root/.ssh/$key" "/tmp/ssh/$key"
+        chmod 600 "/tmp/ssh/$key"
+        SSH_KEY_FILE="/tmp/ssh/$key"
+        break
+    done
+fi
 
 if [ -z "$SSH_KEY_FILE" ]; then
-    log "ERROR: No SSH key found in /root/.ssh"
+    log "ERROR: No SSH key — set SSH_PRIVATE_KEY env var or mount /root/.ssh"
     exit 1
 fi
 

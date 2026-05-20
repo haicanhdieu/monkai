@@ -18,10 +18,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${REPO_PATH}:/repo
-      - ${SSH_DIR}:/root/.ssh:ro
     environment:
       - GIT_USER_NAME
       - GIT_USER_EMAIL
+      - SSH_PRIVATE_KEY
     depends_on:
       - cloudflared
     restart: always
