@@ -16,7 +16,7 @@ fi
 mkdir -p /tmp/ssh
 SSH_KEY_FILE=""
 if [ -n "$SSH_PRIVATE_KEY" ]; then
-    printf '%s' "$SSH_PRIVATE_KEY" | base64 -d > /tmp/ssh/id_key
+    printf '%s' "$SSH_PRIVATE_KEY" | base64 -d | tr -d '\r' > /tmp/ssh/id_key
     chmod 600 /tmp/ssh/id_key
     SSH_KEY_FILE="/tmp/ssh/id_key"
 else
