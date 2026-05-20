@@ -1,7 +1,3 @@
 {
-"installCommand": "pnpm install",
-"rewrites": [
-    { "source": "/book-data/:path*", "destination": "https://fly-wear-mel-solar.trycloudflare.com/book-data/:path*" },
-    { "source": "/((?!book-data/).*)", "destination": "/index.html" }
-  ]
+  "installCommand": "pnpm install"
 }
