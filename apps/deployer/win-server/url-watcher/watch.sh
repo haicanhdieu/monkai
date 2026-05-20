@@ -79,18 +79,6 @@ trigger_dispatch() {
     fi
 }
 
-git config --global user.name "$GIT_USER_NAME"
-git config --global user.email "$GIT_USER_EMAIL"
-git config --global --add safe.directory "$REPO_DIR"
-
-if [ ! -d "$REPO_DIR/.git" ]; then
-    log "Cloning repo..."
-    git clone "$REPO_URL" "$REPO_DIR" || { log "ERROR: git clone failed"; exit 1; }
-else
-    git -C "$REPO_DIR" fetch origin main || { log "ERROR: initial git fetch failed"; exit 1; }
-    git -C "$REPO_DIR" reset --hard origin/main
-fi
-
 handle_event() {
     log "cloudflared start event — waiting 20s for tunnel negotiation..."
     sleep 20
