@@ -76,10 +76,8 @@ handle_event() {
 
     log "URL changed: $current_url -> $new_url"
 
-    if ! git -C "$REPO_DIR" pull --ff-only; then
-        log "ERROR: git pull failed, skipping"
-        return
-    fi
+    git -C "$REPO_DIR" fetch origin main || { log "ERROR: git fetch failed, skipping"; return; }
+    git -C "$REPO_DIR" reset --hard origin/main || { log "ERROR: git reset failed, skipping"; return; }
 
     sed -i "s|https://[a-z0-9-]*\.trycloudflare\.com|$new_url|g" \
         "$VERCEL_JSON" \
