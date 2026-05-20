@@ -18,10 +18,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - GIT_USER_NAME
-      - GIT_USER_EMAIL
-      - SSH_PRIVATE_KEY
-      - GIT_REPO_URL
+      - GITHUB_TOKEN
+      - GITHUB_REPO
     depends_on:
       - cloudflared
     restart: always
