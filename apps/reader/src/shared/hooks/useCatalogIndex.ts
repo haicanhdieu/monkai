@@ -7,5 +7,6 @@ export function useCatalogIndex(source: SourceId) {
   return useQuery({
     queryKey: queryKeys.catalog(source),
     queryFn: () => staticJsonDataService.getCatalog(source),
+    networkMode: 'always',
   })
 }

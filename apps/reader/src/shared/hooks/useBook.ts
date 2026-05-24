@@ -11,5 +11,8 @@ export function useBook(id: string, sourceOverride?: SourceId) {
     queryKey: queryKeys.book(id, source),
     queryFn: () => staticJsonDataService.getBook(id, source),
     enabled: id.trim().length > 0,
+    // 'always' lets the queryFn run even when navigator.onLine=false so the
+    // localforage fallback in data.service.ts is reachable when truly offline.
+    networkMode: 'always',
   })
 }
