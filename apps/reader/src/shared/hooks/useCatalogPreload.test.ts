@@ -22,7 +22,7 @@ vi.mock('@/shared/stores/useActiveSource', () => ({
 import { storageService } from '@/shared/services/storage.service'
 const mockGetItem = storageService.getItem as ReturnType<typeof vi.fn>
 
-let mockActiveSource: ReturnType<typeof vi.fn>
+let mockActiveSource = vi.fn()
 
 function makeWrapper(queryClient: QueryClient) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
