@@ -1,5 +1,7 @@
-import type { CatalogBook, CatalogIndex } from '@/shared/types/global.types'
+import type { CatalogBook, CatalogCategory, CatalogIndex } from '@/shared/types/global.types'
 import type { LibraryCategory, SearchDocument } from '@/features/library/library.types'
+
+const bookCollator = new Intl.Collator('vi')
 
 /**
  * Strips Vietnamese diacritical marks and tone indicators so that
@@ -17,7 +19,7 @@ import type { LibraryCategory, SearchDocument } from '@/features/library/library
 export function stripVietnamese(value: string): string {
   return value
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[đĐ]/g, (c) => (c === 'đ' ? 'd' : 'D'))
 }
 
@@ -25,24 +27,22 @@ export function normalizeCategorySlug(input: string): string {
   return input.trim().toLowerCase()
 }
 
-export function sortBooksByTitle(books: CatalogBook[]): CatalogBook[] {
-  return [...books].sort((a, b) => a.title.localeCompare(b.title, 'vi'))
-}
-
-export function buildLibraryCategories(catalog: CatalogIndex): LibraryCategory[] {
-  return catalog.categories
-    .map((category) => ({
-      ...category,
-      books: sortBooksByTitle(catalog.books.filter((book) => book.categorySlug === category.slug)),
-    }))
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'vi'))
+// Returns sorted category headers only — no book processing.
+// Use in LibraryPage where CategoryGrid only needs slug/displayName/count.
+export function buildLibraryCategoryHeaders(catalog: CatalogIndex): CatalogCategory[] {
+  return [...catalog.categories].sort((a, b) => bookCollator.compare(a.displayName, b.displayName))
 }
 
 export function getCategoryBySlug(catalog: CatalogIndex, slug: string): LibraryCategory | undefined {
   const normalizedSlug = normalizeCategorySlug(slug)
-  return buildLibraryCategories(catalog).find(
-    (category) => normalizeCategorySlug(category.slug) === normalizedSlug,
+  const category = catalog.categories.find(
+    (c) => normalizeCategorySlug(c.slug) === normalizedSlug,
   )
+  if (!category) return undefined
+  const books = catalog.books
+    .filter((b) => b.categorySlug === category.slug)
+    .sort((a, b) => bookCollator.compare(a.title, b.title))
+  return { ...category, books }
 }
 
 export function toSearchDocuments(books: CatalogBook[]): SearchDocument[] {

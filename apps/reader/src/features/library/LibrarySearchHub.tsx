@@ -2,11 +2,10 @@ import { CategoryGrid } from '@/features/library/CategoryGrid'
 import { LibrarySearchBar } from '@/features/library/LibrarySearchBar'
 import { SearchResults } from '@/features/library/SearchResults'
 import { useLibrarySearch } from '@/features/library/useLibrarySearch'
-import type { LibraryCategory } from '@/features/library/library.types'
-import type { CatalogBook } from '@/shared/types/global.types'
+import type { CatalogBook, CatalogCategory } from '@/shared/types/global.types'
 
 interface LibrarySearchHubProps {
-  categories: LibraryCategory[]
+  categories: CatalogCategory[]
   books: CatalogBook[]
   contentClassName?: string
 }

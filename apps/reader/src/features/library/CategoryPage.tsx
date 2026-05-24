@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { SutraListCard } from '@/features/library/SutraListCard'
@@ -104,12 +104,14 @@ export default function CategoryPage() {
   const isOnline = useOnlineStatus()
 
   // Hoist before all early-return guards to satisfy React hook rules
-  const selectedCategory = catalogQuery.data && category
-    ? getCategoryBySlug(catalogQuery.data, category) ?? null
-    : null
+  const selectedCategory = useMemo(
+    () => catalogQuery.data && category ? getCategoryBySlug(catalogQuery.data, category) ?? null : null,
+    [catalogQuery.data, category],
+  )
 
+  const [searchEnabled, setSearchEnabled] = useState(false)
   const { query, setQuery, clearQuery, debouncedQuery, normalizedQuery, results } =
-    useLibrarySearch(selectedCategory?.books ?? [])
+    useLibrarySearch(searchEnabled ? (selectedCategory?.books ?? []) : [])
 
   if (catalogQuery.isLoading) {
     return (
@@ -174,7 +176,7 @@ export default function CategoryPage() {
           </span>
         }
       >
-        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} placeholder={sourceConfig.searchPlaceholder} />
+        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
       </AppBar>
 
       {normalizedQuery ? (

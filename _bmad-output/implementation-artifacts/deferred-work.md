@@ -1,4 +1,10 @@
 
+## library-render-bottleneck deferred findings (2026-05-24)
+
+- **`b.categorySlug` case/whitespace mismatch in `getCategoryBySlug`**: filter uses `b.categorySlug === category.slug` (raw equality). If catalog data has inconsistent casing, books are silently excluded. Pre-existing behavior — normalize both sides if data quality becomes an issue.
+- **Empty categories state**: `buildLibraryCategoryHeaders` returns `[]` when catalog has no categories; UI shows "0 nhóm" with an empty grid and no explanation. Pre-existing — add empty state if needed.
+- **`LibrarySearchHub` eager MiniSearch**: `LibrarySearchHub.tsx` (dead code, not used in production) still passes full book list to `useLibrarySearch` without lazy guard. Update if component is ever reactivated.
+
 ## catalog-preload deferred findings (2026-05-24)
 
 - **Stale-closure race on rapid source switches**: `useCatalogPreload` IIFE captures `activeSource` at invocation; no cancellation if source changes mid-await. Writes go to different keys so no collision, but the old source's `invalidateQueries` fires unnecessarily. Fix: add `let cancelled = false` + cleanup returning `() => { cancelled = true }`.

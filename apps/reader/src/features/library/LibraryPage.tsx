@@ -1,4 +1,5 @@
-import { buildLibraryCategories } from '@/features/library/library.utils'
+import { useState } from 'react'
+import { buildLibraryCategoryHeaders } from '@/features/library/library.utils'
 import { useLibrarySearch } from '@/features/library/useLibrarySearch'
 import { LibrarySearchBar } from '@/features/library/LibrarySearchBar'
 import { CategoryGrid } from '@/features/library/CategoryGrid'
@@ -21,8 +22,9 @@ export default function LibraryPage() {
   const sourceConfig = SOURCES.find((s) => s.id === activeSource) ?? SOURCES[0]!
   const catalogQuery = useCatalogIndex(activeSource)
   const isOnline = useOnlineStatus()
+  const [searchEnabled, setSearchEnabled] = useState(false)
   const { query, setQuery, clearQuery, debouncedQuery, normalizedQuery, results } = useLibrarySearch(
-    catalogQuery.data?.books ?? [],
+    searchEnabled ? (catalogQuery.data?.books ?? []) : [],
   )
 
   const rightSlot = (
@@ -38,9 +40,9 @@ export default function LibraryPage() {
     return (
       <div className="pb-24">
         <AppBar sticky title="Thư Viện" leftIcon={<AppLogo />} rightSlot={rightSlot}>
-          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} placeholder={sourceConfig.searchPlaceholder} />
+          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
           <div className="pb-2 pt-1">
-            <SourceSelectorPill onSourceChange={clearQuery} />
+            <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
           </div>
         </AppBar>
         <div className="px-4">
@@ -78,9 +80,9 @@ export default function LibraryPage() {
     return (
       <div className="pb-24">
         <AppBar sticky title="Thư Viện" leftIcon={<AppLogo />} rightSlot={rightSlot}>
-          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} placeholder={sourceConfig.searchPlaceholder} />
+          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
           <div className="pb-2 pt-1">
-            <SourceSelectorPill onSourceChange={clearQuery} />
+            <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
           </div>
         </AppBar>
         <div className="px-4">
@@ -98,7 +100,7 @@ export default function LibraryPage() {
     )
   }
 
-  const categories = buildLibraryCategories(catalogQuery.data)
+  const categories = buildLibraryCategoryHeaders(catalogQuery.data)
 
   return (
     <div className="pb-24">
@@ -108,9 +110,9 @@ export default function LibraryPage() {
         leftIcon={<AppLogo />}
         rightSlot={rightSlot}
       >
-        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} placeholder={sourceConfig.searchPlaceholder} />
+        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
         <div className="pb-2 pt-1">
-          <SourceSelectorPill onSourceChange={clearQuery} />
+          <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
         </div>
       </AppBar>
 

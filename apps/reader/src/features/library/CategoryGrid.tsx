@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
-import type { LibraryCategory } from '@/features/library/library.types'
+import type { CatalogCategory } from '@/shared/types/global.types'
 import { toCategory } from '@/shared/constants/routes'
 import { ChevronRightIcon } from '@radix-ui/react-icons'
 
 interface CategoryGridProps {
-  categories: LibraryCategory[]
+  categories: CatalogCategory[]
   countSuffix?: string
 }
 
