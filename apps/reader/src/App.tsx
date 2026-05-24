@@ -14,11 +14,13 @@ import { SwUpdateBanner } from '@/shared/components/SwUpdateBanner'
 import { OfflineBanner } from '@/shared/components/OfflineBanner'
 import { useStorageHydration } from '@/shared/hooks/useStorageHydration'
 import { useCatalogSync } from '@/shared/hooks/useCatalogSync'
+import { useCatalogPreload } from '@/shared/hooks/useCatalogPreload'
 import { useTheme } from '@/shared/hooks/useTheme'
 
 function AppShell() {
   useStorageHydration()
   useCatalogSync()
+  useCatalogPreload()
   useTheme()
   const location = useLocation()
   const isReaderRoute = location.pathname.startsWith('/read/')

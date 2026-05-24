@@ -1,4 +1,11 @@
 
+## catalog-preload deferred findings (2026-05-24)
+
+- **Stale-closure race on rapid source switches**: `useCatalogPreload` IIFE captures `activeSource` at invocation; no cancellation if source changes mid-await. Writes go to different keys so no collision, but the old source's `invalidateQueries` fires unnecessarily. Fix: add `let cancelled = false` + cleanup returning `() => { cancelled = true }`.
+- **Zustand persist hydration timing**: `useActiveSource` may return `DEFAULT_SOURCE` on first effect fire if Zustand hasn't rehydrated yet. Preload seeds the default source's cache; effect re-runs when `activeSource` updates to persisted value. Wasted storage read, not a visible bug.
+- **StrictMode double-invalidation**: In dev, effects fire twice → two `invalidateQueries` calls queued. Production unaffected; dev is noisier than necessary.
+- **Minimal shape validation in preload**: Only `Array.isArray(cached.books)` checked. Storage key is versioned (`catalog_cache_v1_`) but individual book fields aren't validated. A schema version bump that adds required fields could serve stale objects with missing fields from cache.
+
 ## offline-book-cache deferred findings (2026-05-24)
 
 - **Retry doubles reads on cold-cache miss**: With global `retry: 1`, when offline and no localforage cache, `queryFn` runs twice (2 network failures + 2 localforage misses). Add `retry: false` to `useBook` / `useCatalogIndex` when this causes noticeable delay (only relevant when book was never cached).
