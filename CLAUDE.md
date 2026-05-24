@@ -29,3 +29,7 @@ Path: `_bmad-output/implementation-artifacts/` (flat — story files + `sprint-s
 ### Note for bmad workflows
 
 The bmad `create-prd` and similar workflows default to writing at the top-level artifacts path. Always move/rename the output into the correct phase subfolder immediately after generation.
+
+## Workflow Preferences
+
+- Do NOT run `code -r` to open spec files in VS Code after completing any bmad workflow step. Skip that step entirely.
