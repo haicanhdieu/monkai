@@ -1,49 +1,49 @@
 installation:
-  version: 6.6.0
+  version: 6.7.1
   installDate: 2026-02-26T16:51:42.151Z
-  lastUpdated: 2026-05-08T07:04:36.413Z
+  lastUpdated: 2026-05-24T13:50:16.064Z
 modules:
   - name: core
-    version: 6.6.0
+    version: 6.7.1
     installDate: 2026-02-26T16:51:41.592Z
-    lastUpdated: 2026-05-08T07:04:36.287Z
+    lastUpdated: 2026-05-24T13:50:16.060Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
-    version: 6.6.0
+    version: 6.7.1
     installDate: 2026-02-26T16:51:36.519Z
-    lastUpdated: 2026-05-08T07:04:36.288Z
+    lastUpdated: 2026-05-24T13:50:16.060Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: tea
-    version: v1.15.1
+    version: v1.19.0
     installDate: 2026-02-26T16:51:39.691Z
-    lastUpdated: 2026-05-08T07:04:36.320Z
+    lastUpdated: 2026-05-24T13:50:16.062Z
     source: external
     npmPackage: bmad-method-test-architecture-enterprise
     repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
     channel: stable
-    sha: 7c94bdc6e3d2c8c3cad09eb0a32a42fade0e9079
+    sha: 8734d51f24071ddbcb3617390b5fcddb4128ef77
   - name: cis
-    version: v0.2.0
+    version: v0.2.1
     installDate: 2026-03-18T15:40:05.787Z
-    lastUpdated: 2026-05-08T07:04:36.351Z
+    lastUpdated: 2026-05-24T13:50:16.063Z
     source: external
     npmPackage: bmad-creative-intelligence-suite
     repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
     channel: stable
-    sha: 14a63b893c07173b7a6cfe0fb6a9a72ba51d3cf1
+    sha: 07a8dd03d196a762f21c241d985293fe5b0f90e7
   - name: wds
-    version: v0.1.0
+    version: v0.4.3
     installDate: 2026-03-18T15:40:09.542Z
-    lastUpdated: 2026-05-08T07:04:36.413Z
-    source: community
-    npmPackage: bmad-method-wds-expansion
+    lastUpdated: 2026-05-24T13:50:16.064Z
+    source: external
+    npmPackage: bmad-wds
     repoUrl: https://github.com/bmad-code-org/bmad-method-wds-expansion
     channel: stable
-    sha: 50312755ca93d6667f9a9087cfe72cfd378b5329
+    sha: cc16f09fcfab26d35635af1491f36a38a8431c8d
     registryApprovedTag: v0.1.0
 ides:
   - claude-code
