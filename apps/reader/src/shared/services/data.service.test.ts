@@ -258,6 +258,50 @@ describe('offline fallback', () => {
     } satisfies Partial<DataError>)
   })
 
+  it('getCatalog returns cached catalog when server returns 5xx', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({}) } satisfies Partial<Response>)
+    const cachedCatalog = { books: [], categories: [] }
+    const storage = makeNoopStorage({ getItem: vi.fn().mockResolvedValue(cachedCatalog) })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', storage)
+    const result = await service.getCatalog('vbeta')
+
+    expect(result).toBe(cachedCatalog)
+    expect(storage.getItem).toHaveBeenCalledWith('catalog_cache_v1_vbeta')
+  })
+
+  it('getCatalog throws DataError(network) when server returns 5xx and no cache', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) } satisfies Partial<Response>)
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+
+    await expect(service.getCatalog('vbeta')).rejects.toMatchObject({
+      name: 'DataError',
+      category: 'network',
+    } satisfies Partial<DataError>)
+  })
+
+  it('getBook returns cached book when server returns 5xx after catalog loads from cache', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({}) } satisfies Partial<Response>)
+    const cachedCatalog = {
+      books: [{ id: 'book-1', title: 'Kinh A', artifacts: [{ format: 'json', path: 'a.json' }] }],
+      categories: [],
+    }
+    const cachedBook = { id: 'book-1', source: 'vbeta', title: 'Kinh A', content: [], coverImageUrl: null }
+    const storage = makeNoopStorage({
+      getItem: vi.fn().mockImplementation(async (key: string) => {
+        if (key === 'catalog_cache_v1_vbeta') return cachedCatalog
+        if (key === 'book_cache_v1_vbeta_book-1') return cachedBook
+        return null
+      }),
+    })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', storage)
+    const result = await service.getBook('book-1', 'vbeta')
+
+    expect(result).toBe(cachedBook)
+    expect(storage.getItem).toHaveBeenCalledWith('book_cache_v1_vbeta_book-1')
+  })
+
   it('getBook writes to storage on successful fetch', async () => {
     let callCount = 0
     const fetchMock = vi.fn().mockImplementation(async () => {

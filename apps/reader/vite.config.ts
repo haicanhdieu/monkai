@@ -83,7 +83,7 @@ const baseFallback = (env.VITE_BASE_PATH ?? '/').replace(/\/+$/, '')
           navigateFallbackDenylist: [/^\/book-data\//],
           runtimeCaching: [
             {
-              urlPattern: /\/book-data\/index\.json/,
+              urlPattern: /\/book-data\/[^/]+\/index\.json/,
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'catalog-cache',

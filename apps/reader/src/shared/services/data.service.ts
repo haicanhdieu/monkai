@@ -189,6 +189,12 @@ export class StaticJsonDataService implements DataService {
         throw new DataError('not_found', `Resource not found: ${url}`, { status: response.status })
       }
 
+      // 5xx: server/proxy temporarily unavailable — treat as network failure so
+      // localforage fallback in getCatalog/getBook is reachable.
+      if (response.status >= 500) {
+        throw new DataError('network', `Server temporarily unavailable: ${response.status}`, { status: response.status })
+      }
+
       throw new DataError('unknown', `Unexpected response status: ${response.status}`, { status: response.status })
     }
 
