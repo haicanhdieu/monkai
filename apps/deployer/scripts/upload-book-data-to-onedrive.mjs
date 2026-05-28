@@ -32,6 +32,7 @@ const ENV_FILE = path.join(__dirname, '.env')
 
 const DEFAULT_ONEDRIVE_REMOTE = 'onedrive-monkai'
 const DEFAULT_BOOK_DATA_SRC = 'D:\\ntm\\monkai\\apps\\crawler\\data\\book-data'
+const DEFAULT_ONEDRIVE_DEST_PATH = 'PUBLIC-DATA/MONKAI/book-data'
 
 // ── Env loading ───────────────────────────────────────────────────────────────
 
@@ -67,7 +68,8 @@ function main() {
 
   const remote = process.env.ONEDRIVE_REMOTE || DEFAULT_ONEDRIVE_REMOTE
   const src = process.env.BOOK_DATA_SRC || DEFAULT_BOOK_DATA_SRC
-  const dest = `${remote}:book-data`
+  const destPath = process.env.ONEDRIVE_DEST_PATH || DEFAULT_ONEDRIVE_DEST_PATH
+  const dest = `${remote}:${destPath}`
 
   if (!fs.existsSync(src)) {
     console.error(`Book-data source not found: ${src}`)
