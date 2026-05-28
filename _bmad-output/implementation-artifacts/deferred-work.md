@@ -25,3 +25,12 @@
 - **`vars.CLOUDFLARE_TUNNEL_URL` unset on first deploy**: CI produces `"dest": "/book-data/$1"` (broken route) if GitHub variable not initialized before first push. Fix: add CI step to fail fast when variable is empty.
 - **Classic PAT scope**: `.env.example` documents `repo` scope (over-privileged). Consider updating example to only reference fine-grained PAT with Actions + Variables read/write only.
 - **Concurrent cloudflared start events during crash-loop**: Multiple events queue serially; two dispatches may fire with near-identical URLs. Consider debounce lock file in watch.sh.
+
+## onedrive-migration-p1 deferred findings (2026-05-28)
+
+Source: `apps/deployer/scripts/upload-book-data-to-onedrive.mjs`
+
+- **Bandwidth throttle**: No `--bwlimit`, `--transfers`, or `--checkers` flags. On a server also serving readers, a large sync may saturate upload bandwidth. Add `--bwlimit` if needed.
+- **No audit log**: `--log-file` and `--log-level INFO` not passed to rclone. No persistent record of what was transferred or deleted. Consider adding if audit trail is needed.
+- **No rclone remote preflight check**: Script does not run `rclone listremotes` before syncing. A misconfigured remote produces a cryptic rclone error. Consider adding a preflight validation step.
+- **Unknown args silently ignored**: `--dryrun` (typo) or other unrecognized flags proceed as a live sync without warning. Add arg validation if operators frequently mistype flags.
