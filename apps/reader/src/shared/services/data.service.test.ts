@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DataError, StaticJsonDataService, resolveCoverUrl, resolveBookDataBaseUrl } from '@/shared/services/data.service'
+import { DataError, StaticJsonDataService, resolveCoverUrl, resolveBookDataBaseUrl, resolveFileUrl, encodeOneDriveShareUrl } from '@/shared/services/data.service'
 import type { StorageService } from '@/shared/services/storage.service'
 
 function makeNoopStorage(overrides?: Partial<StorageService>): StorageService {
@@ -318,6 +318,28 @@ describe('offline fallback', () => {
       'book_cache_v1_vbeta_book-1',
       expect.objectContaining({ id: 'book-1', source: 'vbeta' }),
     )
+  })
+})
+
+describe('resolveFileUrl', () => {
+  const oneDriveShareUrl = 'https://1drv.ms/f/c/6416cbb4ab103737/IgBHPqOAOKZ0S54hZZw65SRPAYqGOfbjaYFLiSPh6vCyzQ0'
+
+  it('builds Graph API URL for OneDrive share URL', () => {
+    const result = resolveFileUrl(oneDriveShareUrl, '/book-data/vbeta/index.json')
+    const encoded = encodeOneDriveShareUrl(oneDriveShareUrl)
+    expect(result).toBe(`https://api.onedrive.com/v1.0/shares/${encoded}/root:/book-data/vbeta/index.json:/content`)
+    expect(result).toMatch(/^https:\/\/api\.onedrive\.com\/v1\.0\/shares\/u!/)
+    expect(result).toMatch(/:\/content$/)
+  })
+
+  it('returns standard concatenation for non-OneDrive HTTPS URL', () => {
+    const result = resolveFileUrl('https://ntm-pub.ddns.net', '/book-data/vbeta/index.json')
+    expect(result).toBe('https://ntm-pub.ddns.net/book-data/vbeta/index.json')
+  })
+
+  it('returns path unchanged when baseUrl is empty', () => {
+    const result = resolveFileUrl('', '/book-data/vbeta/index.json')
+    expect(result).toBe('/book-data/vbeta/index.json')
   })
 })
 

@@ -33,6 +33,23 @@ function toAbsolutePath(base: string, path: string): string {
   return `${trimTrailingSlash(base)}${path}`
 }
 
+export function isOneDriveShareUrl(url: string): boolean {
+  return url.startsWith('https://1drv.ms/')
+}
+
+export function encodeOneDriveShareUrl(shareUrl: string): string {
+  return 'u!' + btoa(shareUrl).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
+}
+
+export function resolveFileUrl(baseUrl: string, filePath: string): string {
+  if (isOneDriveShareUrl(baseUrl)) {
+    const encoded = encodeOneDriveShareUrl(baseUrl)
+    const normalized = filePath.replace(/^\/+/, '')
+    return `https://api.onedrive.com/v1.0/shares/${encoded}/root:/${normalized}:/content`
+  }
+  return toAbsolutePath(baseUrl, filePath)
+}
+
 export function resolveBookDataBaseUrl(): string {
   const explicitBaseUrl = import.meta.env.VITE_BOOK_DATA_URL as string | undefined
   if (explicitBaseUrl && explicitBaseUrl.trim().length > 0) {
@@ -175,7 +192,7 @@ export class StaticJsonDataService implements DataService {
   }
 
   private async fetchJson(path: string): Promise<unknown> {
-    const url = toAbsolutePath(this.baseUrl, path)
+    const url = resolveFileUrl(this.baseUrl, path)
 
     let response: Response
     try {
