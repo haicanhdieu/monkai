@@ -50,11 +50,7 @@ jobs:
         run: pnpm run build:epubs
 
       - name: Build
-        env:
-          GH_BOOK_DATA_URL: ${{ vars.VITE_BOOK_DATA_URL }}
-        run: |
-          [ -n "$GH_BOOK_DATA_URL" ] && export VITE_BOOK_DATA_URL="$GH_BOOK_DATA_URL"
-          pnpm build
+        run: pnpm build
 
       - name: Create Vercel output
         run: |
@@ -64,6 +60,7 @@ jobs:
           {
             "version": 3,
             "routes": [
+              { "src": "/book-data/(.*)", "dest": "${{ vars.CLOUDFLARE_TUNNEL_URL }}/book-data/$1" },
               { "handle": "filesystem" },
               { "src": "/(.*)", "dest": "/index.html" }
             ]
