@@ -116,7 +116,7 @@ describe('BookmarksPage', () => {
     expect(link).toHaveAttribute('href', '/read/kinh-phap-hoa')
   })
 
-  it('auto-bookmark card renders first within a group that has both types', () => {
+  it('items within a group are sorted by timestamp descending (latest first)', () => {
     const autoBookmark: Bookmark = {
       bookId: 'kinh-phap-hoa',
       bookTitle: 'Kinh Pháp Hoa',
@@ -138,10 +138,36 @@ describe('BookmarksPage', () => {
 
     const group = screen.getByTestId('bookmark-group')
     const cards = within(group).getAllByTestId('bookmark-card')
-    // Auto bookmark card first: shows "Đang đọc" label
+    // auto has newer timestamp → renders first
     expect(within(cards[0]).getByText('Đang đọc')).toBeInTheDocument()
-    // Manual bookmark card second: shows page info
     expect(within(cards[1]).getByText('Trang 5 / 100')).toBeInTheDocument()
+  })
+
+  it('manual bookmark renders before auto when manual has newer timestamp', () => {
+    const autoBookmark: Bookmark = {
+      bookId: 'kinh-phap-hoa',
+      bookTitle: 'Kinh Pháp Hoa',
+      cfi: 'epubcfi(/6/2!/4/2/1:0)',
+      timestamp: 900000,
+      type: 'auto',
+    }
+    const manualBookmark: Bookmark = {
+      bookId: 'kinh-phap-hoa',
+      bookTitle: 'Kinh Pháp Hoa',
+      cfi: 'epubcfi(/6/6!/4/2/1:0)',
+      timestamp: 1000000,
+      type: 'manual',
+      page: 5,
+      total: 100,
+    }
+    useBookmarksStore.setState({ bookmarks: [autoBookmark, manualBookmark] })
+    renderPage()
+
+    const group = screen.getByTestId('bookmark-group')
+    const cards = within(group).getAllByTestId('bookmark-card')
+    // manual has newer timestamp → renders first
+    expect(within(cards[0]).getByText('Trang 5 / 100')).toBeInTheDocument()
+    expect(within(cards[1]).getByText('Đang đọc')).toBeInTheDocument()
   })
 
   it('manual bookmark card has bookmark-delete-btn wired to onDelete', () => {

@@ -60,12 +60,7 @@ export default function BookmarksPage() {
         // Most recently updated bookmark (manual save or auto last-read) — used by group header
         // so clicking the book cover/title opens the position the user cares about most.
         headerBookmark: sortedByTimestamp[0],
-        items: [
-          ...g.items.filter((b) => b.type === 'auto'),
-          ...g.items
-            .filter((b) => b.type === 'manual')
-            .sort((a, b) => (a.page ?? Infinity) - (b.page ?? Infinity)),
-        ],
+        items: sortedByTimestamp,
       }
     }), [bookmarks])
 
