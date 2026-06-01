@@ -4,7 +4,7 @@
 # Requires: sshpass (brew install sshpass)
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WIN_YAML="$REPO_ROOT/.window-server.yaml"
 PI_YAML="$REPO_ROOT/.pi-server.yaml"
 TMP_DIR="/tmp/book-data-sync"

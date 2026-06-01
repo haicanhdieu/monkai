@@ -134,7 +134,7 @@ log "Watching cloudflared journal for tunnel URL (replaying last 5 min)..."
 # --since "5 minutes ago": replays recent logs so a watcher restart doesn't miss
 # an already-running tunnel URL. --output=cat strips journal metadata.
 while read -r line; do
-    url=$(echo "$line" | grep -o 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
+    url=$(echo "$line" | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
     if [ -n "$url" ]; then
         handle_url "$url"
     fi
