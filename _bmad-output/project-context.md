@@ -105,28 +105,27 @@ optimized_for_llm: true
 
 ### Raspberry Pi Server
 
-The Raspberry Pi is the **primary deployment target** for both the crawler and the book data host.
+The Raspberry Pi is the **sole book data host** and primary deployment target for the crawler.
 
 - **Config file:** `.pi-server.yaml` at repo root — contains `host`, `user`, `password`, `port` for SSH access. Never commit credentials; reference this file when scripting deploys.
-- **Ngrok config:** `.ngrok-config.yaml` at repo root — contains ngrok tunnel configuration for exposing the Pi's book data server to the internet. Reference this file when setting up or scripting ngrok tunnels.
 - **Crawler deployment:** SSH into the Pi and run crawler commands there. Use `.pi-server.yaml` for connection details.
-- **Book data hosting:** The Pi serves the book data (i.e. `index.json` + per-book JSON) consumed by the reader. Update book data on the Pi after each crawl/pipeline run.
-- **Deploy scripts:** `devbox run deploy:book-data`, `devbox run deploy:reader`, `devbox run deploy:all` (see `apps/deployer/README.md`). When adding new deploy scripts, target the Pi using `.pi-server.yaml`.
+- **Book data path:** `/mnt/data/book-data` on the Pi's external USB drive (`/dev/sda1`, 465 GB, labeled `monkai-data`, mounted at `/mnt/data`). This is the path Caddy serves from and where data must land after crawl runs.
+- **Tunnel:** cloudflared quick-tunnel as a systemd service (`cloudflared.service`). URL is ephemeral; `url-watcher.service` detects changes and updates the `CLOUDFLARE_TUNNEL_URL` GitHub Actions variable, then triggers `workflow_dispatch` on `main` to redeploy the reader.
+- **Services:** `caddy` + `cloudflared` + `url-watcher` — all native systemd, no Docker. Managed via `apps/deployer/pi-server/setup-pi.sh`.
+- **Get tunnel URL:** `journalctl -u cloudflared -n 50 | grep trycloudflare`
+- **Verify tunnel:** `curl -I https://<TUNNEL_URL>/book-data/vnthuquan/index.json` should return `HTTP/2 200` with `access-control-allow-origin: *`.
 
 **When the user says "deploy the crawler" or "deploy book data":** connect to the Pi using `.pi-server.yaml` credentials, not any other server.
 
-### Windows Docker Server
+### Windows Docker Server (retired 2026-06-01)
 
-The Windows machine is an **alternative book data host** when the Pi is unavailable. It runs a Caddy + Cloudflare quick-tunnel stack via Docker Compose.
+The Windows Docker stack (Caddy + cloudflared + url-watcher containers) has been shut down. Book data hosting migrated to Pi. Config files remain in the repo for reference.
 
-- **Config file:** `.window-server.yaml` at repo root — contains `host`, `user`, `password`, `port`, and `codebase_root` (`d:\ntm\monkai`) for SSH access.
-- **Docker Compose:** `apps/deployer/win-server/docker-compose.yml` — two services: `caddy:2-alpine` (static file server) and `cloudflare/cloudflared` (outbound tunnel, Cloudflare quick-tunnel mode). Start with `docker compose up -d` from `d:\ntm\monkai\apps\deployer\win-server\`.
-- **Book data path:** `D:\ntm\monkai\apps\crawler\data\book-data` — set as `BOOK_DATA_PATH` in `apps/deployer/win-server/.env` (gitignored).
-- **SSH credential store:** Docker Desktop's `credsStore: desktop` blocks `docker pull` in SSH sessions. The fix (already applied) is to remove `"credsStore"` from `C:\Users\admin\.docker\config.json`. Images must be pre-pulled via SSH with `DOCKER_CONFIG=C:\tmp\dockercfg docker pull <image>` if not cached.
-- **Get tunnel URL:** `docker compose logs cloudflared 2>&1 | grep trycloudflare` — URL changes on restart; update `VITE_BOOK_DATA_URL` in `apps/deployer/scripts/.env` and redeploy reader.
-- **Verify tunnel:** `curl -I https://<TUNNEL_URL>/book-data/vnthuquan/index.json` should return `HTTP/2 200` with `access-control-allow-origin: *`.
+- **Config file:** `.window-server.yaml` — SSH credentials if the machine needs to be accessed.
+- **Docker Compose:** `apps/deployer/win-server/docker-compose.yml` — shut down with `docker compose down` from `d:\ntm\monkai\apps\deployer\win-server\`. Do not restart unless Pi is unavailable.
+- **Book data path (historical):** `D:\ntm\monkai\apps\crawler\data\book-data`
 
-**When the user says "deploy to Windows" or "start Windows book data server":** SSH into `.window-server.yaml` host, `cd` to `codebase_root\apps\deployer\win-server`, and run `docker compose up -d`.
+**Do not treat Windows as an active host.** Pi is sole book data server.
 
 ---
 

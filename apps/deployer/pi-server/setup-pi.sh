@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Pi Book Data Server setup script
-# Run on Raspberry Pi: bash setup-pi.sh
+# Run on Raspberry Pi as the pi user: bash setup-pi.sh
 # Prerequisites: SSH into Pi, repo cloned at ~/working/monkai
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PI_USER="$(whoami)"
-PI_HOME="$HOME"
+BOOK_DATA_PATH="/mnt/data/book-data"
+URL_WATCHER_SCRIPT="$SCRIPT_DIR/url-watcher.sh"
+
+if [[ "$PI_USER" == "root" ]]; then
+    echo "ERROR: Run as the pi user, not root. Systemd units will embed the wrong user."
+    exit 1
+fi
 
 if [[ ! -f "$SCRIPT_DIR/Caddyfile" ]]; then
     echo "ERROR: Caddyfile not found at $SCRIPT_DIR/Caddyfile"
@@ -14,23 +20,13 @@ if [[ ! -f "$SCRIPT_DIR/Caddyfile" ]]; then
     exit 1
 fi
 
-# ── Prompt for ngrok credentials ────────────────────────────────────────────
-echo ""
-echo "You need a free ngrok account. If you haven't already:"
-echo "  1. Sign up at https://ngrok.com (no credit card)"
-echo "  2. Copy your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken"
-echo "  3. Claim a free static domain at https://dashboard.ngrok.com/domains → New Domain"
-echo ""
-read -rp "Enter your ngrok authtoken: " NGROK_AUTHTOKEN
-read -rp "Enter your static ngrok domain (e.g. monkai-book-data.ngrok-free.app): " NGROK_DOMAIN
-
-if [[ -z "$NGROK_AUTHTOKEN" || -z "$NGROK_DOMAIN" ]]; then
-    echo "ERROR: authtoken and domain are required."
+if [[ ! -f "$URL_WATCHER_SCRIPT" ]]; then
+    echo "ERROR: url-watcher.sh not found at $URL_WATCHER_SCRIPT"
     exit 1
 fi
 
 echo ""
-echo "=== Step 1: Install Caddy ==="
+echo "=== Step 1: Install Caddy and jq ==="
 if command -v caddy &>/dev/null; then
     echo "Caddy already installed: $(caddy version)"
 else
@@ -43,11 +39,13 @@ else
     sudo apt install -y caddy
     echo "Caddy installed: $(caddy version)"
 fi
+if ! command -v jq &>/dev/null; then
+    sudo apt install -y jq
+    echo "jq installed: $(jq --version)"
+fi
 
 echo "=== Step 2: Deploy Caddyfile ==="
 sudo cp "$SCRIPT_DIR/Caddyfile" /etc/caddy/Caddyfile
-# Substitute the <PI-HOME> placeholder with the actual home directory
-sudo sed -i "s|<PI-HOME>|${PI_HOME}|g" /etc/caddy/Caddyfile
 sudo caddy fmt --overwrite /etc/caddy/Caddyfile
 sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl enable caddy
@@ -63,66 +61,48 @@ echo "Caddy configured and running on :80"
 
 echo "=== Step 3: Fix book-data permissions ==="
 # o+rX: book-data is public content; world-readable is intentional for a public static server
-sudo chmod -R o+rX "$PI_HOME/working/monkai/apps/crawler/data/book-data"
-echo "Permissions set"
+# mkdir -p guards against chmod failing on a fresh Pi before sync has run
+sudo mkdir -p "$BOOK_DATA_PATH"
+sudo chmod -R o+rX "$BOOK_DATA_PATH"
+echo "Permissions set on $BOOK_DATA_PATH"
 
-echo "=== Step 4: Install ngrok ==="
-if command -v ngrok &>/dev/null; then
-    echo "ngrok already installed: $(ngrok version)"
+echo "=== Step 4: Install cloudflared ==="
+if command -v cloudflared &>/dev/null; then
+    echo "cloudflared already installed: $(cloudflared version)"
 else
-    # Security note: verify the ngrok GPG key fingerprint at https://ngrok.com/docs/agent/install/linux/apt/
-    # before running this script on a production machine.
-    curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
-        | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
-        | sudo tee /etc/apt/sources.list.d/ngrok.list
-    sudo apt update && sudo apt install -y ngrok
-    echo "ngrok installed: $(ngrok version)"
+    ARCH="$(uname -m)"
+    if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+        CF_PKG="cloudflared-linux-arm64.deb"
+    elif [[ "$ARCH" == "armv7l" ]]; then
+        CF_PKG="cloudflared-linux-arm.deb"
+    else
+        CF_PKG="cloudflared-linux-amd64.deb"
+    fi
+    CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/$CF_PKG"
+    curl -L "$CF_URL" -o /tmp/cloudflared.deb
+    sudo dpkg -i /tmp/cloudflared.deb
+    rm /tmp/cloudflared.deb
+    echo "cloudflared installed: $(cloudflared version)"
+fi
+# Resolve path after install so the heredoc below gets a non-empty ExecStart
+CF_BIN="$(command -v cloudflared)"
+
+echo "=== Step 5: Grant journal access + install cloudflared systemd service ==="
+# url-watcher reads cloudflared logs via journalctl; pi user needs systemd-journal group
+if ! groups "$PI_USER" | grep -q systemd-journal; then
+    sudo usermod -a -G systemd-journal "$PI_USER"
+    echo "Added $PI_USER to systemd-journal group (re-login not needed; systemd reads group at service start)"
 fi
 
-# Assert ngrok v3 (ngrok.yml uses v3 config syntax)
-ngrok_ver="$(ngrok version 2>&1 | head -1)"
-if ! echo "$ngrok_ver" | grep -q "^ngrok version 3"; then
-    echo "WARNING: Expected ngrok v3 but got: $ngrok_ver"
-    echo "The ngrok.yml config uses v3 syntax — verify compatibility before continuing."
-fi
-
-echo "=== Step 5: Configure ngrok ==="
-NGROK_CONFIG_DIR="$PI_HOME/.config/ngrok"
-NGROK_CONFIG="$NGROK_CONFIG_DIR/ngrok.yml"
-
-mkdir -p "$NGROK_CONFIG_DIR"
-
-if [[ -f "$NGROK_CONFIG" ]]; then
-    cp "$NGROK_CONFIG" "${NGROK_CONFIG}.bak"
-    echo "Backed up existing ngrok config to ngrok.yml.bak"
-fi
-
-cat > "$NGROK_CONFIG" <<EOF
-version: "3"
-agent:
-  authtoken: ${NGROK_AUTHTOKEN}
-
-tunnels:
-  book-data:
-    proto: http
-    addr: 80
-    domain: ${NGROK_DOMAIN}
-EOF
-
-chmod 600 "$NGROK_CONFIG"
-echo "ngrok config written to $NGROK_CONFIG (mode 600)"
-
-echo "=== Step 6: Install ngrok systemd service ==="
-sudo tee /etc/systemd/system/ngrok.service > /dev/null <<EOF
+sudo tee /etc/systemd/system/cloudflared.service > /dev/null <<EOF
 [Unit]
-Description=ngrok book-data tunnel
-After=network-online.target caddy.service
+Description=cloudflared quick-tunnel
+After=caddy.service network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/ngrok start book-data --config ${PI_HOME}/.config/ngrok/ngrok.yml
-Restart=on-failure
+ExecStart=${CF_BIN} tunnel --no-autoupdate --url http://localhost:80
+Restart=always
 RestartSec=10
 User=${PI_USER}
 StandardOutput=journal
@@ -134,15 +114,79 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now ngrok
-sudo systemctl status ngrok --no-pager
+sudo systemctl enable --now cloudflared
+echo "Waiting for cloudflared..."
+for i in {1..5}; do
+    systemctl is-active --quiet cloudflared && break
+    sleep 2
+done
+systemctl is-active --quiet cloudflared || { echo "ERROR: cloudflared failed to start"; exit 1; }
+echo "cloudflared running"
+
+echo "=== Step 6: Configure url-watcher ==="
+if [[ ! -f /etc/url-watcher.env ]]; then
+    echo ""
+    echo "url-watcher needs a GitHub token and repo to update the tunnel URL."
+    echo "Create /etc/url-watcher.env with:"
+    echo "  GITHUB_TOKEN=<your-token>   (needs: actions:write, variables:write)"
+    echo "  GITHUB_REPO=<owner/repo>    (e.g. your-org/monkai)"
+    echo ""
+    read -rp "Press Enter after creating /etc/url-watcher.env to continue..."
+    if [[ ! -f /etc/url-watcher.env ]]; then
+        echo "ERROR: /etc/url-watcher.env still missing. Create it and re-run Step 6 manually."
+        exit 1
+    fi
+fi
+# Validate required keys exist and are non-empty
+for key in GITHUB_TOKEN GITHUB_REPO; do
+    val=$(grep -E "^${key}=" /etc/url-watcher.env | cut -d= -f2- | tr -d '"'"'" | xargs)
+    if [[ -z "$val" ]]; then
+        echo "ERROR: /etc/url-watcher.env missing or empty value for $key"
+        exit 1
+    fi
+done
+sudo chmod 600 /etc/url-watcher.env
+sudo chown root:root /etc/url-watcher.env
+
+chmod +x "$URL_WATCHER_SCRIPT"
+
+sudo tee /etc/systemd/system/url-watcher.service > /dev/null <<EOF
+[Unit]
+Description=url-watcher — sync cloudflared tunnel URL to GitHub
+After=cloudflared.service
+Wants=cloudflared.service
+
+[Service]
+ExecStart=${URL_WATCHER_SCRIPT}
+EnvironmentFile=/etc/url-watcher.env
+Restart=always
+RestartSec=10
+User=${PI_USER}
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now url-watcher
+for i in {1..5}; do
+    systemctl is-active --quiet url-watcher && break
+    sleep 2
+done
+systemctl is-active --quiet url-watcher || { echo "ERROR: url-watcher failed to start"; exit 1; }
+echo "url-watcher running"
 
 echo ""
 echo "=== Setup complete ==="
 echo ""
-echo "Tunnel URL: https://${NGROK_DOMAIN}"
+echo "Verify all services:"
+echo "  systemctl is-active caddy cloudflared url-watcher"
 echo ""
-echo "Verify from an external network (e.g. phone hotspot):"
-echo "  curl -I https://${NGROK_DOMAIN}/book-data/vnthuquan/index.json"
+echo "Check tunnel URL (allow ~30s for cloudflared to negotiate):"
+echo "  journalctl -u cloudflared -n 50 | grep trycloudflare"
 echo ""
-echo "Note: Router port forwarding and no-ip DDNS client are no longer needed."
+echo "Verify book-data locally:"
+echo "  curl http://localhost:80/book-data/vnthuquan/index.json"

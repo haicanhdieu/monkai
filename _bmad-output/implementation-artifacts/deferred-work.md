@@ -1,4 +1,11 @@
 
+## pi-server-migration deferred findings (2026-06-01)
+
+- **journalctl `--since` + `-f` on older systemd (<246)**: `--since` may be silently ignored in follow mode; watcher misses the current URL until cloudflared next reconnects. Raspberry Pi OS Bookworm ships systemd 252 — not an issue there, but worth noting for older OS images.
+- **`yaml_field` fragility**: `grep + sed` parser truncates YAML values containing `:` (e.g. `password: abc:def`). Acceptable for these YAML files (simple credentials, no embedded colons expected). Fix properly if values ever change shape.
+- **`/book-data` bare path → 403**: Caddyfile matches `/book-data` exactly; Caddy returns 403 for a directory without `browse`. Not a functional issue (clients use sub-paths). Add explicit redirect `/book-data → /book-data/` if a directory listing is ever needed.
+- **Journal replay window expires after >5 min url-watcher downtime**: if url-watcher is down longer than 5 min, the cloudflared URL line won't be replayed on restart. GitHub variable retains the old URL until cloudflared next reconnects. Low probability in normal operation (Restart=always, RestartSec=10).
+
 ## library-render-bottleneck deferred findings (2026-05-24)
 
 - **`b.categorySlug` case/whitespace mismatch in `getCategoryBySlug`**: filter uses `b.categorySlug === category.slug` (raw equality). If catalog data has inconsistent casing, books are silently excluded. Pre-existing behavior — normalize both sides if data quality becomes an issue.
