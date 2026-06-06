@@ -1,0 +1,59 @@
+# Category mapping — nhasachmienphi → monkai "Sách Truyện"
+# Phase 5 OneDrive import. Authoritative lookup for the sync tool.
+# Date: 2026-06-04  Author: Minh
+#
+# Source manifest: OneDrive PUBLIC-DATA/LIBERET/BOOK-FILES/nhasachmienphi/__books.json
+# Only books with an `epubFile` are imported in Phase 1 (2,343 eligible).
+# After mapping/exclusion: 2,020 imported, 323 excluded.
+#
+# Books surface under the existing user-facing "Sách Truyện" bucket (internal
+# source = "onedrive"). `target` is the category_name written into each book's
+# index record. "new: true" categories did not exist in vnthuquan; they are
+# additive category_name strings (no schema change — category is a free string).
+
+meta:
+  source: nhasachmienphi
+  eligible_epub: 2343
+  imported: 2020
+  excluded: 323
+
+# ── Fiction & literary → mapped onto existing vnthuquan categories ──
+mapped:
+  "Truyện Ngắn - Ngôn Tình":      { target: "Ngôn Tình, Lãng Mạn",          count: 328, fit: clean }
+  "Tiểu Thuyết Phương Tây":       { target: "Tiểu Thuyết",                   count: 327, fit: clean }
+  "Trinh Thám - Hình Sự":         { target: "Trinh Thám, Hình Sự",          count: 225, fit: clean }
+  "Truyện Ma - Truyện Kinh Dị":   { target: "Siêu Nhiên, Huyền bí",         count: 76,  fit: clean }
+  "Huyền bí - Giả Tưởng":         { target: "Khoa huyễn, giả tưởng",        count: 69,  fit: clean }
+  "Văn Học Việt Nam":             { target: "Tiểu Thuyết",                   count: 56,  fit: clean }
+  "Hồi Ký - Tuỳ Bút":             { target: "Biên khảo, Tuỳ Bút, Tản Văn",  count: 52,  fit: clean }
+  "Kiếm Hiệp - Tiên Hiệp":        { target: "Tiên Hiệp, Tu Chân",           count: 51,  fit: clean }
+  "Tiểu Thuyết Trung Quốc":       { target: "Trung Hoa, Huyền Huyễn",       count: 27,  fit: clean }
+  "Cổ Tích - Thần Thoại":         { target: "Tuyển Tập, Tập Truyện",        count: 20,  fit: clean }
+  "Truyện Cười - Tiếu Lâm":       { target: "Truyện ngắn",                   count: 18,  fit: clean }
+  "Phiêu Lưu - Mạo Hiểm":         { target: "Tiểu Thuyết",                   count: 17,  fit: clean }
+  "Tâm Lý - Kỹ Năng Sống":        { target: "Tâm Lý, Xã Hội, Hiện Thực",    count: 412, fit: loose }
+  "Truyên Teen - Tuổi Học Trò":   { target: "Ngôn Tình, Lãng Mạn",          count: 64,  fit: loose }
+  # subtotal mapped = 1742
+
+# ── Vision-aligned non-fiction → NEW categories (philosophy/history/science/religion) ──
+new_categories:
+  "Triết Học":              { target: "Triết Học",              count: 50,  new: true }
+  "Lịch Sử - Chính Trị":    { target: "Lịch Sử - Chính Trị",    count: 100, new: true }
+  "Khoa Học - Kỹ Thuật":    { target: "Khoa Học - Kỹ Thuật",    count: 73,  new: true }
+  "Văn Hóa - Tôn Giáo":     { target: "Văn Hóa - Tôn Giáo",     count: 55,  new: true }
+  # subtotal new = 278
+
+# ── Utility non-fiction → excluded from Phase 1 (not "Sách Truyện" material) ──
+excluded:
+  "Kinh Tế - Quản Lý":      { count: 204, reason: utility-business }
+  "Marketing - Bán hàng":   { count: 62,  reason: utility-business }
+  "Y Học - Sức Khỏe":       { count: 32,  reason: utility-reference }
+  "Tử Vi - Phong Thủy":     { count: 11,  reason: utility-reference }
+  "Học Ngoại Ngữ":          { count: 7,   reason: textbook }
+  "Thể Thao - Nghệ Thuật":  { count: 5,   reason: utility-reference }
+  "Thư Viện Pháp Luật":     { count: 2,   reason: legal-reference }
+  # subtotal excluded = 323
+
+# Any category seen in the manifest but absent from all three sections above
+# must halt the sync with an "unmapped category" error (no silent drop).
+on_unmapped: error
