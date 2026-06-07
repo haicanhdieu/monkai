@@ -1,6 +1,6 @@
 # Story 1.4: Deduplicate eligible books
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -31,26 +31,24 @@ so that the Sách Truyện collection never shows the same title twice and re-sy
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Normalization helper** (AC: #1)
-  - [ ] Add `normalize_key(s: str) -> str` (in `_shared.py` or a `dedup.py` module): NFD → drop combining marks → map `đ/Đ`→`d` → lowercase → replace non-alphanumeric with space → collapse/trim. Note: this is the **key-normalization** form (spaces preserved), distinct from `slugify_title` (hyphens) — keep both.
-  - [ ] `candidate_key(title, author) -> tuple[str, str]` = `(normalize_key(title), normalize_key(author or ""))`.
-- [ ] **Task 2: Load existing keys to dedup against** (AC: #2)
-  - [ ] Build the vnthuquan key set from the served `vnthuquan/index.json` (`book_name`, `author`). Source path: the staged/served book-data — read from the Pi-bound book-data dir or a fetched copy; for tests, use a fixture index. (vnthuquan has 57 books; measured 0 collisions, but the pass must exist for future re-syncs.)
-  - [ ] Build the prior-onedrive key set from an existing `onedrive/index.json` if present (empty on first run).
-- [ ] **Task 3: Dedup pass** (AC: #2, #4)
-  - [ ] Iterate candidates in stable manifest order; maintain a `seen` set for in-batch dedup (c).
-  - [ ] Skip on exact `(norm_title, norm_author)` match against vnthuquan, prior-onedrive, or `seen`.
-  - [ ] If either author empty AND only title matches → record a "flagged-for-review" entry; KEEP the book.
-  - [ ] Record every skip with reason + matched source.
-- [ ] **Task 4: Assign ids + collision disambiguation** (AC: #3)
-  - [ ] Assign `make_onedrive_id(source, title)`; detect title-slug collisions within the kept set and re-issue colliding ids with the author slug appended (`make_onedrive_id(source, title, author)`). Assert final ids are unique.
-- [ ] **Task 5: Optional fuzzy pass (flagged, default off)** (AC: #2)
-  - [ ] Leave a hook/flag for a token-set-ratio ≥ 0.95 fuzzy pass per PRD D2.4, default **off** (exact-normalized measured clean). Do not implement unless trivial; document the flag.
-- [ ] **Task 6: Tests**
-  - [ ] `normalize_key` strips diacritics + `đ` and collapses punctuation/space; `("Đắc Nhân Tâm","Dale Carnegie")` and `("dac nhan tam","dale carnegie")` produce equal keys.
-  - [ ] Candidate matching vnthuquan key is skipped; in-batch duplicate skipped; empty-author title-collision is kept + flagged.
-  - [ ] Two distinct books with the same title slug get distinct ids via author disambiguation; final id set is unique.
-  - [ ] `uv run pytest` green; `uv run ruff check .` clean.
+- [x] **Task 1: Normalization helper** (AC: #1)
+  - [x] Add `normalize_key(s: str) -> str` (in `dedup.py`): NFD → drop combining marks → map `đ/Đ`→`d` → lowercase → replace non-alphanumeric with space → collapse/trim. Distinct from `slugify_title` (hyphens).
+  - [x] `candidate_key(title, author) -> tuple[str, str]` = `(normalize_key(title), normalize_key(author or ""))`.
+- [x] **Task 2: Load existing keys to dedup against** (AC: #2)
+  - [x] `load_existing_keys(path)` handles both vnthuquan format (`book_name`, `author`) and onedrive format (`title`, `author`); returns empty set if path is None or missing.
+- [x] **Task 3: Dedup pass** (AC: #2, #4)
+  - [x] Iterates candidates in stable order; `seen` set for in-batch dedup.
+  - [x] Skips on exact key match only when both authors non-empty; title-only match when either author empty → flagged + kept.
+  - [x] Records every skip with reason + source.
+- [x] **Task 4: Assign ids + collision disambiguation** (AC: #3)
+  - [x] Two-pass: count title-slug collisions first, then re-issue colliding ids with author slug. Final id uniqueness asserted.
+- [x] **Task 5: Optional fuzzy pass (flagged, default off)** (AC: #2)
+  - [x] `fuzzy: bool = False` parameter documented in `dedup_candidates`; not implemented.
+- [x] **Task 6: Tests**
+  - [x] normalize_key diacritics/đ/punctuation/space cases; candidate_key equality for Vietnamese inputs.
+  - [x] vnthuquan skip, in-batch skip, empty-author title-match kept+flagged.
+  - [x] Collision disambiguation produces unique ids.
+  - [x] 23 tests pass; ruff clean.
 
 ## Dev Notes
 
@@ -78,9 +76,21 @@ so that the Sách Truyện collection never shows the same title twice and re-sy
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+- Fixed: initial dedup logic auto-skipped title-only matches even when both authors empty; fixed to flag+keep per AC#2 conservative rule.
 
 ### Completion Notes List
+- `dedup.py`: `normalize_key` (spaces), `candidate_key`, `load_existing_keys` (both index formats), `dedup_candidates` with two-pass ID disambiguation, `fuzzy=False` hook. `DedupReport` dataclass with `kept`/`skipped`/`flagged` lists.
+- `DedupeRun` alias kept for sync.py compatibility.
+- `sync.py index` wired: runs dedup after epub filter, prints stats.
+- 9 new tests; 23 total pass; ruff clean.
 
 ### File List
+- apps/onedrive-sync/dedup.py (new)
+- apps/onedrive-sync/sync.py (modified — dedup step added to index)
+- apps/onedrive-sync/tests/test_dedup.py (new)
+
+### Change Log
+- 2026-06-06: Implemented story 1.4 — dedup pass with normalize_key, vnthuquan/prior-OD key loading, in-batch dedup, title-only flagging, id disambiguation.

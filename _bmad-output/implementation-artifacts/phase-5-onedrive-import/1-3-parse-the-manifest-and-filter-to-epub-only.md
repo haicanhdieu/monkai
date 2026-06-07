@@ -1,6 +1,6 @@
 # Story 1.3: Parse the manifest and filter to epub-only
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,22 +29,22 @@ so that pdf-only books never enter the pipeline and a malformed manifest fails l
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Define the manifest Pydantic model** (AC: #1)
-  - [ ] In `manifest.py`, add `ManifestEntry(BaseModel)` (Pydantic v2) with fields matching AR5 keys. Decide required vs optional from the data: `title`, `category`, `epubFile` are the fields the pipeline depends on; `author`, `imageFile`, `imageUrl`, `url`, `epubUrl`, `pdfUrl`, `pdfFile` are optional/nullable. Use `model_config = ConfigDict(extra="ignore")` so unknown future keys don't break parsing.
-  - [ ] Add `load_manifest(path: Path) -> list[ManifestEntry]` that reads JSON, asserts it is a list, and validates each entry — raising a clear error (include index + field) on failure.
-- [ ] **Task 2: Epub-only filter** (AC: #2)
-  - [ ] Add `eligible_epub(entries) -> list[ManifestEntry]` keeping only entries with a truthy `epubFile`.
-  - [ ] Do not mutate or touch pdf entries — they are simply excluded.
-- [ ] **Task 3: Resolve epub path on disk** (AC: #3)
-  - [ ] Add a resolver: `epub_staging_path(entry, staging_dir) -> Path` = `staging_dir / "nhasachmienphi" / basename(entry.epubFile)`.
-  - [ ] Collect entries whose resolved path is missing into a "missing-file" list for the run report (Story 1.8); do not crash the whole run on one missing file.
-- [ ] **Task 4: Wire into `sync.py index`** (AC: all)
-  - [ ] `sync.py index` loads the manifest, filters to epub, resolves paths — producing the in-memory candidate list that Stories 1.4–1.6 consume. (Downstream stages are stubs until their stories land.)
-- [ ] **Task 5: Tests** (AC: #1, #2, #3)
-  - [ ] `tests/test_manifest.py`: well-formed array fixture validates; missing-required-field fixture raises with a clear message; wrong-type fixture raises; a non-array JSON raises.
-  - [ ] epub-only filter: a fixture with one epub entry, one pdf-only entry, one epub+pdf entry → keeps exactly the two with `epubFile`.
-  - [ ] path resolution: `basename(epubFile)` maps correctly; a missing on-disk file is reported, not raised.
-  - [ ] `uv run pytest` green; `uv run ruff check .` clean.
+- [x] **Task 1: Define the manifest Pydantic model** (AC: #1)
+  - [x] In `manifest.py`, add `ManifestEntry(BaseModel)` (Pydantic v2) with fields matching AR5 keys. Decide required vs optional from the data: `title`, `category`, `epubFile` are the fields the pipeline depends on; `author`, `imageFile`, `imageUrl`, `url`, `epubUrl`, `pdfUrl`, `pdfFile` are optional/nullable. Use `model_config = ConfigDict(extra="ignore")` so unknown future keys don't break parsing.
+  - [x] Add `load_manifest(path: Path) -> list[ManifestEntry]` that reads JSON, asserts it is a list, and validates each entry — raising a clear error (include index + field) on failure.
+- [x] **Task 2: Epub-only filter** (AC: #2)
+  - [x] Add `eligible_epub(entries) -> list[ManifestEntry]` keeping only entries with a truthy `epubFile`.
+  - [x] Do not mutate or touch pdf entries — they are simply excluded.
+- [x] **Task 3: Resolve epub path on disk** (AC: #3)
+  - [x] Add a resolver: `epub_staging_path(entry, staging_dir) -> Path` = `staging_dir / "nhasachmienphi" / basename(entry.epubFile)`.
+  - [x] Collect entries whose resolved path is missing into a "missing-file" list for the run report (Story 1.8); do not crash the whole run on one missing file.
+- [x] **Task 4: Wire into `sync.py index`** (AC: all)
+  - [x] `sync.py index` loads the manifest, filters to epub, resolves paths — producing the in-memory candidate list that Stories 1.4–1.6 consume. (Downstream stages are stubs until their stories land.)
+- [x] **Task 5: Tests** (AC: #1, #2, #3)
+  - [x] `tests/test_manifest.py`: well-formed array fixture validates; missing-required-field fixture raises with a clear message; wrong-type fixture raises; a non-array JSON raises.
+  - [x] epub-only filter: a fixture with one epub entry, one pdf-only entry, one epub+pdf entry → keeps exactly the two with `epubFile`.
+  - [x] path resolution: `basename(epubFile)` maps correctly; a missing on-disk file is reported, not raised.
+  - [x] `uv run pytest` green; `uv run ruff check .` clean.
 
 ## Dev Notes
 
@@ -71,9 +71,22 @@ so that pdf-only books never enter the pipeline and a malformed manifest fails l
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None.
 
 ### Completion Notes List
+- `manifest.py`: `ManifestEntry` Pydantic v2 model with `extra="ignore"`; required: `title`, `category`; all others optional. `load_manifest()` validates list type and each entry with field-level error messages. `eligible_epub()` filters on truthy `epubFile`. `epub_staging_path()` maps to `staging_dir/nhasachmienphi/basename(epubFile)`.
+- `sync.py index` wired: loads manifest, filters, resolves paths; missing files logged as warnings; candidate list returned.
+- 7 new tests: valid parse, extra-field tolerance, missing-required-field error, non-array error, epub-only filter (3 entry fixture), path basename resolution, missing-file non-crash.
+- 14 total tests pass; ruff clean.
 
 ### File List
+- apps/onedrive-sync/manifest.py (new)
+- apps/onedrive-sync/sync.py (modified — index command wired)
+- apps/onedrive-sync/tests/test_manifest.py (new)
+- apps/onedrive-sync/tests/fixtures/ (new directory)
+
+### Change Log
+- 2026-06-06: Implemented story 1.3 — manifest parser, epub filter, path resolver, wired into sync.py index.

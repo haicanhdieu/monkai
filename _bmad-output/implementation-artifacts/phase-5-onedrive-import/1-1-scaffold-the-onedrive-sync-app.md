@@ -1,6 +1,6 @@
 # Story 1.1: Scaffold the onedrive-sync app
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -43,25 +43,25 @@ so that I have an isolated, invocable foundation for the import pipeline that ne
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Create the app skeleton** (AC: #1)
-  - [ ] Create `apps/onedrive-sync/pyproject.toml` — own `uv` project, `requires-python = ">=3.11"`, deps `typer`, `pydantic` (v2), `lxml`; dev deps `pytest`, `ruff`. Mirror the structure/style of `apps/crawler`'s project config but keep it self-contained (do NOT reference the root crawler project).
-  - [ ] Create `apps/onedrive-sync/sync.py` — Typer app with three commands: `pull`, `index`, `all`. `all` should (eventually) call `pull` → `index` → compose → publish; for now stub each command.
-  - [ ] Verify `cd apps/onedrive-sync && uv run python sync.py --help` shows all three commands.
-- [ ] **Task 2: Wire devbox scripts** (AC: #2)
-  - [ ] Add to root `devbox.json` `shell.scripts`: `"sync-books": "cd apps/onedrive-sync && uv run python sync.py all"`, `"sync-books:pull": "cd apps/onedrive-sync && uv run python sync.py pull"`, `"sync-books:index": "cd apps/onedrive-sync && uv run python sync.py index"`.
-  - [ ] Note: `devbox.json` already has local modifications (M in git status) — preserve existing scripts; append only.
-- [ ] **Task 3: Vendor shared helpers** (AC: #3, #4)
-  - [ ] Create `apps/onedrive-sync/_shared.py` with `slugify_title(title)` and `sha256_hash(file_bytes)` copied from `apps/crawler/utils/slugify.py` and `apps/crawler/utils/dedup.py` (do NOT import them).
-  - [ ] Add `make_onedrive_id(source: str, title: str, author: str | None = None) -> str` → `f"onedrive:{slugify_title(source)}:{slugify_title(title)}"`, appending `f"-{slugify_title(author)}"` when `author` is provided.
-  - [ ] Grep-verify no `apps.crawler` / `from crawler` imports anywhere under `apps/onedrive-sync/`.
-- [ ] **Task 4: Pin vendored helpers with tests** (AC: #5)
-  - [ ] Create `apps/onedrive-sync/tests/conftest.py` (add app dir to `sys.path` so `from _shared import ...` works — mirror crawler `conftest.py` pattern).
-  - [ ] Create `apps/onedrive-sync/tests/test_shared.py`: assert `slugify_title("Kinh Đại Bát Niết Bàn") == "kinh-dai-bat-niet-ban"`, `slugify_title("Đắc Nhân Tâm") == "dac-nhan-tam"`, `sha256_hash(b"hello") == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"`, `make_onedrive_id("nhasachmienphi", "Đắc Nhân Tâm") == "onedrive:nhasachmienphi:dac-nhan-tam"`, and a disambiguation case with `author`.
-- [ ] **Task 5: Secret-safe gitignore + rclone wrapper stub** (AC: #6)
-  - [ ] Create `apps/onedrive-sync/.gitignore` containing `staging/` and `*.conf`.
-  - [ ] Create `apps/onedrive-sync/rclone.py` — `run(args: list[str]) -> str` wrapping `subprocess.run(["rclone", *args], ...)`, capturing stdout/stderr, raising `RuntimeError` with stderr on non-zero exit.
-- [ ] **Task 6: Verify** (AC: all)
-  - [ ] `cd apps/onedrive-sync && uv run pytest` is green; `uv run ruff check .` is clean.
+- [x] **Task 1: Create the app skeleton** (AC: #1)
+  - [x] Create `apps/onedrive-sync/pyproject.toml` — own `uv` project, `requires-python = ">=3.11"`, deps `typer`, `pydantic` (v2), `lxml`; dev deps `pytest`, `ruff`. Mirror the structure/style of `apps/crawler`'s project config but keep it self-contained (do NOT reference the root crawler project).
+  - [x] Create `apps/onedrive-sync/sync.py` — Typer app with three commands: `pull`, `index`, `all`. `all` should (eventually) call `pull` → `index` → compose → publish; for now stub each command.
+  - [x] Verify `cd apps/onedrive-sync && uv run python sync.py --help` shows all three commands.
+- [x] **Task 2: Wire devbox scripts** (AC: #2)
+  - [x] Add to root `devbox.json` `shell.scripts`: `"sync-books": "cd apps/onedrive-sync && uv run python sync.py all"`, `"sync-books:pull": "cd apps/onedrive-sync && uv run python sync.py pull"`, `"sync-books:index": "cd apps/onedrive-sync && uv run python sync.py index"`.
+  - [x] Note: `devbox.json` already has local modifications (M in git status) — preserve existing scripts; append only.
+- [x] **Task 3: Vendor shared helpers** (AC: #3, #4)
+  - [x] Create `apps/onedrive-sync/_shared.py` with `slugify_title(title)` and `sha256_hash(file_bytes)` copied from `apps/crawler/utils/slugify.py` and `apps/crawler/utils/dedup.py` (do NOT import them).
+  - [x] Add `make_onedrive_id(source: str, title: str, author: str | None = None) -> str` → `f"onedrive:{slugify_title(source)}:{slugify_title(title)}"`, appending `f"-{slugify_title(author)}"` when `author` is provided.
+  - [x] Grep-verify no `apps.crawler` / `from crawler` imports anywhere under `apps/onedrive-sync/`.
+- [x] **Task 4: Pin vendored helpers with tests** (AC: #5)
+  - [x] Create `apps/onedrive-sync/tests/conftest.py` (add app dir to `sys.path` so `from _shared import ...` works — mirror crawler `conftest.py` pattern).
+  - [x] Create `apps/onedrive-sync/tests/test_shared.py`: assert `slugify_title("Kinh Đại Bát Niết Bàn") == "kinh-dai-bat-niet-ban"`, `slugify_title("Đắc Nhân Tâm") == "dac-nhan-tam"`, `sha256_hash(b"hello") == "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"`, `make_onedrive_id("nhasachmienphi", "Đắc Nhân Tâm") == "onedrive:nhasachmienphi:dac-nhan-tam"`, and a disambiguation case with `author`.
+- [x] **Task 5: Secret-safe gitignore + rclone wrapper stub** (AC: #6)
+  - [x] Create `apps/onedrive-sync/.gitignore` containing `staging/` and `*.conf`.
+  - [x] Create `apps/onedrive-sync/rclone.py` — `run(args: list[str]) -> str` wrapping `subprocess.run(["rclone", *args], ...)`, capturing stdout/stderr, raising `RuntimeError` with stderr on non-zero exit.
+- [x] **Task 6: Verify** (AC: all)
+  - [x] `cd apps/onedrive-sync && uv run pytest` is green; `uv run ruff check .` is clean.
 
 ## Dev Notes
 
@@ -107,9 +107,30 @@ so that I have an isolated, invocable foundation for the import pipeline that ne
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None — implementation straightforward.
 
 ### Completion Notes List
+- Created `apps/onedrive-sync/` as fully isolated uv project with its own pyproject.toml (typer, pydantic v2, lxml; dev: pytest, ruff).
+- `sync.py` Typer app: `pull`, `index`, `all` commands; all stub "not yet implemented". `--help` confirms all three visible.
+- Devbox scripts `sync-books`, `sync-books:pull`, `sync-books:index` appended to root `devbox.json` (existing scripts preserved).
+- `_shared.py` vendors `slugify_title` and `sha256_hash` verbatim from crawler utils; adds `make_onedrive_id` with colon namespace (`onedrive:source:title[-author]`). No cross-imports from `apps.crawler`.
+- 5 tests in `tests/test_shared.py` pin all AC-specified values incl. Vietnamese Đ/đ cases; all pass.
+- `.gitignore` ignores `staging/` and `*.conf`.
+- `rclone.py` thin subprocess wrapper raises `RuntimeError` with stderr on non-zero exit.
+- Crawler 318 tests remain green (6 pre-existing CWD failures when run from root — not caused by this story).
 
 ### File List
+- apps/onedrive-sync/pyproject.toml (new)
+- apps/onedrive-sync/sync.py (new)
+- apps/onedrive-sync/_shared.py (new)
+- apps/onedrive-sync/rclone.py (new)
+- apps/onedrive-sync/.gitignore (new)
+- apps/onedrive-sync/tests/conftest.py (new)
+- apps/onedrive-sync/tests/test_shared.py (new)
+- devbox.json (modified — 3 sync-books scripts appended)
+
+### Change Log
+- 2026-06-06: Implemented story 1.1 — scaffolded `apps/onedrive-sync/` app skeleton with CLI, shared helpers, tests, gitignore, rclone wrapper.

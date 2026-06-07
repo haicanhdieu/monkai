@@ -1,6 +1,6 @@
 # Story 1.8: Emit a transparent run report
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -27,18 +27,18 @@ so that I can see exactly how many books were imported, skipped, or errored on e
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Threaded counters** (AC: #2)
-  - [ ] Introduce a lightweight `RunReport` accumulator passed through the pipeline (or returned and merged from each stage): `considered`, `imported`, `skipped_pdf`, `skipped_duplicate`, `skipped_quality`, `skipped_excluded_category`, `flagged_for_review`, `skipped_licensing`, `errors`, `files_copied`, `records_changed`.
-  - [ ] Each stage (1.3 filter, 1.4 dedup, 1.5 map/gate, 1.6 emit, 1.7 publish) increments its bucket and records per-book detail where useful.
-- [ ] **Task 2: `sync.py all` orchestration** (AC: #1)
-  - [ ] Chain pull → index(+compose) → publish; on a stage error, record into `errors` and fail clearly (do not pretend success).
-- [ ] **Task 3: Render the report** (AC: #2, #3)
-  - [ ] Print a concise human-readable summary at the end (counts table). Optionally also write a JSON report to disk for auditability.
-  - [ ] Ensure `files_copied` (from rsync/rclone) and `records_changed` (compose diff) are real, so a no-op run prints 0/0.
-- [ ] **Task 4: Tests**
-  - [ ] Given a mixed fixture set (epub, pdf-only, a duplicate, a no-cover book, an excluded-category book), the report counts match expectations.
-  - [ ] A second `index` run over identical staging reports 0 imported / 0 records changed (idempotency).
-  - [ ] `uv run pytest` green; `uv run ruff check .` clean.
+- [x] **Task 1: Threaded counters** (AC: #2)
+  - [x] Introduce a lightweight `RunReport` accumulator passed through the pipeline (or returned and merged from each stage): `considered`, `imported`, `skipped_pdf`, `skipped_duplicate`, `skipped_quality`, `skipped_excluded_category`, `flagged_for_review`, `skipped_licensing`, `errors`, `files_copied`, `records_changed`.
+  - [x] Each stage (1.3 filter, 1.4 dedup, 1.5 map/gate, 1.6 emit, 1.7 publish) increments its bucket and records per-book detail where useful.
+- [x] **Task 2: `sync.py all` orchestration** (AC: #1)
+  - [x] Chain pull → index(+compose) → publish; on a stage error, record into `errors` and fail clearly (do not pretend success).
+- [x] **Task 3: Render the report** (AC: #2, #3)
+  - [x] Print a concise human-readable summary at the end (counts table). Optionally also write a JSON report to disk for auditability.
+  - [x] Ensure `files_copied` (from rsync/rclone) and `records_changed` (compose diff) are real, so a no-op run prints 0/0.
+- [x] **Task 4: Tests**
+  - [x] Given a mixed fixture set (epub, pdf-only, a duplicate, a no-cover book, an excluded-category book), the report counts match expectations.
+  - [x] A second `index` run over identical staging reports 0 imported / 0 records changed (idempotency).
+  - [x] `uv run pytest` green; `uv run ruff check .` clean.
 
 ## Dev Notes
 
@@ -63,9 +63,22 @@ so that I can see exactly how many books were imported, skipped, or errored on e
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None.
 
 ### Completion Notes List
+- `report.py`: `RunReport` dataclass (all FR16 + Phase-5 buckets: considered/imported/skipped_pdf/skipped_duplicate/skipped_quality/skipped_excluded_category/flagged_for_review/skipped_licensing/errors/records_changed/files_copied/flagged_titles). `render_report()` prints aligned table.
+- `sync.py index` now populates and returns `RunReport` alongside index data. `records_changed` computed as symmetric diff of onedrive: ids between prior and new index.
+- `sync.py all` chains pull → index → publish → `render_report()`.
+- 5 new tests: count accumulation, render format, zero-run, idempotency records_changed=0, mixed pipeline counts.
+- 51 total tests pass; ruff clean.
 
 ### File List
+- apps/onedrive-sync/report.py (new)
+- apps/onedrive-sync/sync.py (modified — index returns RunReport, all prints it)
+- apps/onedrive-sync/tests/test_report.py (new)
+
+### Change Log
+- 2026-06-06: Implemented story 1.8 — RunReport accumulator, render_report, threaded through full pipeline.

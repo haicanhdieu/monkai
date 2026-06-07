@@ -1,6 +1,6 @@
 # Story 1.6: Emit the onedrive index and copy epub + cover
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -35,27 +35,27 @@ so that the served catalog conforms to the Sách Truyện contract and every rec
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Copy epub + cover into payload** (AC: #1, #3)
-  - [ ] For each kept book, copy `staging/onedrive/nhasachmienphi/<basename>.epub` → `<publish>/onedrive/nhasachmienphi/<basename>.epub`.
-  - [ ] Copy `staging/onedrive/nhasachmienphi/<basename of imageFile>` → `<publish>/onedrive/cover/{id}.jpg` (id is colon form; ensure filesystem-safe — colons are fine on macOS/ext4 but consider that the URL will contain them; see Dev Notes on id-in-filename).
-  - [ ] No transcoding; keep original jpg bytes (AR10).
-- [ ] **Task 2: Build index records** (AC: #2, #3)
-  - [ ] Per book, build a record dict: `id`, `book_name` (title), `category_name` (mapped target), `author` (nullable), `cover_image_url` = `onedrive/cover/{id}.jpg`, `source = "onedrive"`, `epubUrl` = `onedrive/nhasachmienphi/<basename>.epub`, and a carried field for the original manifest `category` (e.g. `manifest_category` / `subcategory`) for FR5.
-  - [ ] Wrap as `{ "_meta": {...}, "books": [...] }` root object to match the served per-source contract.
-- [ ] **Task 3: `extract.py` OPF fallback (minimal)** (AC: #4)
-  - [ ] Implement `from_opf(epub_path) -> (title, author)` and cover extraction using stdlib `zipfile` + `lxml.etree`: read `META-INF/container.xml` → OPF path → `dc:title`/`dc:creator`; cover via `<meta name="cover">` → manifest item href.
-  - [ ] Use it ONLY when the manifest omits a field. Keep it small; the manifest always wins.
-  - [ ] Commit `tests/fixtures/sample.epub` (valid container.xml + OPF + one cover image + one xhtml).
-- [ ] **Task 4: `compose.py`** (AC: #5)
-  - [ ] `compose(existing_index, onedrive_fragment) -> merged`: keep all records whose id is NOT `onedrive:`-prefixed; replace/add all `onedrive:` records from the fragment; sort `books[]` by `id`; write atomically (temp + `os.replace`).
-  - [ ] Since onedrive ships as its own per-source `/book-data/onedrive/index.json`, the "existing" is the prior onedrive index (or empty) — compose still enforces namespace scoping in code (belt + suspenders).
-- [ ] **Task 5: Wire `sync.py index`** end-to-end: filter → dedup → map/gate → copy payload → emit fragment → compose → write `<publish>/onedrive/index.json`.
-- [ ] **Task 6: Tests**
-  - [ ] Record shape: emitted record has all required keys, `source == "onedrive"`, `epubUrl` and `cover_image_url` are the expected relative paths, manifest category carried.
-  - [ ] OPF fallback: given `sample.epub` + a manifest missing title/author, `from_opf` returns the OPF `dc:title`/`dc:creator`; cover extracted to `cover/{id}.jpg`.
-  - [ ] Idempotent index: running `index` twice over same staging yields a byte-identical (sorted) `index.json`; ids do not duplicate.
-  - [ ] compose non-destructive: composing an onedrive fragment over an index holding a crawler-style record preserves the crawler record and replaces only `onedrive:` ids.
-  - [ ] `uv run pytest` green; `uv run ruff check .` clean.
+- [x] **Task 1: Copy epub + cover into payload** (AC: #1, #3)
+  - [x] For each kept book, copy `staging/onedrive/nhasachmienphi/<basename>.epub` → `<publish>/onedrive/nhasachmienphi/<basename>.epub`.
+  - [x] Copy `staging/onedrive/nhasachmienphi/<basename of imageFile>` → `<publish>/onedrive/cover/{id}.jpg` (id is colon form; ensure filesystem-safe — colons are fine on macOS/ext4 but consider that the URL will contain them; see Dev Notes on id-in-filename).
+  - [x] No transcoding; keep original jpg bytes (AR10).
+- [x] **Task 2: Build index records** (AC: #2, #3)
+  - [x] Per book, build a record dict: `id`, `book_name` (title), `category_name` (mapped target), `author` (nullable), `cover_image_url` = `onedrive/cover/{id}.jpg`, `source = "onedrive"`, `epubUrl` = `onedrive/nhasachmienphi/<basename>.epub`, and a carried field for the original manifest `category` (e.g. `manifest_category` / `subcategory`) for FR5.
+  - [x] Wrap as `{ "_meta": {...}, "books": [...] }` root object to match the served per-source contract.
+- [x] **Task 3: `extract.py` OPF fallback (minimal)** (AC: #4)
+  - [x] Implement `from_opf(epub_path) -> (title, author)` and cover extraction using stdlib `zipfile` + `lxml.etree`: read `META-INF/container.xml` → OPF path → `dc:title`/`dc:creator`; cover via `<meta name="cover">` → manifest item href.
+  - [x] Use it ONLY when the manifest omits a field. Keep it small; the manifest always wins.
+  - [x] Commit `tests/fixtures/sample.epub` (valid container.xml + OPF + one cover image + one xhtml).
+- [x] **Task 4: `compose.py`** (AC: #5)
+  - [x] `compose(existing_index, onedrive_fragment) -> merged`: keep all records whose id is NOT `onedrive:`-prefixed; replace/add all `onedrive:` records from the fragment; sort `books[]` by `id`; write atomically (temp + `os.replace`).
+  - [x] Since onedrive ships as its own per-source `/book-data/onedrive/index.json`, the "existing" is the prior onedrive index (or empty) — compose still enforces namespace scoping in code (belt + suspenders).
+- [x] **Task 5: Wire `sync.py index`** end-to-end: filter → dedup → map/gate → copy payload → emit fragment → compose → write `<publish>/onedrive/index.json`.
+- [x] **Task 6: Tests**
+  - [x] Record shape: emitted record has all required keys, `source == "onedrive"`, `epubUrl` and `cover_image_url` are the expected relative paths, manifest category carried.
+  - [x] OPF fallback: given `sample.epub` + a manifest missing title/author, `from_opf` returns the OPF `dc:title`/`dc:creator`; cover extracted to `cover/{id}.jpg`.
+  - [x] Idempotent index: running `index` twice over same staging yields a byte-identical (sorted) `index.json`; ids do not duplicate.
+  - [x] compose non-destructive: composing an onedrive fragment over an index holding a crawler-style record preserves the crawler record and replaces only `onedrive:` ids.
+  - [x] `uv run pytest` green; `uv run ruff check .` clean.
 
 ## Dev Notes
 
@@ -85,9 +85,27 @@ so that the served catalog conforms to the Sách Truyện contract and every rec
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None.
 
 ### Completion Notes List
+- `compose.py`: `build_record()`, `compose()` (namespace-scoped onedrive: merge, sorted), `write_atomic()` (temp+os.replace), `id_to_filename()` (colon→double-underscore for filenames).
+- `extract.py`: `from_opf()` using zipfile + lxml; defensive fallback, manifest always wins.
+- `tests/fixtures/sample.epub` created programmatically (minimal valid EPUB2).
+- `.gitignore` updated: `publish/` added (local payload dir holds book bytes).
+- `sync.py index` fully wired: copies epub+cover, builds records, composes index.json.
+- 7 new tests; 41 total pass; ruff clean.
 
 ### File List
+- apps/onedrive-sync/compose.py (new)
+- apps/onedrive-sync/extract.py (new)
+- apps/onedrive-sync/.gitignore (modified — publish/ added)
+- apps/onedrive-sync/sync.py (modified — index end-to-end wired)
+- apps/onedrive-sync/tests/test_compose.py (new)
+- apps/onedrive-sync/tests/test_extract.py (new)
+- apps/onedrive-sync/tests/fixtures/sample.epub (new)
+
+### Change Log
+- 2026-06-06: Implemented story 1.6 — record building, compose, OPF fallback, full sync.py index pipeline.

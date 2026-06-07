@@ -1,6 +1,6 @@
 # Story 1.5: Map categories and apply quality + licensing gates
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,27 +30,20 @@ so that only well-formed, legally-clear books surface and no category is silentl
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Load category-mapping.yaml** (AC: #1, #2)
-  - [ ] Add a loader (use `pyyaml` — add to deps if not present) that reads the three sections (`mapped`, `new_categories`, `excluded`) plus `on_unmapped`.
-  - [ ] Build a single lookup: manifest category → (`target` string, action ∈ {map, new, exclude}).
-- [ ] **Task 2: Map each candidate** (AC: #1, #2)
-  - [ ] For each kept book (post-dedup), look up its manifest `category`:
-    - `mapped`/`new_categories` → set `category_name = target`.
-    - `excluded` → drop the book, record reason `skipped-excluded-category`.
-    - absent from all → **raise** (`on_unmapped: error`) halting the run with the offending category name.
-  - [ ] Preserve the original manifest `category` on the candidate (carried into the record in Story 1.6 for future taxonomy use — FR5).
-- [ ] **Task 3: Quality gate** (AC: #3)
-  - [ ] Skip + record (`skipped-quality`) any book lacking a resolvable cover (`imageFile` missing/empty or file absent in staging) or with an empty/whitespace title.
-  - [ ] Decide author policy: empty author is tolerated for surfacing (not all books have one) but recorded; an empty *title* is a hard skip. Document the chosen rule in code comments.
-- [ ] **Task 4: Licensing checkpoint** (AC: #4)
-  - [ ] Implement as an explicit gate: e.g. a `--licensing-confirmed` flag or a `licensing_confirmed: true` config key that must be set for books to surface; absent → records all as `skipped-licensing` (or halts) with a clear message. Keep it lightweight but real (D7: lower risk, still gated).
-- [ ] **Task 5: Wire into `sync.py index`** between dedup (1.4) and emit (1.6).
-- [ ] **Task 6: Tests**
-  - [ ] mapped genre → vnthuquan target; new-category genre → new string; excluded genre → dropped + recorded.
-  - [ ] unmapped genre → raises with the category name.
-  - [ ] quality gate: missing cover skipped+recorded; empty title skipped.
-  - [ ] licensing gate: unconfirmed → not surfaced; confirmed → surfaced.
-  - [ ] `uv run pytest` green; `uv run ruff check .` clean.
+- [x] **Task 1: Load category-mapping.yaml** (AC: #1, #2)
+  - [x] `categories.py` with `build_category_lookup(path)` using pyyaml (added to deps). Reads mapped/new_categories/excluded sections into flat dict.
+- [x] **Task 2: Map each candidate** (AC: #1, #2)
+  - [x] `map_category(entry, lookup)` → CategoryResult with target + action. Excluded → action="exclude". Unmapped → raises ValueError with "unmapped category: '<name>'".
+  - [x] Original manifest category preserved as `CategoryResult.original_category`.
+- [x] **Task 3: Quality gate** (AC: #3)
+  - [x] `apply_quality_gate(entry, staging_dir)` → GateResult enum (PASS/FAIL_COVER/FAIL_TITLE). Empty title = hard skip. Empty imageFile or missing cover file = FAIL_COVER. Empty author tolerated.
+- [x] **Task 4: Licensing checkpoint** (AC: #4)
+  - [x] `--licensing-confirmed` flag on `sync.py index`; absent → books held with "[licensing] N held pending --licensing-confirmed flag" message. `licensing_confirmed()` function documented.
+- [x] **Task 5: Wire into `sync.py index`** between dedup (1.4) and emit (1.6).
+  - [x] All three gates applied in order: category mapping → quality → licensing.
+- [x] **Task 6: Tests**
+  - [x] 11 new tests: lookup mapped/new/excluded, map_category returns target, excludes drop, unmapped raises, quality gate pass/fail-cover/fail-title, licensing confirmed/unconfirmed.
+  - [x] 34 total tests pass; ruff clean.
 
 ## Dev Notes
 
@@ -86,9 +79,22 @@ so that only well-formed, legally-clear books surface and no category is silentl
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None.
 
 ### Completion Notes List
+- `categories.py`: `build_category_lookup()` (pyyaml), `map_category()` (raises on unmapped), `apply_quality_gate()` (GateResult enum), `licensing_confirmed()` (explicit function, documented).
+- `pyproject.toml` updated: pyyaml>=6.0.3 added.
+- `sync.py index` now accepts `--licensing-confirmed` and `--category-mapping` flags; category → quality → licensing pipeline runs after dedup.
+- 11 new tests; 34 total pass; ruff clean.
 
 ### File List
+- apps/onedrive-sync/categories.py (new)
+- apps/onedrive-sync/pyproject.toml (modified — pyyaml added)
+- apps/onedrive-sync/sync.py (modified — index command extended with all 3 gates)
+- apps/onedrive-sync/tests/test_categories.py (new)
+
+### Change Log
+- 2026-06-06: Implemented story 1.5 — category loader, quality gate, licensing gate, wired into sync.py index.
