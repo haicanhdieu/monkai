@@ -1,6 +1,19 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
+// Zustand persist middleware requires localStorage. jsdom provides it but its
+// Storage prototype can be incomplete in some Vitest versions; ensure setItem works.
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value },
+    removeItem: (key: string) => { delete store[key] },
+    clear: () => { store = {} },
+  }
+})()
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true })
+
 class ResizeObserverMock {
   observe = vi.fn()
   unobserve = vi.fn()

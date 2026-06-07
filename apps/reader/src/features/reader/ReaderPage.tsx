@@ -32,20 +32,28 @@ export default function ReaderPage() {
   const { data: book, isLoading, error } = useBook(bookId, locationSource)
   // Prefer the book's own source once loaded; fall back to locationSource or activeSource.
   const catalogSource = (book?.source as SourceId | undefined) ?? locationSource ?? activeSource
-  const { data: catalog } = useCatalogIndex(catalogSource)
+  const { data: catalog, isLoading: catalogIsLoading } = useCatalogIndex(catalogSource)
   const isOnline = useOnlineStatus()
 
   const catalogBook = catalog?.books.find((b) => b.id === bookId)
   const epubUrlFromCatalog = catalogBook?.epubUrl ?? null
   const initialCfi = (location.state as { cfi?: string } | null)?.cfi ?? null
 
-  // When catalog has no epubUrl, build EPUB from JSON in memory and cache in browser storage
+  // Wait for catalog before deciding whether to build epub from JSON. Starting the
+  // JSON build before catalog loads creates an empty epub for onedrive books (which
+  // have no content field) — epub.js display() then hangs on the empty epub.
+  const bookForEpubBuild = catalogIsLoading ? null : (epubUrlFromCatalog ? null : book ?? null)
   const { epubUrl: epubUrlFromBook, isLoading: epubFromBookLoading, error: epubFromBookError } =
-    useEpubFromBook(epubUrlFromCatalog ? null : book ?? null)
+    useEpubFromBook(bookForEpubBuild)
 
   const epubUrl = epubUrlFromCatalog ?? epubUrlFromBook
+
+  // Guard: pass null while book is still loading so useEpubReader's effect doesn't fire
+  // before ChromelessLayout (and containerRef) is in the DOM. If the catalog was already
+  // cached (e.g. from the library page), epubUrl can be non-null even when isLoading=true,
+  // causing the effect to fire and return early — then never re-fire (deps unchanged).
   const { containerRef, rendition, book: epubBook, isReady, error: readerError, getToc, navigateToTocEntry } =
-    useEpubReader(epubUrl, initialCfi)
+    useEpubReader(isLoading ? null : epubUrl, initialCfi)
 
   if (!bookId) {
     return <ReaderErrorPage category="not_found" />
@@ -65,7 +73,8 @@ export default function ReaderPage() {
     return <ReaderErrorPage category={category} isOffline={!isOnline} />
   }
 
-  if (!epubUrlFromCatalog && epubFromBookLoading) {
+  // Waiting for catalog (or building epub from JSON after catalog confirmed no epubUrl)
+  if (!epubUrl && (catalogIsLoading || epubFromBookLoading)) {
     return (
       <div className="p-6" data-testid="reader-loading">
         <SkeletonText lines={14} />

@@ -37,15 +37,21 @@ export function useEpubReader(epubUrl: string | null, initialCfi?: string | null
 
     const createBook = async () => {
       try {
-        if (epubUrl.startsWith('blob:')) {
+        // For blob: and http(s): URLs, download via browser fetch → ArrayBuffer → ePub(buffer).
+        // Calling ePub(url) directly uses epub.js's own XHR and can silently hang in display()
+        // when the epub fails to open (openFailed fires but display() Promise never rejects).
+        const isRemote =
+          epubUrl.startsWith('blob:') ||
+          epubUrl.startsWith('http://') ||
+          epubUrl.startsWith('https://')
+        if (isRemote) {
           const response = await fetch(epubUrl)
           if (!response.ok) {
-            throw new Error(`Failed to fetch EPUB blob: ${response.status} ${response.statusText}`)
+            throw new Error(`Failed to fetch EPUB: ${response.status} ${response.statusText}`)
           }
           const buffer = await response.arrayBuffer()
           return ePub(buffer)
         }
-
         return ePub(epubUrl)
       } catch (err) {
         if (cancelled) return null
