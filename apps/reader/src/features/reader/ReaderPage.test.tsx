@@ -288,4 +288,26 @@ describe('ReaderPage', () => {
     renderReaderPage('bat-nha')
     expect(screen.getByTestId('reader-loading')).toBeInTheDocument()
   })
+
+  it('onedrive book: catalog epubUrl used, useEpubFromBook called with null (build path skipped)', () => {
+    const onedriveBook: Book = {
+      id: 'onedrive-book-1',
+      title: 'Sách Nhật Tụng',
+      category: 'Văn Học',
+      subcategory: 'van-hoc',
+      translator: 'Thích Nhất Hạnh',
+      coverImageUrl: null,
+      source: 'vnthuquan',
+      content: [],
+    }
+    const resolvedEpubUrl = 'https://tunnel.example.com/book-data/onedrive/sach/sach.epub'
+    mockUseBook.mockReturnValue({ isLoading: false, data: onedriveBook, error: null })
+    mockUseCatalogIndex.mockReturnValue({
+      data: { books: [{ id: 'onedrive-book-1', title: 'Sách Nhật Tụng', epubUrl: resolvedEpubUrl }] },
+    })
+    mockUseEpubFromBook.mockReturnValue({ epubUrl: null, isLoading: false, error: null })
+    renderReaderPage('onedrive-book-1')
+    expect(mockUseEpubFromBook).toHaveBeenCalledWith(null)
+    expect(mockUseEpubReader).toHaveBeenCalledWith(resolvedEpubUrl)
+  })
 })

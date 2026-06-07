@@ -1,7 +1,8 @@
-import { catalogSchema } from '@/shared/schemas/catalog.schema'
+import { catalogSchema, buildCategories } from '@/shared/schemas/catalog.schema'
 import { bookSchema } from '@/shared/schemas/book.schema'
 import type { Book, CatalogIndex, DataErrorCategory } from '@/shared/types/global.types'
 import type { SourceId } from '@/shared/constants/sources'
+import { BUCKET_DATA_SOURCES } from '@/shared/constants/sources'
 import { storageService as defaultStorageService, type StorageService } from '@/shared/services/storage.service'
 import { catalogCacheKey, bookCacheKey } from '@/shared/constants/storage.keys'
 
@@ -65,6 +66,25 @@ export function resolveCoverUrl(relativePath: string | null): string | null {
   return toAbsolutePath(resolveBookDataBaseUrl(), `/book-data/${path}`)
 }
 
+/**
+ * Resolves an epub path to a full URL.
+ * - null/empty → null
+ * - Absolute URL (http/https) → return as-is
+ * - Relative path → base + /book-data/ + path (leading slash stripped)
+ * Optionally pass `base` to override the default resolveBookDataBaseUrl().
+ */
+export function resolveEpubUrl(relativePath: string | null | undefined, base?: string): string | null {
+  const trimmed = relativePath?.trim()
+  if (!trimmed) {
+    return null
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
+  const path = trimmed.replace(/^\/+/, '')
+  return toAbsolutePath(base ?? resolveBookDataBaseUrl(), `/book-data/${path}`)
+}
+
 function parseErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message
@@ -97,21 +117,60 @@ export class StaticJsonDataService implements DataService {
     this.storage = storage
   }
 
+  private resolveBookUrls(catalog: CatalogIndex): CatalogIndex {
+    return {
+      ...catalog,
+      books: catalog.books.map((b) => ({
+        ...b,
+        epubUrl: resolveEpubUrl(b.epubUrl, this.baseUrl) ?? undefined,
+      })),
+    }
+  }
+
+  private async fetchAndParseCatalog(dataSource: string): Promise<CatalogIndex> {
+    const response = await this.fetchJson(`/book-data/${dataSource}/index.json`)
+    const parsed = catalogSchema.safeParse(response)
+    if (!parsed.success) {
+      throw new DataError('parse', `Catalog for ${dataSource} failed schema validation`, parsed.error.flatten())
+    }
+    return parsed.data
+  }
+
   async getCatalog(source: SourceId): Promise<CatalogIndex> {
     const existing = this.catalogPromises.get(source)
     if (existing) return existing
 
-    const path = `/book-data/${source}/index.json`
+    const dataSources = BUCKET_DATA_SOURCES[source]
 
     const promise = (async () => {
       try {
-        const response = await this.fetchJson(path)
-        const parsed = catalogSchema.safeParse(response)
-        if (!parsed.success) {
-          throw new DataError('parse', 'Catalog payload failed schema validation', parsed.error.flatten())
+        let merged: CatalogIndex
+
+        if (dataSources.length === 1) {
+          const catalog = await this.fetchAndParseCatalog(dataSources[0])
+          merged = catalog
+        } else {
+          const results = await Promise.allSettled(
+            dataSources.map((ds) => this.fetchAndParseCatalog(ds)),
+          )
+          const [primaryResult, ...supplementalResults] = results
+          if (primaryResult.status === 'rejected') {
+            throw primaryResult.reason
+          }
+          let allBooks = [...primaryResult.value.books]
+          for (const result of supplementalResults) {
+            if (result.status === 'fulfilled') {
+              allBooks = [...allBooks, ...result.value.books]
+            } else {
+              console.warn('[getCatalog] supplemental source failed, continuing without it:', result.reason)
+            }
+          }
+          merged = { books: allBooks, categories: buildCategories(allBooks) }
         }
-        void this.storage.setItem(catalogCacheKey(source), parsed.data)
-        return parsed.data
+
+        const resolved = this.resolveBookUrls(merged)
+        void this.storage.setItem(catalogCacheKey(source), resolved)
+        return resolved
       } catch (error) {
         this.catalogPromises.delete(source)
         if (error instanceof DataError && error.category === 'network') {
@@ -142,6 +201,21 @@ export class StaticJsonDataService implements DataService {
 
       const jsonArtifact = bookEntry.artifacts.find((a) => a.format === 'json')
       if (!jsonArtifact) {
+        // onedrive books: rendered from catalog epubUrl, not a JSON artifact
+        if (bookEntry.epubUrl) {
+          const book: Book = {
+            id,
+            title: bookEntry.title,
+            category: bookEntry.category,
+            subcategory: bookEntry.subcategory,
+            translator: bookEntry.translator,
+            coverImageUrl: bookEntry.coverImageUrl,
+            source,
+            content: [],
+          }
+          void this.storage.setItem(bookCacheKey(id, source), book)
+          return book
+        }
         throw new DataError('not_found', `JSON artifact not found for book: ${id}`)
       }
 

@@ -1,6 +1,6 @@
 # Story 2.1: Accept EPUB-direct book records in the schema
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,17 +30,17 @@ so that EPUB-direct (onedrive) records parse correctly while still rejecting rec
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Update `rawBookSchema`** (AC: #1)
-  - [ ] Add `epubUrl: z.string().optional()`.
-  - [ ] Change `chapters: z.array(chapterSchema).default([])` → `z.array(chapterSchema).optional().default([])`.
-  - [ ] Add `.refine((b) => b.epubUrl !== undefined || (b.chapters?.length ?? 0) > 0, { message: 'book must have either epubUrl or chapters' })` to the object (before/around `.transform`).
-- [ ] **Task 2: Confirm transform tolerates empty chapters** (AC: #4)
-  - [ ] `normalizeParagraphs([])` → `[]` and `buildChaptersForEpub([])` → `[]` already hold; verify no runtime error when `raw.chapters` is `[]`.
-  - [ ] Decide whether to surface `raw.epubUrl` on the transformed `Book` object. Only add it if a consumer needs it; otherwise leave `Book` unchanged to avoid touching `global.types.ts`. Document the decision.
-- [ ] **Task 3: Tests (Vitest, colocated)** (AC: #2)
-  - [ ] Add `apps/reader/src/shared/schemas/book.schema.test.ts` (or extend existing): record with `epubUrl` + no `chapters` → `safeParse` success; record with neither → failure; record with `chapters` + no `epubUrl` → success (regression for existing crawler books).
-- [ ] **Task 4: Verify** (AC: all)
-  - [ ] `pnpm test` (or `devbox run test`) green; `pnpm lint` / `eslint src --max-warnings 0` clean; `tsc` strict passes.
+- [x] **Task 1: Update `rawBookSchema`** (AC: #1)
+  - [x] Add `epubUrl: z.string().optional()`.
+  - [x] Change `chapters: z.array(chapterSchema).default([])` → `z.array(chapterSchema).optional().default([])`.
+  - [x] Add `.refine((b) => b.epubUrl !== undefined || (b.chapters?.length ?? 0) > 0, { message: 'book must have either epubUrl or chapters' })` to the object (before/around `.transform`).
+- [x] **Task 2: Confirm transform tolerates empty chapters** (AC: #4)
+  - [x] `normalizeParagraphs([])` → `[]` and `buildChaptersForEpub([])` → `[]` already hold; verify no runtime error when `raw.chapters` is `[]`.
+  - [x] Decide whether to surface `raw.epubUrl` on the transformed `Book` object. Only add it if a consumer needs it; otherwise leave `Book` unchanged to avoid touching `global.types.ts`. Document the decision.
+- [x] **Task 3: Tests (Vitest, colocated)** (AC: #2)
+  - [x] Add `apps/reader/src/shared/schemas/book.schema.test.ts` (or extend existing): record with `epubUrl` + no `chapters` → `safeParse` success; record with neither → failure; record with `chapters` + no `epubUrl` → success (regression for existing crawler books).
+- [x] **Task 4: Verify** (AC: all)
+  - [x] `pnpm test` (or `devbox run test`) green; `pnpm lint` / `eslint src --max-warnings 0` clean; `tsc` strict passes.
 
 ## Dev Notes
 
@@ -76,9 +76,22 @@ so that EPUB-direct (onedrive) records parse correctly while still rejecting rec
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None
 
 ### Completion Notes List
+- Added `epubUrl: z.string().optional()` and `chapters: z.array(chapterSchema).optional().default([])` to `rawBookSchema`.
+- Chained `.refine(...).transform(...)` — Zod v3 `ZodEffects` is assignable to `ZodType<Book>`, no TS complaints.
+- Decision: `Book` type NOT updated with `epubUrl` — ReaderPage reads `epubUrl` from catalog record, not book record (AC#4 fulfilled, `global.types.ts` untouched).
+- Fixed 5 existing tests that used `makeRawBook([])` (empty chapters, no epubUrl) — they now use `makeRawBookWithEpub()` helper.
+- Pre-existing `useActiveSource.test.ts` failures (3 tests) are unrelated to this story — `storage.setItem is not a function` bug exists before this change.
 
 ### File List
+- apps/reader/src/shared/schemas/book.schema.ts (modified)
+- apps/reader/src/shared/schemas/book.schema.test.ts (modified)
+- apps/reader/src/shared/services/data.service.test.ts (modified — fixed one pre-existing test that used empty chapters)
+
+### Change Log
+- 2026-06-07: Implemented Story 2.1 — epubUrl schema, refine guard, tests

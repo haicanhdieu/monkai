@@ -56,8 +56,8 @@ development_status:
 
   # Epic 2: Reader Surfacing in Sách Truyện
   epic-2: in-progress
-  2-1-accept-epub-direct-book-records-in-the-schema: ready-for-dev
-  2-2-register-onedrive-as-a-source-mapped-to-sach-truyen: ready-for-dev
-  2-3-surface-imported-books-and-read-them-via-epub-js: ready-for-dev
-  2-4-search-imported-books-by-title-and-author: ready-for-dev
+  2-1-accept-epub-direct-book-records-in-the-schema: review
+  2-2-register-onedrive-as-a-source-mapped-to-sach-truyen: review
+  2-3-surface-imported-books-and-read-them-via-epub-js: review
+  2-4-search-imported-books-by-title-and-author: review
   epic-2-retrospective: optional

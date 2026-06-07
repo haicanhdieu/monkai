@@ -53,7 +53,7 @@ function toCatalogBook(raw: z.infer<typeof rawCatalogBookSchema>): CatalogBook {
   }
 }
 
-function buildCategories(books: CatalogBook[]): CatalogCategory[] {
+export function buildCategories(books: CatalogBook[]): CatalogCategory[] {
   const categoryMap = new Map<string, CatalogCategory>()
 
   for (const book of books) {

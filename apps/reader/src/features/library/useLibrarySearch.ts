@@ -33,7 +33,7 @@ export function useLibrarySearch(books: CatalogBook[]): LibrarySearchState {
 
   const miniSearch = useMemo(() => {
     const engine = new MiniSearch<SearchDocument>({
-      fields: ['title', 'category', 'subcategory'],
+      fields: ['title', 'category', 'subcategory', 'translator'],
       storeFields: ['id', 'bookId', 'title', 'category', 'subcategory', 'translator', 'coverImageUrl'],
       searchOptions: { boost: { title: 3 }, prefix: true },
       // Applied to every token at both index time and query time.

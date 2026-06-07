@@ -232,8 +232,8 @@ describe('bookSchema – normalizeParagraphs', () => {
     expect(book.content[0]).toBe('Hello world')
   })
 
-  it('empty chapters array produces empty content', () => {
-    const raw = makeRawBook([])
+  it('empty chapters array produces empty content (epubUrl satisfies refine)', () => {
+    const raw = { ...makeRawBook([]), epubUrl: 'onedrive/sach/sach.epub' }
 
     const book = bookSchema.parse(raw)
 
@@ -325,11 +325,81 @@ describe('bookSchema – chaptersForEpub', () => {
   })
 })
 
+describe('bookSchema – epubUrl (Story 2.1)', () => {
+  it('record with epubUrl and no chapters parses successfully (FR7)', () => {
+    const raw = {
+      id: 'onedrive-book-1',
+      book_name: 'Sách Onedrive',
+      category_name: 'Văn Học',
+      epubUrl: 'onedrive/sach-onedrive/sach-onedrive.epub',
+    }
+    const result = bookSchema.safeParse(raw)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.content).toEqual([])
+      expect(result.data.chaptersForEpub).toEqual([])
+    }
+  })
+
+  it('record with chapters and no epubUrl parses successfully (existing crawler books)', () => {
+    const raw = {
+      id: 'crawler-book-1',
+      book_name: 'Kinh Pháp Hoa',
+      category_name: 'Kinh',
+      chapters: [{ pages: [{ html_content: '<p>Nội dung</p>' }] }],
+    }
+    const result = bookSchema.safeParse(raw)
+    expect(result.success).toBe(true)
+  })
+
+  it('record with neither epubUrl nor chapters fails with clear message', () => {
+    const raw = {
+      id: 'empty-book',
+      book_name: 'Sách Trống',
+      category_name: 'Kinh',
+    }
+    const result = bookSchema.safeParse(raw)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const messages = result.error.issues.map((i) => i.message)
+      expect(messages).toContain('book must have either epubUrl or chapters')
+    }
+  })
+
+  it('record with empty chapters array and no epubUrl fails refine', () => {
+    const raw = {
+      id: 'empty-chapters',
+      book_name: 'Sách',
+      category_name: 'Kinh',
+      chapters: [],
+    }
+    const result = bookSchema.safeParse(raw)
+    expect(result.success).toBe(false)
+  })
+
+  it('record with both epubUrl and chapters parses successfully', () => {
+    const raw = {
+      id: 'both-book',
+      book_name: 'Sách',
+      category_name: 'Kinh',
+      epubUrl: 'onedrive/sach/sach.epub',
+      chapters: [{ pages: [{ html_content: '<p>Content</p>' }] }],
+    }
+    const result = bookSchema.safeParse(raw)
+    expect(result.success).toBe(true)
+  })
+})
+
+function makeRawBookWithEpub(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { ...makeRawBook([]), epubUrl: 'onedrive/sach/sach.epub', ...overrides }
+}
+
 describe('bookSchema – coverImageUrl', () => {
   it('sets coverImageUrl from cover_image_local_path when present (prefer local)', () => {
-    const raw = makeRawBook([]) as Record<string, unknown>
-    raw.cover_image_url = 'https://example.com/cover.jpg'
-    raw.cover_image_local_path = 'vbeta/kinh/slug/images/cover.jpg'
+    const raw = makeRawBookWithEpub({
+      cover_image_url: 'https://example.com/cover.jpg',
+      cover_image_local_path: 'vbeta/kinh/slug/images/cover.jpg',
+    })
 
     const book = bookSchema.parse(raw)
 
@@ -337,8 +407,7 @@ describe('bookSchema – coverImageUrl', () => {
   })
 
   it('sets coverImageUrl from cover_image_url when cover_image_local_path is absent', () => {
-    const raw = makeRawBook([]) as Record<string, unknown>
-    raw.cover_image_url = 'https://example.com/cover.jpg'
+    const raw = makeRawBookWithEpub({ cover_image_url: 'https://example.com/cover.jpg' })
 
     const book = bookSchema.parse(raw)
 
@@ -346,7 +415,7 @@ describe('bookSchema – coverImageUrl', () => {
   })
 
   it('sets coverImageUrl to null when both cover fields are null/absent', () => {
-    const raw = makeRawBook([])
+    const raw = makeRawBookWithEpub()
 
     const book = bookSchema.parse(raw)
 
@@ -354,9 +423,7 @@ describe('bookSchema – coverImageUrl', () => {
   })
 
   it('sets coverImageUrl to null when both cover fields are explicitly null', () => {
-    const raw = makeRawBook([]) as Record<string, unknown>
-    raw.cover_image_url = null
-    raw.cover_image_local_path = null
+    const raw = makeRawBookWithEpub({ cover_image_url: null, cover_image_local_path: null })
 
     const book = bookSchema.parse(raw)
 

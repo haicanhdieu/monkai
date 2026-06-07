@@ -1,6 +1,6 @@
 # Story 2.3: Surface imported books and read them via epub.js
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -31,23 +31,23 @@ so that every book I see is tappable and reads exactly like any other book.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: epubUrl resolution helper** (AC: #3)
-  - [ ] Add `resolveEpubUrl(path: string | null): string | null` in `data.service.ts` mirroring `resolveCoverUrl`: pass through absolute `http(s)` URLs; otherwise `{base}/book-data/{path-without-leading-slash}` using `resolveBookDataBaseUrl()`.
-  - [ ] Decide application point: either apply it in `toCatalogBook` so `CatalogBook.epubUrl` is already absolute, OR apply it in `ReaderPage` when reading `catalogBook.epubUrl`. **Prefer resolving in the catalog transform** so every consumer gets a ready URL — but verify no existing consumer assumes a relative epubUrl. Document choice. [Source: apps/reader/src/shared/services/data.service.ts, catalog.schema.ts]
-- [ ] **Task 2: ReaderPage uses resolved catalog epubUrl** (AC: #2)
-  - [ ] `ReaderPage.tsx:39` already does `epubUrlFromCatalog = catalogBook?.epubUrl ?? null` and `epubUrl = epubUrlFromCatalog ?? epubUrlFromBook` (`:46`), passing to `useEpubReader` (`:48`). Ensure the resolved (absolute) URL flows here.
-  - [ ] Confirm `useEpubFromBook(epubUrlFromCatalog ? null : book ?? null)` (`:44`) → when catalog has epubUrl, the JSON build path is skipped (passes `null`). This is already correct; add a test guarding it for onedrive. [Source: apps/reader/src/features/reader/ReaderPage.tsx]
-- [ ] **Task 3: useEpubReader regular-URL path** (AC: #2)
-  - [ ] `useEpubReader.ts:40-49`: `blob:` URLs are fetched→ArrayBuffer→`ePub(buffer)`; regular URLs call `ePub(url)` directly. Onedrive epubUrl is a regular URL → hits `ePub(url)` (`:49`). No change expected; verify epub.js can fetch the cross-origin Pi URL (Caddy sets `access-control-allow-origin: *`). [Source: apps/reader/src/features/reader/useEpubReader.ts]
-- [ ] **Task 4: book-detail route tolerates no-JSON-artifact onedrive books** (AC: #2)
-  - [ ] Coordinate with Story 2.2 Task 4: onedrive catalog entries have no `json` artifact. Ensure tapping an onedrive card routes to ReaderPage and renders from catalog `epubUrl` without requiring a `getBook` JSON fetch (or `getBook` returns a minimal Book for onedrive). Verify the existing flow: ReaderPage reads `catalogBook` (catalog) for `epubUrl` and `book` (detail) for JSON content — for onedrive, `book` may be absent/empty and that must be OK because `epubUrlFromCatalog` is present. Trace and test. [Source: apps/reader/src/features/reader/ReaderPage.tsx]
-- [ ] **Task 5: Card indistinguishability** (AC: #1)
-  - [ ] Verify `SutraListCard` renders cover/title/author identically for an onedrive book; the `SOURCES.find` badge lookup returns undefined → no badge (desired). No `onedrive` string anywhere. [Source: apps/reader/src/features/library/SutraListCard.tsx]
-- [ ] **Task 6: Tests** (AC: #1, #2, #3)
-  - [ ] `resolveEpubUrl`: relative path → `{base}/book-data/...`; absolute URL passthrough; null → null.
-  - [ ] ReaderPage with an onedrive catalogBook (epubUrl set, no chapters/json) → `useEpubReader` receives the resolved URL; `useEpubFromBook` is called with `null` (build path skipped).
-  - [ ] SutraListCard for an onedrive book renders no source badge and identical layout.
-  - [ ] `pnpm test` green; `pnpm lint` clean; strict `tsc`.
+- [x] **Task 1: epubUrl resolution helper** (AC: #3)
+  - [x] Add `resolveEpubUrl(path: string | null): string | null` in `data.service.ts` mirroring `resolveCoverUrl`: pass through absolute `http(s)` URLs; otherwise `{base}/book-data/{path-without-leading-slash}` using `resolveBookDataBaseUrl()`.
+  - [x] Decide application point: either apply it in `toCatalogBook` so `CatalogBook.epubUrl` is already absolute, OR apply it in `ReaderPage` when reading `catalogBook.epubUrl`. **Prefer resolving in the catalog transform** so every consumer gets a ready URL — but verify no existing consumer assumes a relative epubUrl. Document choice. [Source: apps/reader/src/shared/services/data.service.ts, catalog.schema.ts]
+- [x] **Task 2: ReaderPage uses resolved catalog epubUrl** (AC: #2)
+  - [x] `ReaderPage.tsx:39` already does `epubUrlFromCatalog = catalogBook?.epubUrl ?? null` and `epubUrl = epubUrlFromCatalog ?? epubUrlFromBook` (`:46`), passing to `useEpubReader` (`:48`). Ensure the resolved (absolute) URL flows here.
+  - [x] Confirm `useEpubFromBook(epubUrlFromCatalog ? null : book ?? null)` (`:44`) → when catalog has epubUrl, the JSON build path is skipped (passes `null`). This is already correct; add a test guarding it for onedrive. [Source: apps/reader/src/features/reader/ReaderPage.tsx]
+- [x] **Task 3: useEpubReader regular-URL path** (AC: #2)
+  - [x] `useEpubReader.ts:40-49`: `blob:` URLs are fetched→ArrayBuffer→`ePub(buffer)`; regular URLs call `ePub(url)` directly. Onedrive epubUrl is a regular URL → hits `ePub(url)` (`:49`). No change expected; verify epub.js can fetch the cross-origin Pi URL (Caddy sets `access-control-allow-origin: *`). [Source: apps/reader/src/features/reader/useEpubReader.ts]
+- [x] **Task 4: book-detail route tolerates no-JSON-artifact onedrive books** (AC: #2)
+  - [x] Coordinate with Story 2.2 Task 4: onedrive catalog entries have no `json` artifact. Ensure tapping an onedrive card routes to ReaderPage and renders from catalog `epubUrl` without requiring a `getBook` JSON fetch (or `getBook` returns a minimal Book for onedrive). Verify the existing flow: ReaderPage reads `catalogBook` (catalog) for `epubUrl` and `book` (detail) for JSON content — for onedrive, `book` may be absent/empty and that must be OK because `epubUrlFromCatalog` is present. Trace and test. [Source: apps/reader/src/features/reader/ReaderPage.tsx]
+- [x] **Task 5: Card indistinguishability** (AC: #1)
+  - [x] Verify `SutraListCard` renders cover/title/author identically for an onedrive book; the `SOURCES.find` badge lookup returns undefined → no badge (desired). No `onedrive` string anywhere. [Source: apps/reader/src/features/library/SutraListCard.tsx]
+- [x] **Task 6: Tests** (AC: #1, #2, #3)
+  - [x] `resolveEpubUrl`: relative path → `{base}/book-data/...`; absolute URL passthrough; null → null.
+  - [x] ReaderPage with an onedrive catalogBook (epubUrl set, no chapters/json) → `useEpubReader` receives the resolved URL; `useEpubFromBook` is called with `null` (build path skipped).
+  - [x] SutraListCard for an onedrive book renders no source badge and identical layout.
+  - [x] `pnpm test` green; `pnpm lint` clean; strict `tsc`.
 
 ## Dev Notes
 
@@ -75,9 +75,23 @@ so that every book I see is tappable and reads exactly like any other book.
 ## Dev Agent Record
 
 ### Agent Model Used
+claude-sonnet-4-6
 
 ### Debug Log References
+None
 
 ### Completion Notes List
+- `resolveEpubUrl` added to `data.service.ts` (exported). Accepts optional `base` param so `StaticJsonDataService.resolveBookUrls` uses `this.baseUrl` rather than the global env function — this ensures tests with injected base URLs work correctly.
+- Resolution applied in `StaticJsonDataService.resolveBookUrls` (private), called after every `getCatalog` fetch (single or merged). All `CatalogBook.epubUrl` values are absolute by the time they reach consumers.
+- ReaderPage already correctly routes: `epubUrlFromCatalog` → `useEpubReader`, `useEpubFromBook(null)` when catalog has epubUrl. Verified with a new test case.
+- `useEpubReader` regular-URL branch: no change needed. Onedrive URLs are regular https:// and hit `ePub(url)` directly.
+- SutraListCard: `SOURCES.find(s => s.id === 'onedrive')` returns undefined → no badge rendered → no "onedrive" text visible (FR3 satisfied).
 
 ### File List
+- apps/reader/src/shared/services/data.service.ts (modified — resolveEpubUrl exported, resolveBookUrls private method)
+- apps/reader/src/shared/services/data.service.test.ts (modified — resolveEpubUrl tests)
+- apps/reader/src/features/reader/ReaderPage.test.tsx (modified — onedrive guard test)
+- apps/reader/src/features/library/SutraListCard.test.tsx (created)
+
+### Change Log
+- 2026-06-07: Implemented Story 2.3 — epubUrl resolution, ReaderPage guard test, SutraListCard indistinguishability test

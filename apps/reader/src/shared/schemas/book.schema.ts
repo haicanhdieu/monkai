@@ -20,7 +20,8 @@ const rawBookSchema = z.object({
   cover_image_url: z.string().nullable().optional(),
   cover_image_local_path: z.string().nullable().optional(),
   source: z.string().optional(),
-  chapters: z.array(chapterSchema).default([]),
+  chapters: z.array(chapterSchema).optional().default([]),
+  epubUrl: z.string().optional(),
 })
 
 function decodeHtmlEntities(input: string): string {
@@ -127,8 +128,13 @@ function buildChaptersForEpub(chapters: z.infer<typeof chapterSchema>[]): EpubCh
   return result
 }
 
-export const bookSchema: z.ZodType<Book> = rawBookSchema.transform((raw) => {
-  const chapters = raw.chapters
+export const bookSchema: z.ZodType<Book> = rawBookSchema
+  .refine(
+    (b) => b.epubUrl !== undefined || (b.chapters?.length ?? 0) > 0,
+    { message: 'book must have either epubUrl or chapters' },
+  )
+  .transform((raw) => {
+  const chapters = raw.chapters ?? []
   const content = normalizeParagraphs(chapters)
   const chaptersForEpub = buildChaptersForEpub(chapters)
 

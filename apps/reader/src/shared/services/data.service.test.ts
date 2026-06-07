@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { DataError, StaticJsonDataService, resolveCoverUrl, resolveBookDataBaseUrl } from '@/shared/services/data.service'
+import { DataError, StaticJsonDataService, resolveCoverUrl, resolveBookDataBaseUrl, resolveEpubUrl } from '@/shared/services/data.service'
 import type { StorageService } from '@/shared/services/storage.service'
 
 function makeNoopStorage(overrides?: Partial<StorageService>): StorageService {
@@ -151,7 +151,7 @@ describe('StaticJsonDataService', () => {
       id: internalSlug,
       book_name: 'Test Book',
       category_name: 'Kinh',
-      chapters: [],
+      chapters: [{ pages: [{ html_content: '<p>Content</p>' }] }],
     }
 
     let callCount = 0
@@ -346,5 +346,207 @@ describe('resolveCoverUrl', () => {
     const base = resolveBookDataBaseUrl()
     expect(resolveCoverUrl('//path/to/cover.jpg')).toBe(`${base}/book-data/path/to/cover.jpg`)
     expect(resolveCoverUrl('///a/b.jpg')).toBe(`${base}/book-data/a/b.jpg`)
+  })
+})
+
+describe('resolveEpubUrl (Story 2.3)', () => {
+  it('returns null for null, undefined, or empty', () => {
+    expect(resolveEpubUrl(null)).toBeNull()
+    expect(resolveEpubUrl(undefined)).toBeNull()
+    expect(resolveEpubUrl('')).toBeNull()
+    expect(resolveEpubUrl('   ')).toBeNull()
+  })
+
+  it('returns absolute http/https URL unchanged', () => {
+    expect(resolveEpubUrl('https://tunnel.example.com/book-data/onedrive/sach/sach.epub')).toBe(
+      'https://tunnel.example.com/book-data/onedrive/sach/sach.epub',
+    )
+    expect(resolveEpubUrl('http://localhost:3001/book-data/sach.epub')).toBe(
+      'http://localhost:3001/book-data/sach.epub',
+    )
+  })
+
+  it('resolves relative path to base + /book-data/ + path', () => {
+    const base = resolveBookDataBaseUrl()
+    expect(resolveEpubUrl('onedrive/sach-nhat-tung/sach-nhat-tung.epub')).toBe(
+      `${base}/book-data/onedrive/sach-nhat-tung/sach-nhat-tung.epub`,
+    )
+  })
+
+  it('strips leading slash from relative path', () => {
+    const base = resolveBookDataBaseUrl()
+    expect(resolveEpubUrl('/onedrive/sach/sach.epub')).toBe(
+      `${base}/book-data/onedrive/sach/sach.epub`,
+    )
+  })
+})
+
+const onedriveIndexPayload = {
+  books: [
+    {
+      id: 'onedrive-book-1',
+      book_name: 'Sách Nhật Tụng',
+      author: 'Thích Nhất Hạnh',
+      category_name: 'Văn Học',
+      category_seo_name: 'van-hoc',
+      epubUrl: 'onedrive/sach-nhat-tung/sach-nhat-tung.epub',
+      source: 'onedrive',
+    },
+  ],
+}
+
+const vnthuquanIndexPayload = {
+  books: [
+    {
+      id: 'vnthuquan-book-1',
+      book_name: 'Truyện Kiều',
+      author: 'Nguyễn Du',
+      category_name: 'Thơ',
+      category_seo_name: 'tho',
+      artifacts: [{ format: 'json', path: 'truyen-kieu.json', source: 'vnthuquan', built_at: '2026-01-01' }],
+      source: 'vnthuquan',
+    },
+  ],
+}
+
+describe('getCatalog – onedrive merge (Story 2.2)', () => {
+  it('merges vnthuquan and onedrive books into a single CatalogIndex', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => (url.includes('/onedrive/') ? onedriveIndexPayload : vnthuquanIndexPayload),
+    }))
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const catalog = await service.getCatalog('vnthuquan')
+
+    expect(catalog.books).toHaveLength(2)
+    const ids = catalog.books.map((b) => b.id)
+    expect(ids).toContain('vnthuquan-book-1')
+    expect(ids).toContain('onedrive-book-1')
+  })
+
+  it('rebuilds categories from merged books', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => (url.includes('/onedrive/') ? onedriveIndexPayload : vnthuquanIndexPayload),
+    }))
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const catalog = await service.getCatalog('vnthuquan')
+
+    const categorySlugs = catalog.categories.map((c) => c.slug)
+    expect(categorySlugs).toContain('tho')
+    expect(categorySlugs).toContain('van-hoc')
+  })
+
+  it('still returns vnthuquan books when onedrive fetch fails (404)', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/onedrive/')) {
+        return { ok: false, status: 404, json: async () => ({}) }
+      }
+      return { ok: true, status: 200, json: async () => vnthuquanIndexPayload }
+    })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const catalog = await service.getCatalog('vnthuquan')
+
+    expect(catalog.books).toHaveLength(1)
+    expect(catalog.books[0]?.id).toBe('vnthuquan-book-1')
+  })
+
+  it('still returns vnthuquan books when onedrive fetch throws network error', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/onedrive/')) throw new TypeError('Failed to fetch')
+      return { ok: true, status: 200, json: async () => vnthuquanIndexPayload }
+    })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const catalog = await service.getCatalog('vnthuquan')
+
+    expect(catalog.books).toHaveLength(1)
+    expect(catalog.books[0]?.id).toBe('vnthuquan-book-1')
+  })
+
+  it('resolves epubUrl for onedrive books to absolute URL', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => (url.includes('/onedrive/') ? onedriveIndexPayload : vnthuquanIndexPayload),
+    }))
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const catalog = await service.getCatalog('vnthuquan')
+
+    const onedriveBook = catalog.books.find((b) => b.id === 'onedrive-book-1')
+    expect(onedriveBook?.epubUrl).toBe(
+      'http://localhost:3001/book-data/onedrive/sach-nhat-tung/sach-nhat-tung.epub',
+    )
+    // epubUrl must be absolute (not the raw relative path from the index)
+    expect(onedriveBook?.epubUrl).toMatch(/^https?:\/\//)
+  })
+
+  it('vbeta catalog fetches only vbeta source (no merge)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => validCatalogPayload,
+    } satisfies Partial<Response>)
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    await service.getCatalog('vbeta')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/book-data/vbeta/index.json'))
+  })
+})
+
+describe('getBook – onedrive books (Story 2.2)', () => {
+  const mergedCatalogPayload = {
+    books: [
+      {
+        id: 'onedrive-book-1',
+        book_name: 'Sách Nhật Tụng',
+        author: 'Thích Nhất Hạnh',
+        category_name: 'Văn Học',
+        category_seo_name: 'van-hoc',
+        epubUrl: 'onedrive/sach-nhat-tung/sach-nhat-tung.epub',
+        source: 'onedrive',
+      },
+    ],
+  }
+
+  it('returns minimal Book for onedrive book (no JSON artifact, has epubUrl)', async () => {
+    let callCount = 0
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      callCount++
+      return { ok: true, status: 200, json: async () => (callCount <= 2 ? mergedCatalogPayload : {}) }
+    })
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', makeNoopStorage())
+    const book = await service.getBook('onedrive-book-1', 'vnthuquan')
+
+    expect(book.id).toBe('onedrive-book-1')
+    expect(book.title).toBe('Sách Nhật Tụng')
+    expect(book.source).toBe('vnthuquan')
+    expect(book.content).toEqual([])
+  })
+
+  it('caches minimal onedrive Book to storage', async () => {
+    let callCount = 0
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      callCount++
+      return { ok: true, status: 200, json: async () => (callCount <= 2 ? mergedCatalogPayload : {}) }
+    })
+    const storage = makeNoopStorage()
+
+    const service = new StaticJsonDataService(fetchMock as typeof fetch, 'http://localhost:3001', storage)
+    await service.getBook('onedrive-book-1', 'vnthuquan')
+
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'book_cache_v1_vnthuquan_onedrive-book-1',
+      expect.objectContaining({ id: 'onedrive-book-1', source: 'vnthuquan' }),
+    )
   })
 })

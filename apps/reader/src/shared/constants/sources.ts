@@ -1,5 +1,12 @@
 export type SourceId = 'vbeta' | 'vnthuquan'
 
+export type DataSourceId = SourceId | 'onedrive'
+
+export const BUCKET_DATA_SOURCES: Record<SourceId, DataSourceId[]> = {
+  vbeta: ['vbeta'],
+  vnthuquan: ['vnthuquan', 'onedrive'],
+}
+
 export interface SourceConfig {
   id: SourceId
   label: string
