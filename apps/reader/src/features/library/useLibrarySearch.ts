@@ -20,9 +20,9 @@ export interface LibrarySearchState {
   results: SearchDocument[]
 }
 
-export function useLibrarySearch(books: CatalogBook[]): LibrarySearchState {
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
+export function useLibrarySearch(books: CatalogBook[], initialQuery = ''): LibrarySearchState {
+  const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), 250)

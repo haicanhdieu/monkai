@@ -1,4 +1,9 @@
 
+## library-search-state-restore deferred findings (2026-06-08)
+
+- **`useState(initialQuery)` divergence from store**: `useLibrarySearch` initialises `query`/`debouncedQuery` from `initialQuery` only at mount. If `libraryNavStore.savedQuery` changes while LibraryPage is mounted (possible in future multi-tab or background sync scenarios), the hook's `query` state won't reflect it. Currently harmless — only one caller and store only changes via user interaction.
+- **Single `rAF` for scroll restore**: `requestAnimationFrame` fires before `ResizeObserver` measurements complete on large result sets with slow devices. Virtual items shift slightly after measurement, but the scroll position is approximately correct. If restore accuracy becomes a complaint on low-end devices, consider `double-rAF` or wiring directly into `virtualizer.scrollToOffset()` (requires lifting the virtualizer instance to `LibraryPage`).
+
 ## pi-server-migration deferred findings (2026-06-01)
 
 - **journalctl `--since` + `-f` on older systemd (<246)**: `--since` may be silently ignored in follow mode; watcher misses the current URL until cloudflared next reconnects. Raspberry Pi OS Bookworm ships systemd 252 — not an issue there, but worth noting for older OS images.

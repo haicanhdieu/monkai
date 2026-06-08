@@ -88,3 +88,23 @@ describe('useLibrarySearch – author search (Story 2.4)', () => {
     expect(ids).not.toContain('onedrive')
   })
 })
+
+describe('useLibrarySearch – initialQuery restore', () => {
+  it('reflects initialQuery in query and normalizedQuery immediately', () => {
+    const { result } = renderHook(() => useLibrarySearch(books, 'Truyen Kieu'))
+    expect(result.current.query).toBe('Truyen Kieu')
+    expect(result.current.normalizedQuery).toBe('truyen kieu')
+  })
+
+  it('returns results immediately without advancing timers', () => {
+    const { result } = renderHook(() => useLibrarySearch(books, 'Nguyen Du'))
+    // No act/advanceTimersByTime needed — debouncedQuery initialized from initialQuery
+    expect(result.current.results.map((r) => r.id)).toContain('truyen-kieu')
+  })
+
+  it('empty initialQuery produces empty results', () => {
+    const { result } = renderHook(() => useLibrarySearch(books, ''))
+    expect(result.current.query).toBe('')
+    expect(result.current.results).toHaveLength(0)
+  })
+})

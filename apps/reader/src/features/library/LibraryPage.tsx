@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { buildLibraryCategoryHeaders } from '@/features/library/library.utils'
 import { useLibrarySearch } from '@/features/library/useLibrarySearch'
 import { LibrarySearchBar } from '@/features/library/LibrarySearchBar'
@@ -16,16 +16,50 @@ import { useActiveSource } from '@/shared/stores/useActiveSource'
 import { DataError } from '@/shared/services/data.service'
 import { PersonIcon } from '@radix-ui/react-icons'
 import { AppLogo } from '@/shared/components/AppLogo'
+import { useLibraryNavStore } from '@/stores/libraryNav.store'
+
+const getMain = () => document.querySelector('main') as HTMLElement | null
 
 export default function LibraryPage() {
   const { activeSource } = useActiveSource()
   const sourceConfig = SOURCES.find((s) => s.id === activeSource) ?? SOURCES[0]!
   const catalogQuery = useCatalogIndex(activeSource)
   const isOnline = useOnlineStatus()
-  const [searchEnabled, setSearchEnabled] = useState(false)
+
+  const { savedQuery, savedScrollTop, setSavedQuery, setSavedScrollTop, clear: clearNavState } = useLibraryNavStore()
+  const [searchEnabled, setSearchEnabled] = useState(() => savedQuery.length > 0)
   const { query, setQuery, clearQuery, debouncedQuery, normalizedQuery, results } = useLibrarySearch(
     searchEnabled ? (catalogQuery.data?.books ?? []) : [],
+    savedQuery,
   )
+
+  const handleSetQuery = (q: string) => {
+    setQuery(q)
+    setSavedQuery(q)
+  }
+
+  const handleClearQuery = () => {
+    clearQuery()
+    clearNavState()
+  }
+
+  // Save scroll position when navigating away
+  useEffect(() => {
+    return () => {
+      setSavedScrollTop(getMain()?.scrollTop ?? 0)
+    }
+  }, [setSavedScrollTop])
+
+  // Restore scroll once after results render
+  const scrollRestoredRef = useRef(false)
+  useEffect(() => {
+    if (savedScrollTop > 0 && normalizedQuery && results.length > 0 && !scrollRestoredRef.current) {
+      scrollRestoredRef.current = true
+      requestAnimationFrame(() => {
+        getMain()?.scrollTo({ top: savedScrollTop })
+      })
+    }
+  }, [normalizedQuery, results.length, savedScrollTop])
 
   const rightSlot = (
     <span
@@ -40,9 +74,9 @@ export default function LibraryPage() {
     return (
       <div className="pb-24">
         <AppBar sticky title="Thư Viện" leftIcon={<AppLogo />} rightSlot={rightSlot}>
-          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
+          <LibrarySearchBar query={query} onQueryChange={handleSetQuery} onClear={handleClearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
           <div className="pb-2 pt-1">
-            <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
+            <SourceSelectorPill onSourceChange={() => { handleClearQuery(); setSearchEnabled(false) }} />
           </div>
         </AppBar>
         <div className="px-4">
@@ -80,9 +114,9 @@ export default function LibraryPage() {
     return (
       <div className="pb-24">
         <AppBar sticky title="Thư Viện" leftIcon={<AppLogo />} rightSlot={rightSlot}>
-          <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
+          <LibrarySearchBar query={query} onQueryChange={handleSetQuery} onClear={handleClearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
           <div className="pb-2 pt-1">
-            <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
+            <SourceSelectorPill onSourceChange={() => { handleClearQuery(); setSearchEnabled(false) }} />
           </div>
         </AppBar>
         <div className="px-4">
@@ -110,9 +144,9 @@ export default function LibraryPage() {
         leftIcon={<AppLogo />}
         rightSlot={rightSlot}
       >
-        <LibrarySearchBar query={query} onQueryChange={setQuery} onClear={clearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
+        <LibrarySearchBar query={query} onQueryChange={handleSetQuery} onClear={handleClearQuery} onFocus={() => setSearchEnabled(true)} placeholder={sourceConfig.searchPlaceholder} />
         <div className="pb-2 pt-1">
-          <SourceSelectorPill onSourceChange={() => { clearQuery(); setSearchEnabled(false) }} />
+          <SourceSelectorPill onSourceChange={() => { handleClearQuery(); setSearchEnabled(false) }} />
         </div>
       </AppBar>
 
