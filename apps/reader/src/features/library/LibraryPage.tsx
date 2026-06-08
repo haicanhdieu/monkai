@@ -32,6 +32,9 @@ export default function LibraryPage() {
     searchEnabled ? (catalogQuery.data?.books ?? []) : [],
     savedQuery,
   )
+  // Incremented on popstate (Back/Forward) to trigger the restore effect when
+  // React Router v7 keeps LibraryPage mounted and location.key never changes.
+  const [navCount, setNavCount] = useState(0)
 
   const handleSetQuery = (q: string) => {
     setQuery(q)
@@ -43,15 +46,37 @@ export default function LibraryPage() {
     clearNavState()
   }
 
-  // Save scroll position when navigating away
+  // Save scroll on link-click (pointerdown capture) before React Router v7's startTransition
+  // defers the commit. LibraryPage stays mounted during the transition so cleanup effects
+  // would fire too late (after the new route has already replaced <main> content).
   useEffect(() => {
-    return () => {
-      setSavedScrollTop(getMain()?.scrollTop ?? 0)
+    const main = getMain()
+    if (!main) return
+    const saveScroll = (e: PointerEvent) => {
+      if ((e.target as Element)?.closest('a[href]')) {
+        setSavedScrollTop(main.scrollTop)
+      }
     }
+    main.addEventListener('pointerdown', saveScroll, { capture: true, passive: true })
+    return () => main.removeEventListener('pointerdown', saveScroll, { capture: true })
   }, [setSavedScrollTop])
 
-  // Restore scroll once after results render
+  // Detect Back/Forward navigation. React Router v7 keeps LibraryPage mounted via
+  // startTransition, so location.key never updates inside this component.
+  // popstate fires for Back/Forward (not pushState), which is exactly the trigger we need.
   const scrollRestoredRef = useRef(false)
+  useEffect(() => {
+    const handlePopState = () => {
+      // Reset guard synchronously before the state update so the restore effect
+      // sees scrollRestoredRef.current = false when it fires on the next render.
+      scrollRestoredRef.current = false
+      setNavCount((n) => n + 1)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  // Restore scroll once per navigation — fires on mount and after each Back/Forward.
   useEffect(() => {
     if (savedScrollTop > 0 && normalizedQuery && results.length > 0 && !scrollRestoredRef.current) {
       scrollRestoredRef.current = true
@@ -59,7 +84,7 @@ export default function LibraryPage() {
         getMain()?.scrollTo({ top: savedScrollTop })
       })
     }
-  }, [normalizedQuery, results.length, savedScrollTop])
+  }, [normalizedQuery, results.length, savedScrollTop, navCount])
 
   const rightSlot = (
     <span
