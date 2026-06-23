@@ -107,4 +107,12 @@ test('auto bookmark survives refresh when leaving the reader immediately', async
   await page.goto('/bookmarks')
   await routeAll(page)
   await expect(page.getByTestId('bookmark-group')).toHaveCount(1, { timeout: 10000 })
+
+  // Opening the book from the bookmark group header must load the reader, not the
+  // "Không thể tải nội dung kinh này." error page. Regression: the header passed the
+  // book's data-source ('onedrive') instead of its bucket ('vnthuquan'), which the reader
+  // could not resolve.
+  await page.getByTestId('bookmark-group-header').click()
+  await expect(page.getByTestId('epub-container')).toBeVisible({ timeout: 30000 })
+  await expect(page.getByText('Không thể tải nội dung kinh này')).toHaveCount(0)
 })

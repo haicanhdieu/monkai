@@ -8,6 +8,7 @@ import { useBookmarksStore } from '@/stores/bookmarks.store'
 import { useCatalogIndex } from '@/shared/hooks/useCatalogIndex'
 import { BookCover } from '@/shared/components/BookCover'
 import { SOURCES } from '@/shared/constants/sources'
+import type { SourceId } from '@/shared/constants/sources'
 import { storageService } from '@/shared/services/storage.service'
 import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { BookmarkCard } from './BookmarkCard'
@@ -21,7 +22,15 @@ export default function BookmarksPage() {
 
   const bookMap = useMemo(() => {
     const map: Record<string, { coverImageUrl: string | null; source: string; id: string; title: string }> = {}
-    for (const catalog of [vbetaCatalog, vnthuquanCatalog]) {
+    // Pair each catalog with its bucket source id. The reader resolves books by bucket
+    // ('vbeta' | 'vnthuquan'), not by the book's underlying data-source. Onedrive books
+    // live in the vnthuquan bucket but carry source='onedrive'; passing that to the reader
+    // fails (getCatalog has no 'onedrive' bucket), so we record the bucket id here instead.
+    const buckets: Array<[SourceId, typeof vbetaCatalog]> = [
+      ['vbeta', vbetaCatalog],
+      ['vnthuquan', vnthuquanCatalog],
+    ]
+    for (const [bucketSource, catalog] of buckets) {
       if (!catalog) continue
       for (const book of catalog.books) {
         if (import.meta.env.DEV && map[book.id] !== undefined) {
@@ -29,7 +38,7 @@ export default function BookmarksPage() {
         }
         map[book.id] = {
           coverImageUrl: book.coverImageUrl,
-          source: book.source,
+          source: bucketSource,
           id: book.id,
           title: book.title,
         }
