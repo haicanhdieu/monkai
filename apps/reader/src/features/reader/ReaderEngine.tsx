@@ -225,8 +225,15 @@ export function ReaderEngine({
 
     return () => {
       if (bookmarkSaveTimeoutRef.current) {
+        // Flush the pending auto-bookmark write before tearing down. Without this, leaving
+        // the reader within the 300ms debounce window (common with fast-loading onedrive
+        // epubs) drops the auto bookmark — it never reaches storage, so it vanishes on refresh.
         clearTimeout(bookmarkSaveTimeoutRef.current)
         bookmarkSaveTimeoutRef.current = null
+        void storageService.setItem(
+          STORAGE_KEYS.BOOKMARKS,
+          useBookmarksStore.getState().bookmarks,
+        )
       }
       rendition.off('click', handleClick)
       rendition.off('keyup', handleKeyup)
