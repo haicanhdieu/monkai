@@ -9,9 +9,15 @@ import type { Bookmark } from '@/stores/bookmarks.store'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** Returns true for catalog UUIDs; false for legacy SEO-slug bookIds. */
+/**
+ * Returns true for ids the reader can resolve back to a catalog book:
+ * - catalog UUIDs (vbeta / vnthuquan books), and
+ * - onedrive ids of the form `onedrive:<source>:<slug>` (which use colons, not the
+ *   double-underscore SEO slugs the legacy filter was meant to reject).
+ * Legacy SEO-slug bookIds (e.g. `vbeta__bo-trung-quan`) remain rejected.
+ */
 function isValidBookId(id: string): boolean {
-  return UUID_RE.test(id)
+  return UUID_RE.test(id) || id.startsWith('onedrive:')
 }
 
 export function useStorageHydration() {

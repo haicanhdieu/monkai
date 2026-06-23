@@ -1,12 +1,14 @@
 /**
- * Regression: the auto last-read bookmark must survive a browser refresh even when the
+ * Regression: an onedrive epub's auto bookmark must survive a browser refresh even when the
  * reader is left immediately after opening (within the 300ms bookmark-save debounce).
  *
- * Bug: ReaderEngine cleanup cleared the pending debounce timer without flushing the write,
- * so fast-loading onedrive epubs lost their auto bookmark when the user backed out quickly.
- * Last-read (home card) survived because it is written synchronously, but the bookmark page
- * entry vanished after refresh. JSON books masked the bug because building their epub blob
- * delays the reader long enough for the debounce to fire before the user navigates.
+ * Two bugs combined to lose onedrive bookmarks on refresh:
+ *  1) ReaderEngine cleanup cleared the pending debounce timer without flushing the write,
+ *     so fast-loading onedrive epubs lost the auto bookmark when the user backed out quickly.
+ *  2) useStorageHydration's isValidBookId accepted only UUIDs, so onedrive ids of the form
+ *     `onedrive:<source>:<slug>` were written but discarded on hydration after refresh.
+ * JSON/vbeta books masked both: they use UUID ids and their epub-blob build delays the reader
+ * long enough for the debounce to fire before the user navigates.
  *
  * Run:
  *   npx playwright test e2e/epub-bookmark-persist-debug.spec.ts --reporter=line --project=mobile-chrome
@@ -19,7 +21,10 @@ import { dirname, resolve } from 'node:path'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const EPUB_BYTES = readFileSync(resolve(__dirname, '../../onedrive-sync/tests/fixtures/sample.epub'))
 
-const BOOK_ID = '93804ab0-2015-43a3-8a52-cd7e9ba8f935'
+// Real onedrive id shape: `onedrive:<source>:<slug>` (colons, not a UUID). The hydration
+// filter previously accepted only UUIDs and dropped these, so onedrive bookmarks/last-read
+// were written but discarded on refresh.
+const BOOK_ID = 'onedrive:nhasachmienphi:thuyet-tuong-doi-cho-moi-nguoi'
 
 const ONEDRIVE_INDEX = {
   books: [
