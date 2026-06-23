@@ -24,6 +24,7 @@ beforeEach(() => {
 
 const UUID_BOOK_ID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 const SEO_SLUG_BOOK_ID = 'vbeta__bo-trung-quan'
+const ONEDRIVE_BOOK_ID = 'onedrive:nhasachmienphi:thuyet-tuong-doi-cho-moi-nguoi'
 const SAMPLE_CFI = 'epubcfi(/6/4[chap01]!/4/2/1:0)'
 
 describe('useStorageHydration', () => {
@@ -115,6 +116,37 @@ describe('useStorageHydration', () => {
     await vi.waitFor(() => {
       expect(useBookmarksStore.getState().bookmarks).toHaveLength(1)
       expect(useBookmarksStore.getState().bookmarks[0].bookId).toBe(UUID_BOOK_ID)
+    })
+    unmount()
+  })
+
+  it('hydrates onedrive bookmarks (onedrive:source:slug ids)', async () => {
+    const bookmarks = [
+      { bookId: ONEDRIVE_BOOK_ID, bookTitle: 'Onedrive Book', cfi: SAMPLE_CFI, timestamp: 1000, type: 'auto' },
+    ]
+    mockStorageService.getItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(bookmarks)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useBookmarksStore.getState().bookmarks).toHaveLength(1)
+      expect(useBookmarksStore.getState().bookmarks[0].bookId).toBe(ONEDRIVE_BOOK_ID)
+    })
+    unmount()
+  })
+
+  it('hydrates LAST_READ_POSITION with an onedrive bookId', async () => {
+    const lastRead = { bookId: ONEDRIVE_BOOK_ID, cfi: SAMPLE_CFI }
+    mockStorageService.getItem
+      .mockResolvedValueOnce(lastRead)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useReaderStore.getState().lastReadBookId).toBe(ONEDRIVE_BOOK_ID)
     })
     unmount()
   })
