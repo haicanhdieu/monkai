@@ -8,17 +8,24 @@ import { useBookmarksStore } from '@/stores/bookmarks.store'
 vi.mock('@/shared/services/storage.service', () => ({
   storageService: {
     getItem: vi.fn(),
+    setItem: vi.fn().mockResolvedValue(undefined),
   },
 }))
 
 import { storageService } from '@/shared/services/storage.service'
+import { useBookmarkCollapseStore } from '@/stores/bookmarkCollapse.store'
+import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 
-const mockStorageService = storageService as unknown as { getItem: ReturnType<typeof vi.fn> }
+const mockStorageService = storageService as unknown as {
+  getItem: ReturnType<typeof vi.fn>
+  setItem: ReturnType<typeof vi.fn>
+}
 
 beforeEach(() => {
   useReaderStore.setState({ currentCfi: null })
   useSettingsStore.setState({ fontSize: 18, theme: 'sepia' })
   useBookmarksStore.setState({ bookmarks: [] })
+  useBookmarkCollapseStore.setState({ expandedBookIds: [] })
   vi.clearAllMocks()
 })
 
@@ -62,7 +69,7 @@ describe('useStorageHydration', () => {
 
     const { unmount } = renderHook(() => useStorageHydration())
     await vi.waitFor(() => {
-      expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
+      expect(mockStorageService.getItem).toHaveBeenCalledTimes(4)
     })
 
     expect(setCurrentCfiSpy).not.toHaveBeenCalled()
@@ -81,7 +88,7 @@ describe('useStorageHydration', () => {
 
     const { unmount } = renderHook(() => useStorageHydration())
     await vi.waitFor(() => {
-      expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
+      expect(mockStorageService.getItem).toHaveBeenCalledTimes(4)
     })
     expect(useReaderStore.getState().currentCfi).toBeNull()
     unmount()
@@ -96,7 +103,7 @@ describe('useStorageHydration', () => {
 
     const { unmount } = renderHook(() => useStorageHydration())
     await vi.waitFor(() => {
-      expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
+      expect(mockStorageService.getItem).toHaveBeenCalledTimes(4)
     })
     expect(useReaderStore.getState().currentCfi).toBeNull()
     unmount()
@@ -228,10 +235,70 @@ describe('useStorageHydration', () => {
 
     const { unmount } = renderHook(() => useStorageHydration())
     await vi.waitFor(() => {
-      expect(mockStorageService.getItem).toHaveBeenCalledTimes(3)
+      expect(mockStorageService.getItem).toHaveBeenCalledTimes(4)
     })
     expect(hydrateBookmarksSpy).not.toHaveBeenCalled()
     expect(useBookmarksStore.getState().bookmarks).toHaveLength(0)
+    unmount()
+  })
+
+  it('prunes orphan ids from the persisted collapse set and writes the pruned set back', async () => {
+    const bookmarks = [
+      { bookId: UUID_BOOK_ID, bookTitle: 'Valid', cfi: SAMPLE_CFI, timestamp: 1000 },
+    ]
+    // Persisted expanded-set references a book whose bookmarks were all deleted.
+    const savedCollapse = [UUID_BOOK_ID, 'stale-orphan-id']
+    mockStorageService.getItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(bookmarks)
+      .mockResolvedValueOnce(savedCollapse)
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useBookmarkCollapseStore.getState().expandedBookIds).toEqual([UUID_BOOK_ID])
+    })
+    expect(mockStorageService.setItem).toHaveBeenCalledWith(
+      STORAGE_KEYS.BOOKMARK_GROUP_STATE,
+      [UUID_BOOK_ID],
+    )
+    unmount()
+  })
+
+  it('does not write the collapse set back when nothing was pruned', async () => {
+    const bookmarks = [
+      { bookId: UUID_BOOK_ID, bookTitle: 'Valid', cfi: SAMPLE_CFI, timestamp: 1000 },
+    ]
+    mockStorageService.getItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(bookmarks)
+      .mockResolvedValueOnce([UUID_BOOK_ID])
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useBookmarkCollapseStore.getState().expandedBookIds).toEqual([UUID_BOOK_ID])
+    })
+    expect(mockStorageService.setItem).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('ignores a corrupted non-array collapse value without aborting bookmark hydration', async () => {
+    const bookmarks = [
+      { bookId: UUID_BOOK_ID, bookTitle: 'Valid', cfi: SAMPLE_CFI, timestamp: 1000 },
+    ]
+    mockStorageService.getItem
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(bookmarks)
+      // Corrupted shape — must not throw through Promise.all's .catch.
+      .mockResolvedValueOnce({ not: 'an array' })
+
+    const { unmount } = renderHook(() => useStorageHydration())
+    await vi.waitFor(() => {
+      expect(useBookmarksStore.getState().bookmarks).toHaveLength(1)
+    })
+    expect(useBookmarkCollapseStore.getState().expandedBookIds).toEqual([])
     unmount()
   })
 })

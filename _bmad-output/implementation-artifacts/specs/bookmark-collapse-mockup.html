@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmark Collapse — Mockup</title>
+<style>
+  :root{
+    --color-bg:#f4efe6; --color-surface:#fffdf8; --color-border:#e4dccd;
+    --color-text:#2b2620; --color-text-muted:#8a8275; --color-accent:#9a6a3a;
+    --color-on-error:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#cfc6b5;font-family:'Inter',system-ui,sans-serif;color:var(--color-text);
+    padding:24px;display:flex;gap:32px;flex-wrap:wrap;justify-content:center}
+  .phone{width:390px;background:var(--color-bg);border-radius:32px;overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,.25);border:8px solid #1c1a17}
+  .caption{text-align:center;font-size:13px;color:#3a352d;margin-bottom:10px;font-weight:600}
+  .col{display:flex;flex-direction:column;align-items:center}
+  /* app bar */
+  .appbar{position:sticky;top:0;background:var(--color-bg);display:flex;align-items:center;
+    justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--color-border)}
+  .appbar h1{font-family:'Lora',Georgia,serif;font-size:20px;font-weight:700}
+  .logo{width:30px;height:30px;border-radius:8px;background:var(--color-accent);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px}
+  .avatar{width:32px;height:32px;border-radius:50%;border:1px solid var(--color-border);
+    display:flex;align-items:center;justify-content:center;color:var(--color-accent)}
+  .body{padding:16px 20px 96px}
+  /* search */
+  .search{display:flex;align-items:center;gap:8px;background:var(--color-surface);
+    border:1px solid var(--color-border);border-radius:999px;padding:10px 16px;margin-bottom:16px}
+  .search input{border:0;background:transparent;outline:0;font-size:14px;flex:1;color:var(--color-text)}
+  .search svg{color:var(--color-text-muted)}
+  /* group card */
+  .group{background:var(--color-surface);border:1px solid var(--color-border);
+    border-radius:16px;overflow:hidden;margin-bottom:14px}
+  .ghead{display:flex;align-items:center;gap:12px;padding:12px}
+  .cover{width:54px;height:70px;border-radius:6px;flex-shrink:0;overflow:hidden;
+    display:flex;align-items:flex-end;color:#fff;font-family:'Lora',serif;font-size:11px;
+    padding:6px;line-height:1.2;font-weight:600}
+  .c1{background:linear-gradient(150deg,#6b4f8a,#3c2c52)}
+  .c2{background:linear-gradient(150deg,#3a6b5a,#1f3c30)}
+  .c3{background:linear-gradient(150deg,#8a5a3a,#52311f)}
+  .ginfo{flex:1;min-width:0}
+  .gtitle{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{display:inline-block;margin-top:5px;font-size:11px;font-weight:600;padding:2px 9px;
+    border-radius:999px;background:#eadfce;color:#7a5a2a}
+  .badge.src2{background:#dceae2;color:#2a6a4a}
+  /* last-read summary line (visible when collapsed) */
+  .summary{font-size:12.5px;color:var(--color-text-muted);margin-top:6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .summary b{color:var(--color-accent);font-weight:600}
+  /* count + chevron control */
+  .gctl{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+  .count{font-size:12px;font-weight:700;color:var(--color-text-muted);
+    background:var(--color-bg);border-radius:999px;padding:2px 8px;min-width:24px;text-align:center}
+  .chev{width:44px;height:44px;border:0;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);
+    border-radius:50%}
+  .chev:hover{background:var(--color-bg)}
+  .chev svg{transition:transform .18s ease}
+  .open .chev svg{transform:rotate(90deg)}
+  /* item list */
+  .items{border-top:1px solid var(--color-border)}
+  .item{display:flex;align-items:center;gap:10px;padding:12px 14px;
+    border-bottom:1px solid var(--color-border)}
+  .item:last-child{border-bottom:0}
+  .item .dot{width:8px;height:8px;border-radius:50%;background:var(--color-accent);flex-shrink:0}
+  .item .dot.auto{background:transparent;border:2px solid var(--color-accent)}
+  .item .meta{flex:1;min-width:0}
+  .item .ch{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .sub{font-size:11.5px;color:var(--color-text-muted);margin-top:2px}
+  .item .del{color:#b25a4a;width:30px;height:30px;border:0;background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0}
+  .item .del:hover{background:#f6e7e3}
+  .hl{background:#f7e9b8;border-radius:3px;padding:0 2px}
+  /* bottom nav */
+  .nav{position:sticky;bottom:0;display:flex;background:var(--color-surface);
+    border-top:1px solid var(--color-border)}
+  .nav a{flex:1;text-align:center;padding:10px 0;font-size:11px;color:var(--color-text-muted);
+    display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none}
+  .nav a.on{color:var(--color-accent);font-weight:700}
+  .note{font-size:11px;color:#5a5346;max-width:360px;margin-top:8px;text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+
+<!-- ============ STATE A: default (all collapsed) ============ -->
+<div class="col">
+  <div class="caption">A · Default — collapsed (durable, restored on revisit)</div>
+  <div class="phone">
+    <div class="appbar">
+      <div class="logo">心</div><h1>Đánh Dấu</h1>
+      <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+    </div>
+    <div class="body">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input placeholder="Tìm trong dấu trang…" />
+      </div>
+
+      <!-- collapsed group 1 -->
+      <div class="group">
+        <div class="ghead">
+          <div class="cover c1">Kinh Pháp Cú</div>
+          <div class="ginfo">
+            <div class="gtitle">Kinh Pháp Cú</div>
+            <span class="badge">Sách Truyện</span>
+            <div class="summary">Đang đọc: <b>Phẩm Song Yếu</b> · 11 dấu khác</div>
+          </div>
+          <div class="gctl">
+            <span class="count">12</span>
+            <button class="chev" aria-expanded="false" aria-label="Mở rộng">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- collapsed group 2 -->
+      <div class="group">
+        <div class="ghead">
+          <div class="cover c2">Đường Xưa Mây Trắng</div>
+          <div class="ginfo">
+            <div class="gtitle">Đường Xưa Mây Trắng</div>
+            <span class="badge src2">vnthuquan</span>
+            <div class="summary">Đang đọc: <b>Chương 34</b> · 6 dấu khác</div>
+          </div>
+          <div class="gctl">
+            <span class="count">7</span>
+            <button class="chev" aria-expanded="false" aria-label="Mở rộng">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- collapsed group 3 -->
+      <div class="group">
+        <div class="ghead">
+          <div class="cover c3">Câu Chuyện Dòng Sông</div>
+          <div class="ginfo">
+            <div class="gtitle">Câu Chuyện Dòng Sông</div>
+            <span class="badge">Sách Truyện</span>
+            <div class="summary">Đang đọc: <b>Phần II</b> · 2 dấu khác</div>
+          </div>
+          <div class="gctl">
+            <span class="count">3</span>
+            <button class="chev" aria-expanded="false" aria-label="Mở rộng">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Trang chủ</a>
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z M9 5v14"/></svg>Thư viện</a>
+      <a href="#" class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Đánh dấu</a>
+    </div>
+  </div>
+  <div class="note">All groups collapsed by default. Count badge + "Đang đọc" last-read line keep info scent. Chevron is the only toggle (44px); cover/title still opens the book.</div>
+</div>
+
+<!-- ============ STATE B: one group expanded ============ -->
+<div class="col">
+  <div class="caption">B · One group expanded (user-toggled, remembered)</div>
+  <div class="phone">
+    <div class="appbar">
+      <div class="logo">心</div><h1>Đánh Dấu</h1>
+      <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+    </div>
+    <div class="body">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input placeholder="Tìm trong dấu trang…" />
+      </div>
+
+      <!-- expanded group 1 -->
+      <div class="group open">
+        <div class="ghead">
+          <div class="cover c1">Kinh Pháp Cú</div>
+          <div class="ginfo">
+            <div class="gtitle">Kinh Pháp Cú</div>
+            <span class="badge">Sách Truyện</span>
+          </div>
+          <div class="gctl">
+            <span class="count">12</span>
+            <button class="chev" aria-expanded="true" aria-label="Thu gọn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item">
+            <span class="dot auto"></span>
+            <div class="meta"><div class="ch">Phẩm Song Yếu</div><div class="sub">Tự động · trang 24/210 · hôm nay</div></div>
+            <button class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+          <div class="item">
+            <span class="dot"></span>
+            <div class="meta"><div class="ch">Phẩm Không Phóng Dật</div><div class="sub">Thủ công · trang 41 · hôm qua</div></div>
+            <button class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+          <div class="item">
+            <span class="dot"></span>
+            <div class="meta"><div class="ch">Phẩm Hoa</div><div class="sub">Thủ công · trang 58 · 3 ngày trước</div></div>
+            <button class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+          <div class="item">
+            <span class="dot"></span>
+            <div class="meta"><div class="ch">Phẩm Ngu</div><div class="sub">Thủ công · trang 72 · 1 tuần trước</div></div>
+            <button class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- collapsed group 2 -->
+      <div class="group">
+        <div class="ghead">
+          <div class="cover c2">Đường Xưa Mây Trắng</div>
+          <div class="ginfo">
+            <div class="gtitle">Đường Xưa Mây Trắng</div>
+            <span class="badge src2">vnthuquan</span>
+            <div class="summary">Đang đọc: <b>Chương 34</b> · 6 dấu khác</div>
+          </div>
+          <div class="gctl">
+            <span class="count">7</span>
+            <button class="chev" aria-expanded="false" aria-label="Mở rộng">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Trang chủ</a>
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z M9 5v14"/></svg>Thư viện</a>
+      <a href="#" class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Đánh dấu</a>
+    </div>
+  </div>
+  <div class="note">Expanded: summary line hides, item list shows. Auto last-read = hollow dot; manual = filled dot. Chevron rotated 90°. State persists durably per book.</div>
+</div>
+
+<!-- ============ STATE C: search active ============ -->
+<div class="col">
+  <div class="caption">C · Search active — matches force-expand (not persisted)</div>
+  <div class="phone">
+    <div class="appbar">
+      <div class="logo">心</div><h1>Đánh Dấu</h1>
+      <div class="avatar"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+    </div>
+    <div class="body">
+      <div class="search" style="border-color:var(--color-accent)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input value="hoa" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </div>
+
+      <!-- group force-expanded by match, even though saved state = collapsed -->
+      <div class="group open">
+        <div class="ghead">
+          <div class="cover c1">Kinh Pháp Cú</div>
+          <div class="ginfo">
+            <div class="gtitle">Kinh Pháp Cú</div>
+            <span class="badge">Sách Truyện</span>
+          </div>
+          <div class="gctl">
+            <span class="count">1/12</span>
+            <button class="chev" aria-expanded="true" aria-label="Thu gọn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="items">
+          <div class="item">
+            <span class="dot"></span>
+            <div class="meta"><div class="ch">Phẩm <span class="hl">Hoa</span></div><div class="sub">Thủ công · trang 58 · 3 ngày trước</div></div>
+            <button class="del"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nav">
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>Trang chủ</a>
+      <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z M9 5v14"/></svg>Thư viện</a>
+      <a href="#" class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Đánh dấu</a>
+    </div>
+  </div>
+  <div class="note">Query active overrides saved collapse: matching groups force-expand, badge shows matches/total (1/12), term highlighted. Clearing search restores each group's remembered state — search expansion is never persisted.</div>
+</div>
+
+</body>
+</html>
