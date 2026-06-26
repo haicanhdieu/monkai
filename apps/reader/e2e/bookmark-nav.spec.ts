@@ -1,10 +1,12 @@
 /**
- * Debug/regression test: investigate the bookmark navigation bug.
+ * Regression: a bookmark must open the reader at the bookmarked page.
  *
- * Bug: bookmark shows "Trang 8 / 11" but reader opens at "Trang 4 / 11"
+ * Original bug: a bookmark showed "Trang 8 / 11" but tapping it opened the reader at
+ * "Trang 4 / 11". These tests drive the real page → CFI → resume path and assert the
+ * reader lands on the same page the bookmark advertised.
  *
  * Run:
- *   PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npx playwright test e2e/bookmark-nav-debug.spec.ts --reporter=line --project=mobile-chrome
+ *   PLAYWRIGHT_TEST_BASE_URL=http://localhost:5173 npx playwright test e2e/bookmark-nav.spec.ts --reporter=line --project=mobile-chrome
  */
 
 import { test, expect } from '@playwright/test'
@@ -153,14 +155,6 @@ test.describe('Bookmark navigation round-trip', () => {
    *   B) Manual bookmark card (bookmark.cfi at page 6) → reader shows page 6
    */
   test('auto bookmark vs manual bookmark navigation', async ({ page }) => {
-    const consoleLogs: string[] = []
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' || msg.text().startsWith('[')) {
-        consoleLogs.push(`[browser ${msg.type()}] ${msg.text()}`)
-      }
-    })
-    page.on('pageerror', (err) => consoleLogs.push(`[pageerror] ${err.message}`))
-
     await routeBookData(page)
     await page.goto(`/read/${BOOK_ID}`)
 
@@ -170,7 +164,6 @@ test.describe('Bookmark navigation round-trip', () => {
     const initialText = await liveRegion.textContent()
     const totalMatch = initialText?.match(/\/\s*(\d+)/)
     const totalPages = totalMatch ? parseInt(totalMatch[1]) : 0
-    console.log('[S1] Total pages:', totalPages)
     expect(totalPages).toBeGreaterThanOrEqual(5)
 
     const tapNext = page.getByTestId('tap-next')
@@ -188,7 +181,6 @@ test.describe('Bookmark navigation round-trip', () => {
     const stateAtManualPage = await readLocalforage(page)
     const manualLastRead = stateAtManualPage['last_read_position'] as { cfi?: string; page?: number } | null
     const manualCfi = manualLastRead?.cfi!
-    console.log(`[S2] At page ${manualPage}, CFI:`, manualCfi)
     expect(manualCfi).toBeTruthy()
 
     // Navigate BACK 3 pages (simulating user going back, updating the auto bookmark)
@@ -204,7 +196,6 @@ test.describe('Bookmark navigation round-trip', () => {
     const stateAtAutoPage = await readLocalforage(page)
     const autoLastRead = stateAtAutoPage['last_read_position'] as { cfi?: string; page?: number } | null
     const autoCfi = autoLastRead?.cfi!
-    console.log(`[S3] Went back to page ${autoPage}, auto CFI:`, autoCfi)
     expect(autoCfi).toBeTruthy()
     expect(autoLastRead?.page).toBe(autoPage)
 
@@ -222,18 +213,13 @@ test.describe('Bookmark navigation round-trip', () => {
       },
     ]
     await writeLocalforage(page, 'bookmarks', bookmarks)
-    console.log('[S4] Wrote bookmarks: auto(page', autoPage, ') manual(page', manualPage, ')')
 
-    // — PART A: Group header should open at autoPage (auto bookmark = last read) —
+    // — PART A: Group header opens at the most-recent bookmark (manual, page manualPage) —
     await page.goto('/')
     await routeBookData(page)
     await page.goto('/bookmarks')
     await routeBookData(page)
     await page.waitForTimeout(1500)
-
-    const allCards = await page.getByTestId('bookmark-card').all()
-    console.log('[S5A] Bookmark cards:', allCards.length)
-    for (const c of allCards) console.log('  Card:', (await c.textContent())?.trim())
 
     const groupHeader = page.getByTestId('bookmark-group-header')
     await expect(groupHeader).toBeVisible({ timeout: 5000 })
@@ -245,12 +231,11 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.waitForTimeout(3000)
 
     const finalTextA = await readerLiveA.textContent()
-    console.log('[S5A] Group header → reader shows:', finalTextA)
     // Group header uses headerBookmark = most recently updated bookmark by timestamp.
     // Manual (timestamp=now) is newer than auto (timestamp=now-1s), so header opens at manualPage.
     expect(finalTextA).toContain(`Trang ${manualPage}`)
 
-    // — PART B: Bookmark card click should open at manualPage —
+    // — PART B: Manual bookmark card click should open at manualPage —
     await page.goto('/')
     await routeBookData(page)
     await page.goto('/bookmarks')
@@ -261,20 +246,9 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.getByTestId('bookmark-group-toggle').first().click()
     await expect(page.getByTestId('bookmark-card').first()).toBeVisible({ timeout: 5000 })
 
-    // Click the MANUAL bookmark card via element.click() to avoid swipe-handler interference
-    // element.click() dispatches a trusted click without pointer events (didSwipeRef stays false)
-    const cardLinkHref = await page.evaluate(() => {
-      const manualCard = [...document.querySelectorAll('[data-testid="bookmark-card"]')]
-        .find(el => el.textContent?.includes('🔖') || el.querySelector('path[fill]'))
-      const link = (manualCard ?? document.querySelector('[data-testid="bookmark-card"]'))?.querySelector('a')
-      return link?.getAttribute('href') ?? null
-    })
-    console.log('[S5B] Manual bookmark card link href:', cardLinkHref)
-
-    // Navigate to the reader with the manual bookmark's CFI via the Link's state
-    // We use page.evaluate to call link.click() (no pointer events → didSwipeRef stays false)
+    // Click the manual bookmark card via element.click() (no pointer events → the swipe-to-delete
+    // handler's didSwipeRef stays false, unlike Playwright's synthetic mouse events).
     const navigated = await page.evaluate(({ manualPageNum, totalPagesNum }: { manualPageNum: number; totalPagesNum: number }) => {
-      // Find the bookmark card showing the manual page number
       const allCards = document.querySelectorAll('[data-testid="bookmark-card"]')
       for (const card of allCards) {
         const text = card.textContent ?? ''
@@ -288,7 +262,7 @@ test.describe('Bookmark navigation round-trip', () => {
       }
       return false
     }, { manualPageNum: manualPage, totalPagesNum: totalPages })
-    console.log('[S5B] Navigated from manual bookmark card:', navigated)
+    expect(navigated).toBe(true)
 
     await routeBookData(page)
     await expect(page.getByTestId('epub-container')).toBeVisible({ timeout: 25000 })
@@ -297,26 +271,11 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.waitForTimeout(3000)
 
     const finalTextB = await readerLiveB.textContent()
-    console.log('[S5B] Manual bookmark card → reader shows:', finalTextB)
-
-    if (consoleLogs.length > 0) {
-      console.log('[S5B] Browser console:', consoleLogs.slice(-10).join('\n'))
-    }
-
     // THE KEY ASSERTION: clicking the manual bookmark card should open at manualPage
     expect(finalTextB).toContain(`Trang ${manualPage}`)
   })
 
   test('opening reader from a bookmark shows the bookmarked page', async ({ page }) => {
-    // Capture browser console for debugging
-    const consoleLogs: string[] = []
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' || msg.text().includes('[')) {
-        consoleLogs.push(`[browser ${msg.type()}] ${msg.text()}`)
-      }
-    })
-    page.on('pageerror', (err) => consoleLogs.push(`[pageerror] ${err.message}`))
-
     await routeBookData(page)
     await page.goto(`/read/${BOOK_ID}`)
 
@@ -325,12 +284,10 @@ test.describe('Bookmark navigation round-trip', () => {
     await expect(liveRegion).not.toBeEmpty({ timeout: 25000 })
 
     const initialText = await liveRegion.textContent()
-    console.log('[T1] Initial location:', initialText)
     expect(initialText).toMatch(/Trang 1 \//i)
 
     const totalMatch = initialText?.match(/\/\s*(\d+)/)
     const totalPages = totalMatch ? parseInt(totalMatch[1]) : 0
-    console.log('[T1] Total pages in chapter:', totalPages)
     expect(totalPages).toBeGreaterThanOrEqual(5)
 
     // Navigate to a mid-chapter page (roughly 60%, max page 8)
@@ -343,57 +300,12 @@ test.describe('Bookmark navigation round-trip', () => {
     }
 
     await expect(liveRegion).toContainText(`Trang ${targetPage}`, { timeout: 8000 })
-    const pageAtBookmark = (await liveRegion.textContent()) ?? ''
-    console.log(`[T2] At page ${targetPage}:`, pageAtBookmark)
 
-    // Dump console logs so far
-    if (consoleLogs.length > 0) {
-      console.log('[T2] Browser console logs:', consoleLogs.join('\n'))
-    }
-
-    // Wait for LAST_READ_POSITION to be written to localforage (written synchronously in relocated handler)
+    // Wait for LAST_READ_POSITION to be written to localforage (written in the relocated handler)
     await page.waitForTimeout(1000)
-
-    // Debug: list all IndexedDB databases
-    const dbList = await page.evaluate(async () => {
-      try {
-        const dbs = await indexedDB.databases()
-        const result: Record<string, unknown> = { dbList: dbs.map(d => ({ name: d.name, version: d.version })) }
-        // Try opening the localforage db
-        const openResult = await new Promise<Record<string, unknown>>((res) => {
-          const req = indexedDB.open('localforage')
-          req.onsuccess = e => {
-            const db = (e.target as IDBOpenDBRequest).result
-            const storeInfo: Record<string, unknown> = {}
-            const storeNames = [...db.objectStoreNames]
-            let pending = storeNames.length
-            if (pending === 0) { db.close(); res({ version: db.version, stores: storeNames, storeInfo }); return }
-            for (const sn of storeNames) {
-              const tx = db.transaction(sn, 'readonly')
-              const store = tx.objectStore(sn)
-              const kr = store.getAllKeys()
-              kr.onsuccess = () => {
-                storeInfo[sn] = kr.result
-                if (--pending === 0) { db.close(); res({ version: db.version, stores: storeNames, storeInfo }) }
-              }
-              kr.onerror = () => { storeInfo[sn] = 'error'; if (--pending === 0) { db.close(); res({ version: db.version, stores: storeNames, storeInfo }) } }
-            }
-          }
-          req.onerror = e => res({ error: String((e.target as IDBOpenDBRequest).error) })
-          req.onblocked = () => res({ blocked: true })
-        })
-        result['openResult'] = openResult
-        return result
-      } catch(e) {
-        return { caught: String(e) }
-      }
-    })
-    console.log('[T2] IndexedDB diagnostic:', JSON.stringify(dbList, null, 2))
 
     // Read the CFI from LAST_READ_POSITION to construct the bookmark
     const stateBeforeSave = await readLocalforage(page)
-    console.log('[T2] All localforage keys:', Object.keys(stateBeforeSave))
-    console.log('[T2] LAST_READ_POSITION:', JSON.stringify(stateBeforeSave['last_read_position']))
     const lastRead = stateBeforeSave['last_read_position'] as {
       bookId?: string; cfi?: string; page?: number; total?: number; chapterTitle?: string
     } | null
@@ -417,11 +329,6 @@ test.describe('Bookmark navigation round-trip', () => {
       chapterTitle: lastRead?.chapterTitle ?? 'Lời nói đầu',
     }]
     await writeLocalforage(page, 'bookmarks', manualBookmark)
-    console.log('[T3] Wrote manual bookmark to localforage at CFI:', bookmarkCfi, 'page:', bookmarkPage)
-
-    // Verify it was written
-    const stateAfterSave = await readLocalforage(page)
-    console.log('[T3] bookmarks in storage:', JSON.stringify(stateAfterSave['bookmarks'], null, 2))
 
     // Navigate away (go to home page, simulating user leaving the reader)
     await page.goto('/')
@@ -437,25 +344,11 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.getByTestId('bookmark-group-toggle').first().click()
     await expect(page.getByTestId('bookmark-card').first()).toBeVisible({ timeout: 5000 })
 
-    // Verify bookmark card shows our target page
-    const allCards = await page.getByTestId('bookmark-card').all()
-    console.log('[T4] Number of bookmark cards:', allCards.length)
-
-    for (const c of allCards) {
-      console.log('[T4] Card:', (await c.textContent())?.trim())
-    }
-
-    // Find the bookmark card with matching page text
+    // The bookmark card with our target page must be present.
     const bmCard = page.getByTestId('bookmark-card')
       .filter({ hasText: new RegExp(`Trang ${targetPage}\\s*/`) })
       .first()
     await expect(bmCard).toBeVisible({ timeout: 5000 })
-    const cardText = await bmCard.textContent()
-    console.log('[T4] Bookmark card text:', cardText?.trim())
-
-    // Get the link href for logging
-    const linkHref = await bmCard.locator('a').getAttribute('href')
-    console.log('[T4] Link href:', linkHref)
 
     // Click the bookmark-group-header Link to navigate with CFI in route state.
     // This is the ACTUAL bug path: the header Link passes state:{cfi} so the reader
@@ -465,7 +358,6 @@ test.describe('Bookmark navigation round-trip', () => {
     const groupHeader = page.getByTestId('bookmark-group-header')
     await expect(groupHeader).toBeVisible({ timeout: 3000 })
     await groupHeader.click()
-    console.log('[T4] URL after group-header click:', page.url())
     await routeBookData(page)
 
     // Wait for reader to fully load and navigate to bookmark position
@@ -478,13 +370,6 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.waitForTimeout(3000)
 
     const finalText = await readerLive.textContent()
-    console.log('[T5] Reader shows after bookmark click:', finalText)
-
-    // Dump localforage state after opening from bookmark
-    const stateAfterOpen = await readLocalforage(page)
-    console.log('[T5] bookmarks after open:', JSON.stringify(stateAfterOpen['bookmarks'], null, 2))
-    console.log('[T5] last_read_position after open:', JSON.stringify(stateAfterOpen['last_read_position'], null, 2))
-
     // THE KEY ASSERTION: reader should show the SAME page as the bookmark
     expect(finalText).toContain(`Trang ${targetPage}`)
   })
