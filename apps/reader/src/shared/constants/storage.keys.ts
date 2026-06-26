@@ -3,6 +3,9 @@ export const STORAGE_KEYS = {
   LAST_READ_POSITION: 'last_read_position',
   USER_SETTINGS: 'user_settings',
   BOOKMARKS: 'bookmarks',
+  /** Value shape: string[] — bookIds the user has expanded on the Bookmarks page.
+   * Deviation-from-default: default is collapsed, so presence = expanded, absence = collapsed. */
+  BOOKMARK_GROUP_STATE: 'bookmark_group_state',
 } as const
 
 /** Prefix for cached EPUB blobs (JSON books converted in-memory). Key: epubBlobKey(bookId)

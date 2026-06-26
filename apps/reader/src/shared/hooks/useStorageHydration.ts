@@ -4,6 +4,7 @@ import { STORAGE_KEYS } from '@/shared/constants/storage.keys'
 import { useReaderStore } from '@/stores/reader.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { useBookmarkCollapseStore } from '@/stores/bookmarkCollapse.store'
 import type { UserSettings } from '@/stores/settings.store'
 import type { Bookmark } from '@/stores/bookmarks.store'
 
@@ -35,8 +36,9 @@ export function useStorageHydration() {
       }>(STORAGE_KEYS.LAST_READ_POSITION),
       storageService.getItem<UserSettings>(STORAGE_KEYS.USER_SETTINGS),
       storageService.getItem<Bookmark[]>(STORAGE_KEYS.BOOKMARKS),
+      storageService.getItem<string[]>(STORAGE_KEYS.BOOKMARK_GROUP_STATE),
     ])
-      .then(([lastRead, settings, bookmarks]) => {
+      .then(([lastRead, settings, bookmarks, collapseState]) => {
         // Only hydrate if the stored value has a cfi field (new CFI-based shape).
         // Items with the old page-based shape (no cfi field) are gracefully ignored.
         if (lastRead && lastRead.cfi && lastRead.bookId && isValidBookId(lastRead.bookId)) {
@@ -55,16 +57,26 @@ export function useStorageHydration() {
           )
         }
         if (settings) useSettingsStore.getState().hydrate(settings)
-        if (bookmarks) {
-          const validBookmarks = bookmarks
-            .filter((b) => isValidBookId(b.bookId) && typeof b.cfi === 'string')
-            .map((b) => ({
-              ...b,
-              type: (b as { type?: string }).type === 'manual' ? 'manual' : 'auto',
-            } as Bookmark))
-          if (validBookmarks.length > 0) {
-            useBookmarksStore.getState().hydrate(validBookmarks)
-          }
+        const validBookmarks = (bookmarks ?? [])
+          .filter((b) => isValidBookId(b.bookId) && typeof b.cfi === 'string')
+          .map((b) => ({
+            ...b,
+            type: (b as { type?: string }).type === 'manual' ? 'manual' : 'auto',
+          } as Bookmark))
+        if (validBookmarks.length > 0) {
+          useBookmarksStore.getState().hydrate(validBookmarks)
+        }
+        // Reconcile persisted expanded-set against live bookIds (prune orphans whose
+        // bookmarks were all deleted), hydrate the collapse store, and write back if changed.
+        // Runs in the same Promise.all as bookmarks so groups never flash the wrong state.
+        // Guard against a corrupted/legacy non-array value (mirrors the defensive bookmark
+        // filtering above) — a bad shape must not throw and abort the whole hydration.
+        const savedExpanded = Array.isArray(collapseState) ? collapseState : []
+        const liveIds = new Set(validBookmarks.map((b) => b.bookId))
+        const pruned = savedExpanded.filter((id) => liveIds.has(id))
+        useBookmarkCollapseStore.getState().hydrate(pruned)
+        if (pruned.length !== savedExpanded.length) {
+          void storageService.setItem(STORAGE_KEYS.BOOKMARK_GROUP_STATE, pruned)
         }
       })
       .catch((err) => {

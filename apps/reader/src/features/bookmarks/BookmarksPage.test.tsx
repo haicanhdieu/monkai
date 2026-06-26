@@ -5,8 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import BookmarksPage from '@/features/bookmarks/BookmarksPage'
 import { useBookmarksStore } from '@/stores/bookmarks.store'
+import { useBookmarkCollapseStore } from '@/stores/bookmarkCollapse.store'
 import { formatRelativeTime } from '@/shared/utils/time'
 import type { Bookmark } from '@/stores/bookmarks.store'
+
+vi.mock('@/shared/services/storage.service', () => ({
+  storageService: {
+    setItem: vi.fn().mockResolvedValue(undefined),
+    getItem: vi.fn().mockResolvedValue(null),
+  },
+}))
 
 vi.mock('@/shared/hooks/useCatalogIndex', () => ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -44,8 +52,14 @@ function renderPage() {
   )
 }
 
+/** Seed the collapse store so a group renders expanded (its item list is visible). */
+function expandGroups(...bookIds: string[]) {
+  useBookmarkCollapseStore.setState({ expandedBookIds: bookIds })
+}
+
 beforeEach(() => {
   useBookmarksStore.setState({ bookmarks: [] })
+  useBookmarkCollapseStore.setState({ expandedBookIds: [] })
 })
 
 describe('BookmarksPage', () => {
@@ -108,6 +122,7 @@ describe('BookmarksPage', () => {
 
   it('BookmarkCard link navigates to correct URL', () => {
     useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
 
     const group = screen.getByTestId('bookmark-group')
@@ -134,6 +149,7 @@ describe('BookmarksPage', () => {
       total: 100,
     }
     useBookmarksStore.setState({ bookmarks: [manualBookmark, autoBookmark] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
 
     const group = screen.getByTestId('bookmark-group')
@@ -161,6 +177,7 @@ describe('BookmarksPage', () => {
       total: 100,
     }
     useBookmarksStore.setState({ bookmarks: [autoBookmark, manualBookmark] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
 
     const group = screen.getByTestId('bookmark-group')
@@ -179,6 +196,7 @@ describe('BookmarksPage', () => {
       type: 'manual',
     }
     useBookmarksStore.setState({ bookmarks: [manualBookmark] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
 
     // delete button exists in the card
@@ -187,6 +205,7 @@ describe('BookmarksPage', () => {
 
   it('auto bookmark card has a bookmark-delete-btn (swipe to delete allowed)', () => {
     useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
 
     expect(screen.getByTestId('bookmark-delete-btn')).toBeInTheDocument()
@@ -265,11 +284,107 @@ describe('BookmarksPage — search', () => {
 
   it('bookmark list uses divide-y not space-y-3', () => {
     useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    expandGroups('kinh-phap-hoa')
     renderPage()
     const group = screen.getByTestId('bookmark-group')
     const ul = within(group).getByRole('list')
     expect(ul).toHaveClass('divide-y')
     expect(ul).not.toHaveClass('space-y-3')
+  })
+})
+
+describe('BookmarksPage — collapse', () => {
+  it('groups render collapsed by default (item list absent)', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    const group = screen.getByTestId('bookmark-group')
+    expect(within(group).queryByRole('list')).not.toBeInTheDocument()
+    expect(within(group).queryByTestId('bookmark-card')).not.toBeInTheDocument()
+    expect(within(group).getByTestId('bookmark-group-toggle')).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('collapsed group shows a count badge and a last-read summary line', () => {
+    const withChapter: Bookmark = { ...bookmark1, type: 'auto', chapterTitle: 'Phẩm Phương Tiện' }
+    const extra: Bookmark = {
+      ...bookmark1,
+      cfi: 'epubcfi(/6/8!/4/2/1:0)',
+      type: 'manual',
+      timestamp: 500000,
+    }
+    useBookmarksStore.setState({ bookmarks: [withChapter, extra] })
+    renderPage()
+    const group = screen.getByTestId('bookmark-group')
+    expect(within(group).getByTestId('bookmark-group-count')).toHaveTextContent('2')
+    // headerBookmark is the newest (withChapter); one other bookmark remains.
+    expect(within(group).getByTestId('bookmark-group-summary')).toHaveTextContent(
+      'Đang đọc: Phẩm Phương Tiện · 1 dấu khác',
+    )
+  })
+
+  it('single-bookmark group omits the "N dấu khác" suffix', () => {
+    const only: Bookmark = { ...bookmark1, chapterTitle: 'Phẩm Tựa' }
+    useBookmarksStore.setState({ bookmarks: [only] })
+    renderPage()
+    const summary = screen.getByTestId('bookmark-group-summary')
+    expect(summary).toHaveTextContent('Đang đọc: Phẩm Tựa')
+    expect(summary).not.toHaveTextContent('dấu khác')
+  })
+
+  it('clicking the chevron expands the group and flips aria-expanded', async () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    const toggle = screen.getByTestId('bookmark-group-toggle')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+
+    await userEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const group = screen.getByTestId('bookmark-group')
+    expect(within(group).getByTestId('bookmark-card')).toBeInTheDocument()
+    // Summary line is hidden once expanded.
+    expect(within(group).queryByTestId('bookmark-group-summary')).not.toBeInTheDocument()
+  })
+
+  it('a group seeded as expanded renders its items on the first render (no flash)', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    expandGroups('kinh-phap-hoa')
+    renderPage()
+    // Synchronous assertion — no await/findBy — to catch a flash of the collapsed state.
+    const group = screen.getByTestId('bookmark-group')
+    expect(within(group).getByRole('list')).toBeInTheDocument()
+    expect(within(group).getByTestId('bookmark-group-toggle')).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('search force-expands a matching collapsed group and shows a matches/total badge', async () => {
+    const matching: Bookmark = { ...bookmark1, type: 'manual', chapterTitle: 'Phẩm Tựa' }
+    const other: Bookmark = {
+      ...bookmark1,
+      cfi: 'epubcfi(/6/8!/4/2/1:0)',
+      type: 'manual',
+      timestamp: 500000,
+      chapterTitle: 'Phẩm Khác',
+    }
+    useBookmarksStore.setState({ bookmarks: [matching, other] })
+    renderPage()
+    // 'Tựa' matches one chapter title, not the book title → 1 of 2 items.
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'Tựa')
+    const group = screen.getByTestId('bookmark-group')
+    expect(within(group).getByTestId('bookmark-group-toggle')).toHaveAttribute('aria-expanded', 'true')
+    expect(within(group).getByTestId('bookmark-group-count')).toHaveTextContent('1/2')
+    expect(within(group).getAllByTestId('bookmark-card')).toHaveLength(1)
+  })
+
+  it('the toggle is inert (disabled) while a search is active so state is not silently persisted', async () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    await userEvent.type(screen.getByTestId('bookmark-search-input'), 'Pháp')
+    expect(screen.getByTestId('bookmark-group-toggle')).toBeDisabled()
+  })
+
+  it('collapsed toggle does not dangle aria-controls (panel is unmounted)', () => {
+    useBookmarksStore.setState({ bookmarks: [bookmark1] })
+    renderPage()
+    expect(screen.getByTestId('bookmark-group-toggle')).not.toHaveAttribute('aria-controls')
   })
 })
 
