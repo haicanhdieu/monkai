@@ -257,6 +257,10 @@ test.describe('Bookmark navigation round-trip', () => {
     await routeBookData(page)
     await page.waitForTimeout(1500)
 
+    // Groups are collapsed by default — expand so the bookmark cards render.
+    await page.getByTestId('bookmark-group-toggle').first().click()
+    await expect(page.getByTestId('bookmark-card').first()).toBeVisible({ timeout: 5000 })
+
     // Click the MANUAL bookmark card via element.click() to avoid swipe-handler interference
     // element.click() dispatches a trusted click without pointer events (didSwipeRef stays false)
     const cardLinkHref = await page.evaluate(() => {
@@ -428,6 +432,10 @@ test.describe('Bookmark navigation round-trip', () => {
     await page.goto('/bookmarks')
     await routeBookData(page)
     await page.waitForTimeout(1500) // allow hydration + catalog load
+
+    // Groups are collapsed by default — expand so the bookmark cards render.
+    await page.getByTestId('bookmark-group-toggle').first().click()
+    await expect(page.getByTestId('bookmark-card').first()).toBeVisible({ timeout: 5000 })
 
     // Verify bookmark card shows our target page
     const allCards = await page.getByTestId('bookmark-card').all()
